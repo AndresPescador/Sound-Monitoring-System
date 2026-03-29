@@ -1,0 +1,4 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "python-envs.defaultEnvManager": "ms-python.python:system"
+}
