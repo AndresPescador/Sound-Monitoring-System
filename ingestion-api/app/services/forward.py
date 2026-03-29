@@ -15,30 +15,21 @@ class ProcessingBackendError(Exception):
 async def forward_measurement(
     station_code: str,
     payload: MeasurementPayload,
-) -> dict:
+) -> int:
     """
-    Reenvía las métricas acústicas validadas al Noise Processing Backend
-    a través del Load Balancer.
-
-    Adjunta el station_code (obtenido del Auth Service) al payload para
-    que el Processing Backend pueda identificar la estación sin necesidad
-    de re-validar el token.
-
-    Args:
-        station_code: Identificador de la estación validado por el Auth Service.
-        payload:      Métricas acústicas validadas por Pydantic.
+    Reenvía las métricas acústicas validadas al Noise Processing Backend.
 
     Returns:
-        Respuesta JSON del Processing Backend.
+        int: Código HTTP devuelto por el Processing Backend (200 o 201).
+             200 = duplicado ignorado, 201 = insertado correctamente.
 
     Raises:
         ProcessingBackendError: Si el backend no está disponible o devuelve error.
     """
     url = settings.processing_backend_url
 
-    # Construir el cuerpo de la petición incluyendo el station_code
-    body = payload.model_dump(mode="json")
-    body["station_code"] = station_code
+    body = payload.model_dump(mode="json", by_alias=True)
+    body["stationCode"] = station_code
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -48,9 +39,10 @@ async def forward_measurement(
             logger.info(
                 f"Métricas enviadas al Processing Backend — "
                 f"estación: {station_code}, "
-                f"recorded_at: {payload.timestamp.isoformat()}"
+                f"recorded_at: {payload.timestamp.isoformat()}, "
+                f"resultado: {'duplicado' if response.status_code == 200 else 'insertado'}"
             )
-            return response.json()
+            return response.status_code
 
         logger.error(
             f"Processing Backend respondió con error: "
@@ -67,3 +59,4 @@ async def forward_measurement(
     except httpx.TimeoutException as e:
         logger.error(f"Timeout al contactar Processing Backend en {url}: {e}")
         raise ProcessingBackendError("Processing Backend no respondió a tiempo.")
+    
