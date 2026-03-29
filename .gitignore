@@ -1,0 +1,4 @@
+auth-service/.env
+ingestion-api/.env
+noise-processing-backend/.env
+docker/.env

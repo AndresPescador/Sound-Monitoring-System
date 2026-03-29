@@ -1,0 +1,17 @@
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\config\SecurityConfig.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\controller\MeasurementController.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\dto\MeasurementRequest.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\dto\RegisterStationRequest.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\dto\RegisterStationResponse.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\entity\AcousticMeasurement.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\entity\HourlyAggregation.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\entity\Station.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\exception\GlobalExceptionHandler.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\exception\StationAlreadyExistsException.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\exception\StationNotFoundException.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\NoiseProcessingApplication.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\repository\AcousticMeasurementRepository.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\repository\HourlyAggregationRepository.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\repository\StationRepository.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\service\AggregationService.java
+C:\Users\Andres Pescador\Documents\Multimedia Interactiva\Sistema Monitoreo De Sonido\Desarrollo\noise-processing-backend\src\main\java\com\monitoreo\processing\service\MeasurementService.java

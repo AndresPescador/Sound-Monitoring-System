@@ -1,0 +1,119 @@
+services:
+
+  # ════════════════════════════════════════════════════════════════
+  # BASES DE DATOS
+  # ════════════════════════════════════════════════════════════════
+
+  postgres-noise:
+    image: postgres:16-alpine
+    container_name: postgres-noise
+    environment:
+      POSTGRES_DB:       ${POSTGRES_NOISE_DB}
+      POSTGRES_USER:     ${POSTGRES_NOISE_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_NOISE_PASSWORD}
+    volumes:
+      - postgres_noise_data:/var/lib/postgresql/data
+      # El schema se aplica automáticamente en el primer arranque
+      - ../schema_noise_analytics.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "${POSTGRES_NOISE_EXTERNAL_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_NOISE_USER} -d ${POSTGRES_NOISE_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: postgres-auth
+    environment:
+      POSTGRES_DB:       ${POSTGRES_AUTH_DB}
+      POSTGRES_USER:     ${POSTGRES_AUTH_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_AUTH_PASSWORD}
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+      - ../schema_station_registry.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "${POSTGRES_AUTH_EXTERNAL_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUTH_USER} -d ${POSTGRES_AUTH_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ════════════════════════════════════════════════════════════════
+  # BACKENDS
+  # ════════════════════════════════════════════════════════════════
+
+  auth-service:
+    build:
+      context: ../auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      DB_URL:                jdbc:postgresql://postgres-auth:5432/${POSTGRES_AUTH_DB}
+      DB_USERNAME:           ${POSTGRES_AUTH_USER}
+      DB_PASSWORD:           ${POSTGRES_AUTH_PASSWORD}
+      JWT_SECRET:            ${JWT_SECRET}
+      JWT_EXPIRATION_DAYS:   ${JWT_EXPIRATION_DAYS}
+      ADMIN_API_KEY:         ${ADMIN_API_KEY}
+      PORT:                  8081
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    restart: unless-stopped
+
+  noise-processing:
+    build:
+      context: ../noise-processing-backend
+      dockerfile: Dockerfile
+    container_name: noise-processing
+    environment:
+      DB_URL:       jdbc:postgresql://postgres-noise:5432/${POSTGRES_NOISE_DB}
+      DB_USERNAME:  ${POSTGRES_NOISE_USER}
+      DB_PASSWORD:  ${POSTGRES_NOISE_PASSWORD}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      PORT:         8082
+    depends_on:
+      postgres-noise:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ingestion-api:
+    build:
+      context: ../ingestion-api
+      dockerfile: Dockerfile
+    container_name: ingestion-api
+    environment:
+      LOAD_BALANCER_URL:          http://nginx:80
+      AUTH_SERVICE_PATH:          /auth/validate
+      PROCESSING_BACKEND_PATH:    /processing/measurements
+      PORT:                       8000
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  # ════════════════════════════════════════════════════════════════
+  # LOAD BALANCER
+  # ════════════════════════════════════════════════════════════════
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "${NGINX_PORT}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - noise-processing
+    restart: unless-stopped
+
+# ════════════════════════════════════════════════════════════════
+# VOLÚMENES (persisten datos entre reinicios)
+# ════════════════════════════════════════════════════════════════
+volumes:
+  postgres_noise_data:
+  postgres_auth_data:

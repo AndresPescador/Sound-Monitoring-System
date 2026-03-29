@@ -1,0 +1,386 @@
+{
+  "info": {
+    "name": "Monitoreo Acústico Binaural",
+    "description": "Colección de pruebas para el Sistema de Monitoreo Acústico Binaural — Bogotá D.C.\n\nFlujo de prueba:\n1. Registrar estación en Auth Service\n2. Registrar estación en Noise Processing\n3. Obtener token JWT\n4. Enviar métricas (simula la Raspberry Pi)\n5. Verificar duplicado\n6. Health checks",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost",
+      "description": "URL base del sistema (Nginx). Cambiar puerto si NGINX_PORT != 80, ej: http://localhost:8080"
+    },
+    {
+      "key": "admin_api_key",
+      "value": "mi_clave_admin_para_pruebas",
+      "description": "Valor de ADMIN_API_KEY en tu .env"
+    },
+    {
+      "key": "station_code",
+      "value": "ST-TEST-01",
+      "description": "Código de la estación de prueba"
+    },
+    {
+      "key": "secret",
+      "value": "",
+      "description": "Se llena automáticamente al ejecutar 'Registrar estación — Auth Service'"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "description": "Se llena automáticamente al ejecutar 'Obtener token JWT'"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Nginx health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "description": "Verifica que Nginx está corriendo."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Nginx OK', () => pm.response.to.have.status(200));",
+                "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Auth Service health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/auth/health",
+            "description": "Verifica que el Auth Service está corriendo."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Auth Service OK', () => pm.response.to.have.status(200));",
+                "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Noise Processing health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/processing/health",
+            "description": "Verifica que el Noise Processing Backend está corriendo."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Noise Processing OK', () => pm.response.to.have.status(200));",
+                "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Ingestion API health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/ingest/health",
+            "description": "Verifica que la Ingestion API está corriendo."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Ingestion API OK', () => pm.response.to.have.status(200));",
+                "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Flujo completo",
+      "item": [
+        {
+          "name": "1. Registrar estación — Auth Service",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/admin/auth/stations",
+            "header": [
+              { "key": "X-Admin-Key", "value": "{{admin_api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"name\": \"Estación de prueba\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\"\n}"
+            },
+            "description": "Registra la estación en station_registry.\nGuarda el secret automáticamente en la variable {{secret}}.\n\nESTE SECRET SOLO SE MUESTRA UNA VEZ — guardarlo bien."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Estación creada (201)', () => pm.response.to.have.status(201));",
+                "",
+                "if (pm.response.code === 201) {",
+                "    const json = pm.response.json();",
+                "    pm.collectionVariables.set('secret', json.secret);",
+                "    console.log('Secret guardado:', json.secret);",
+                "    pm.test('Secret recibido', () => pm.expect(json.secret).to.be.a('string').and.not.empty);",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "2. Registrar estación — Noise Processing",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/admin/processing/stations",
+            "header": [
+              { "key": "X-Admin-Key", "value": "{{admin_api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"name\": \"Estación de prueba\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
+            },
+            "description": "Registra la estación en noise_analytics.\nDebe ejecutarse DESPUÉS del paso 1."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Estación creada (201)', () => pm.response.to.have.status(201));",
+                "if (pm.response.code === 201) {",
+                "    const json = pm.response.json();",
+                "    pm.test('station_code correcto', () => pm.expect(json.stationCode).to.eql(pm.collectionVariables.get('station_code')));",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "3. Obtener token JWT",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/token",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"secret\": \"{{secret}}\"\n}"
+            },
+            "description": "La estación solicita su JWT presentando station_code + secret.\nEl token se guarda automáticamente en {{token}}."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Token emitido (200)', () => pm.response.to.have.status(200));",
+                "",
+                "if (pm.response.code === 200) {",
+                "    const json = pm.response.json();",
+                "    pm.collectionVariables.set('token', json.token);",
+                "    console.log('Token guardado:', json.token.substring(0, 30) + '...');",
+                "    pm.test('Token recibido', () => pm.expect(json.token).to.be.a('string').and.not.empty);",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "4. Enviar métricas (simula Raspberry Pi)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ingest/ingest",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T16:36:00+00:00\",\n  \"filename\": \"Rec 2025-06-16 16h36m00s 1.wav\",\n  \"duration\": 120.0,\n  \"sampleRate\": 48000,\n  \"isStereo\": true,\n  \"dbfsLevel\": -18.42,\n  \"rmsEnergy\": 0.1198,\n  \"leqDbfs\": -21.07,\n  \"chLeftDbfs\": -18.91,\n  \"chRightDbfs\": -19.34,\n  \"chLeftRms\": 0.1134,\n  \"chRightRms\": 0.1079,\n  \"ildDb\": 0.43,\n  \"interauralCorrelation\": 0.8712,\n  \"dominantFrequency\": 125.0,\n  \"spectralCentroid\": 1842.5,\n  \"spectralRolloff\": 4210.3,\n  \"zeroCrossingRate\": 0.0421\n}"
+            },
+            "description": "Simula el envío de métricas desde una estación Raspberry Pi.\nUsa el token guardado en el paso 3.\nEspera HTTP 201 con result: inserted."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Métricas insertadas (201)', () => pm.response.to.have.status(201));",
+                "if (pm.response.code === 201) {",
+                "    const json = pm.response.json();",
+                "    pm.test('Resultado inserted', () => pm.expect(json.result).to.eql('inserted'));",
+                "    pm.test('station_code correcto', () => pm.expect(json.station_code).to.eql(pm.collectionVariables.get('station_code')));",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "5. Reenviar mismas métricas (prueba de duplicado)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ingest/ingest",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T16:36:00+00:00\",\n  \"filename\": \"Rec 2025-06-16 16h36m00s 1.wav\",\n  \"duration\": 120.0,\n  \"sampleRate\": 48000,\n  \"isStereo\": true,\n  \"dbfsLevel\": -18.42,\n  \"rmsEnergy\": 0.1198,\n  \"leqDbfs\": -21.07,\n  \"chLeftDbfs\": -18.91,\n  \"chRightDbfs\": -19.34,\n  \"chLeftRms\": 0.1134,\n  \"chRightRms\": 0.1079,\n  \"ildDb\": 0.43,\n  \"interauralCorrelation\": 0.8712,\n  \"dominantFrequency\": 125.0,\n  \"spectralCentroid\": 1842.5,\n  \"spectralRolloff\": 4210.3,\n  \"zeroCrossingRate\": 0.0421\n}"
+            },
+            "description": "Envía exactamente las mismas métricas del paso 4.\nDebe devolver HTTP 200 con result: duplicate (no 201 ni error)."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Duplicado ignorado (200)', () => pm.response.to.have.status(200));",
+                "if (pm.response.code === 200) {",
+                "    const json = pm.response.json();",
+                "    pm.test('Resultado duplicate', () => pm.expect(json.result).to.eql('duplicate'));",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "6. Enviar segundo fragmento (misma hora)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ingest/ingest",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T16:38:00+00:00\",\n  \"filename\": \"Rec 2025-06-16 16h38m00s 1.wav\",\n  \"duration\": 120.0,\n  \"sampleRate\": 48000,\n  \"isStereo\": true,\n  \"dbfsLevel\": -22.10,\n  \"rmsEnergy\": 0.0784,\n  \"leqDbfs\": -24.30,\n  \"chLeftDbfs\": -22.50,\n  \"chRightDbfs\": -21.80,\n  \"chLeftRms\": 0.0750,\n  \"chRightRms\": 0.0812,\n  \"ildDb\": -0.70,\n  \"interauralCorrelation\": 0.9100,\n  \"dominantFrequency\": 250.0,\n  \"spectralCentroid\": 2100.0,\n  \"spectralRolloff\": 4800.0,\n  \"zeroCrossingRate\": 0.0380\n}"
+            },
+            "description": "Envía un segundo fragmento de la misma hora (16:38).\nEspera HTTP 201. Después de esto la agregación horaria\nde las 16:00 debería tener measurement_count = 2."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Segundo fragmento insertado (201)', () => pm.response.to.have.status(201));",
+                "if (pm.response.code === 201) {",
+                "    pm.test('Resultado inserted', () => pm.expect(pm.response.json().result).to.eql('inserted'));",
+                "}"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Pruebas de error",
+      "item": [
+        {
+          "name": "Token inválido",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ingest/ingest",
+            "header": [
+              { "key": "Authorization", "value": "Bearer token_completamente_falso" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T17:00:00+00:00\",\n  \"duration\": 120.0,\n  \"sampleRate\": 48000,\n  \"isStereo\": true,\n  \"dbfsLevel\": -18.0,\n  \"rmsEnergy\": 0.1,\n  \"leqDbfs\": -20.0,\n  \"chLeftDbfs\": -18.0,\n  \"chRightDbfs\": -19.0,\n  \"chLeftRms\": 0.1,\n  \"chRightRms\": 0.09,\n  \"ildDb\": 0.5,\n  \"interauralCorrelation\": 0.85,\n  \"dominantFrequency\": 100.0,\n  \"spectralCentroid\": 1800.0,\n  \"spectralRolloff\": 4000.0,\n  \"zeroCrossingRate\": 0.04\n}"
+            },
+            "description": "Envía un token completamente falso. Debe devolver HTTP 401."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Token inválido rechazado (401)', () => pm.response.to.have.status(401));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Sin token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ingest/ingest",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T17:00:00+00:00\",\n  \"duration\": 120.0,\n  \"sampleRate\": 48000,\n  \"isStereo\": true,\n  \"dbfsLevel\": -18.0,\n  \"rmsEnergy\": 0.1,\n  \"leqDbfs\": -20.0,\n  \"chLeftDbfs\": -18.0,\n  \"chRightDbfs\": -19.0,\n  \"chLeftRms\": 0.1,\n  \"chRightRms\": 0.09,\n  \"ildDb\": 0.5,\n  \"interauralCorrelation\": 0.85,\n  \"dominantFrequency\": 100.0,\n  \"spectralCentroid\": 1800.0,\n  \"spectralRolloff\": 4000.0,\n  \"zeroCrossingRate\": 0.04\n}"
+            },
+            "description": "Envía una petición sin header Authorization. Debe devolver HTTP 403."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Sin token rechazado (403)', () => pm.response.to.have.status(403));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Payload inválido (campo faltante)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/ingest/ingest",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T17:00:00+00:00\"\n}"
+            },
+            "description": "Envía un JSON incompleto (faltan la mayoría de los campos).\nDebe devolver HTTP 422 (Unprocessable Entity) con detalle de los campos faltantes."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Payload inválido rechazado (422)', () => pm.response.to.have.status(422));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Admin sin X-Admin-Key",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/admin/auth/stations",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stationCode\": \"ST-FAKE-99\",\n  \"name\": \"Intento sin clave\",\n  \"locality\": \"Test\"\n}"
+            },
+            "description": "Intenta registrar una estación sin el header X-Admin-Key.\nDebe devolver HTTP 403."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Admin sin clave rechazado (403)', () => pm.response.to.have.status(403));"
+              ]
+            }
+          }]
+        }
+      ]
+    }
+  ]
+}
