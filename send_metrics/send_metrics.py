@@ -121,7 +121,7 @@ def get_token() -> str:
 
 
 # =============================================================================
-# GESTIÓN DE INDEX.JSON (lectura + escritura atómica)
+# GESTIÓN DE INDEX.JSON (lectura + escritura)
 # =============================================================================
 
 def read_index() -> list[str]:
@@ -237,7 +237,7 @@ def send_file(filename: str, token: str) -> bool:
 
         if response.status_code in (200, 201):
             result = "duplicado ignorado" if response.status_code == 200 else "insertado"
-            logger.info(f"✓ Enviado ({result}): {filename}")
+            logger.info(f" Enviado ({result}): {filename}")
 
             # Eliminar archivo local
             try:
@@ -256,14 +256,14 @@ def send_file(filename: str, token: str) -> bool:
                 TOKEN_FILE.unlink()
             return False
 
-        logger.error(f"✗ Error HTTP {response.status_code} al enviar {filename}: {response.text}")
+        logger.error(f" Error HTTP {response.status_code} al enviar {filename}: {response.text}")
         return False
 
     except httpx.ConnectError:
-        logger.error(f"✗ No se pudo conectar al servidor al enviar {filename}.")
+        logger.error(f" No se pudo conectar al servidor al enviar {filename}.")
         return False
     except httpx.TimeoutException:
-        logger.error(f"✗ Timeout al enviar {filename}.")
+        logger.error(f" Timeout al enviar {filename}.")
         return False
 
 
