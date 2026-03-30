@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-register_station.py — Registra una nueva estación en ambos backends.
+register_station.py — Registra una nueva estación en el sistema.
 
 Realiza las dos llamadas necesarias en orden:
   1. POST /admin/auth/stations    → Auth Service (genera el secret)
@@ -20,7 +20,7 @@ import httpx
 # =============================================================================
 
 SERVER_URL    = "http://192.168.1.100"   # IP del PC servidor
-ADMIN_API_KEY = "mi_clave_admin_aqui"   # Valor de ADMIN_API_KEY en el .env del servidor
+ADMIN_API_KEY = "mi_clave_admin_aqui"   # Valor de ADMIN_API_KEY del servidor
 
 # Datos de la nueva estación
 STATION = {
@@ -72,7 +72,7 @@ def step1_register_auth() -> str:
     print(f"  ✓ Estación registrada en Auth Service.")
     print(f"  station_code : {data['stationCode']}")
     print(f"  secret       : {secret}")
-    print(f"\n  ⚠️  GUARDA ESTE SECRET — no se puede recuperar después.\n")
+    print(f"\n GUARDA ESTE SECRET — no se puede recuperar después.\n")
     return secret
 
 
@@ -105,7 +105,7 @@ def step2_register_processing():
         sys.exit(1)
 
     data = response.json()
-    print(f"  ✓ Estación registrada en Noise Processing Backend.")
+    print(f"  Estación registrada en Noise Processing Backend.")
     print(f"  id           : {data['id']}")
     print(f"  station_code : {data['stationCode']}")
 
