@@ -95,6 +95,19 @@ services:
       - nginx
     restart: unless-stopped
 
+  dashboard-api:
+    build:
+      context: ../dashboard-api
+      dockerfile: Dockerfile
+    container_name: dashboard-api
+    environment:
+      DB_URL: postgresql+asyncpg://${POSTGRES_NOISE_USER}:${POSTGRES_NOISE_PASSWORD}@postgres-noise:5432/${POSTGRES_NOISE_DB}
+      PORT:   8083
+    depends_on:
+      postgres-noise:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ════════════════════════════════════════════════════════════════
   # LOAD BALANCER
   # ════════════════════════════════════════════════════════════════
@@ -109,6 +122,7 @@ services:
     depends_on:
       - auth-service
       - noise-processing
+      - dashboard-api
     restart: unless-stopped
 
 # ════════════════════════════════════════════════════════════════
