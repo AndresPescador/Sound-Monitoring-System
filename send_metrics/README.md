@@ -34,7 +34,7 @@ Corre en la Raspberry Pi en paralelo con `process_audio.py`.
 # En la misma carpeta del script
 python3 -m venv venv
 source venv/bin/activate          # Linux / Raspberry Pi
-# venv\Scripts\activate.bat       # Windows
+# .\venv\Scripts\activate       # Windows
 
 pip install -r requirements.txt
 ```
