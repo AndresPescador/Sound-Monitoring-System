@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 
 const links = [
   { to: '/',        label: 'Panel principal' },
@@ -11,14 +11,14 @@ export default function Navbar() {
     <header className="bg-bg border-b border-border sticky top-0 z-50">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
 
-        {/* Logo / nombre */}
-        <div className="flex items-center gap-3">
+        {/* Logo / nombre - Clickeable */}
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <span className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-white text-xs font-display font-bold">M</span>
           <span className="font-display font-semibold text-text text-sm leading-tight hidden sm:block">
             Monitoreo Acústico<br />
             <span className="text-text-muted font-normal text-xs">Bogotá D.C.</span>
           </span>
-        </div>
+        </Link>
 
         {/* Navegación */}
         <nav className="flex items-center gap-1">
