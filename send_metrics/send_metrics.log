@@ -1,0 +1,117 @@
+2026-03-31 22:54:56,238 — INFO — Iniciando — estación: ST-CHAPINERO-01, servidor: http://localhost
+2026-03-31 22:54:56,239 — INFO — Solicitando token JWT para estación: ST-CHAPINERO-01
+2026-03-31 22:54:56,711 — INFO — HTTP Request: POST http://localhost/auth/token "HTTP/1.1 200 "
+2026-03-31 22:54:56,713 — INFO — Token JWT obtenido y guardado.
+2026-03-31 22:54:56,714 — INFO — Archivos pendientes: 27
+2026-03-31 22:54:57,149 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:57,150 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 10h59m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:57,432 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:57,432 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h03m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:57,728 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:57,728 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h05m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:58,026 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:58,026 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h07m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:58,300 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:58,301 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h09m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:58,598 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:58,599 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h11m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:58,905 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:58,905 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h13m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:59,182 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:59,183 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h15m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:59,456 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:59,456 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h17m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:54:59,748 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:54:59,748 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h19m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:00,033 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:00,118 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h21m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:00,393 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:00,394 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h23m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:00,677 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:00,678 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h25m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:00,985 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:00,986 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h27m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:01,258 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:01,258 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h29m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:01,563 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:01,611 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h31m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:01,949 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:01,949 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h33m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:02,220 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:02,220 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h35m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:02,518 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:02,518 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h37m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:02,806 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:02,807 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h39m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:03,088 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:03,089 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h41m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:03,371 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:03,372 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h43m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:03,659 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:03,660 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h45m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:03,988 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:03,989 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h47m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:04,409 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:04,410 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h49m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:04,805 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:04,806 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h51m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:05,117 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 503 Service Unavailable"
+2026-03-31 22:55:05,117 — ERROR —  Error HTTP 503 al enviar Rec 2026-03-19 11h53m41s 1.txt: {"detail":"Error al procesar los datos. Intente más tarde."}
+2026-03-31 22:55:05,118 — INFO — Modo --once completado.
+2026-03-31 23:06:04,536 — INFO — Iniciando — estación: ST-CHAPINERO-01, servidor: http://localhost
+2026-03-31 23:06:04,543 — INFO — Archivos pendientes: 27
+2026-03-31 23:06:04,996 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:04,996 — INFO —  Enviado (insertado): Rec 2026-03-19 10h59m41s 1.txt
+2026-03-31 23:06:05,327 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:05,327 — INFO —  Enviado (insertado): Rec 2026-03-19 11h03m41s 1.txt
+2026-03-31 23:06:05,636 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:05,637 — INFO —  Enviado (insertado): Rec 2026-03-19 11h05m41s 1.txt
+2026-03-31 23:06:05,941 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:05,942 — INFO —  Enviado (insertado): Rec 2026-03-19 11h07m41s 1.txt
+2026-03-31 23:06:06,249 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:06,250 — INFO —  Enviado (insertado): Rec 2026-03-19 11h09m41s 1.txt
+2026-03-31 23:06:06,544 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:06,545 — INFO —  Enviado (insertado): Rec 2026-03-19 11h11m41s 1.txt
+2026-03-31 23:06:06,851 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:06,851 — INFO —  Enviado (insertado): Rec 2026-03-19 11h13m41s 1.txt
+2026-03-31 23:06:07,141 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:07,141 — INFO —  Enviado (insertado): Rec 2026-03-19 11h15m41s 1.txt
+2026-03-31 23:06:07,471 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:07,472 — INFO —  Enviado (insertado): Rec 2026-03-19 11h17m41s 1.txt
+2026-03-31 23:06:07,757 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:07,758 — INFO —  Enviado (insertado): Rec 2026-03-19 11h19m41s 1.txt
+2026-03-31 23:06:08,061 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:08,062 — INFO —  Enviado (insertado): Rec 2026-03-19 11h21m41s 1.txt
+2026-03-31 23:06:08,360 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:08,360 — INFO —  Enviado (insertado): Rec 2026-03-19 11h23m41s 1.txt
+2026-03-31 23:06:08,668 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:08,669 — INFO —  Enviado (insertado): Rec 2026-03-19 11h25m41s 1.txt
+2026-03-31 23:06:08,976 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:08,976 — INFO —  Enviado (insertado): Rec 2026-03-19 11h27m41s 1.txt
+2026-03-31 23:06:09,280 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:09,281 — INFO —  Enviado (insertado): Rec 2026-03-19 11h29m41s 1.txt
+2026-03-31 23:06:09,565 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:09,566 — INFO —  Enviado (insertado): Rec 2026-03-19 11h31m41s 1.txt
+2026-03-31 23:06:09,850 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:09,850 — INFO —  Enviado (insertado): Rec 2026-03-19 11h33m41s 1.txt
+2026-03-31 23:06:10,129 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:10,130 — INFO —  Enviado (insertado): Rec 2026-03-19 11h35m41s 1.txt
+2026-03-31 23:06:10,428 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:10,428 — INFO —  Enviado (insertado): Rec 2026-03-19 11h37m41s 1.txt
+2026-03-31 23:06:10,717 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:10,718 — INFO —  Enviado (insertado): Rec 2026-03-19 11h39m41s 1.txt
+2026-03-31 23:06:11,002 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:11,003 — INFO —  Enviado (insertado): Rec 2026-03-19 11h41m41s 1.txt
+2026-03-31 23:06:11,293 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:11,294 — INFO —  Enviado (insertado): Rec 2026-03-19 11h43m41s 1.txt
+2026-03-31 23:06:11,581 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:11,581 — INFO —  Enviado (insertado): Rec 2026-03-19 11h45m41s 1.txt
+2026-03-31 23:06:11,889 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:11,889 — INFO —  Enviado (insertado): Rec 2026-03-19 11h47m41s 1.txt
+2026-03-31 23:06:12,188 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:12,188 — INFO —  Enviado (insertado): Rec 2026-03-19 11h49m41s 1.txt
+2026-03-31 23:06:12,493 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:12,494 — INFO —  Enviado (insertado): Rec 2026-03-19 11h51m41s 1.txt
+2026-03-31 23:06:12,809 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
+2026-03-31 23:06:12,809 — INFO —  Enviado (insertado): Rec 2026-03-19 11h53m41s 1.txt
+2026-03-31 23:06:12,817 — INFO — Modo --once completado.

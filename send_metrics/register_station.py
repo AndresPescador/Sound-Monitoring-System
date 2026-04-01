@@ -19,8 +19,8 @@ import httpx
 # CONFIGURACIÓN — Editar antes de ejecutar
 # =============================================================================
 
-SERVER_URL    = "http://192.168.1.100"   # IP del PC servidor
-ADMIN_API_KEY = "mi_clave_admin_aqui"   # Valor de ADMIN_API_KEY del servidor
+SERVER_URL    = "http://localhost"   # IP del PC servidor
+ADMIN_API_KEY = "IM4lNE1lCiRswtvOyKHZ5cqQukAM403Y5IqJk4FDuX0="   # Valor de ADMIN_API_KEY del servidor
 
 # Datos de la nueva estación
 STATION = {
@@ -69,7 +69,7 @@ def step1_register_auth() -> str:
 
     data   = response.json()
     secret = data["secret"]
-    print(f"  ✓ Estación registrada en Auth Service.")
+    print(f"  Estación registrada en Auth Service.")
     print(f"  station_code : {data['stationCode']}")
     print(f"  secret       : {secret}")
     print(f"\n GUARDA ESTE SECRET — no se puede recuperar después.\n")

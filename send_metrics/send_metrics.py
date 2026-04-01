@@ -226,6 +226,17 @@ def send_file(filename: str, token: str) -> bool:
         return False
 
     metrics["stationCode"] = STATION_CODE
+    
+    # Convertir timestamp a formato ISO 8601 con zona horaria (UTC)
+    if "timestamp" in metrics:
+        try:
+            dt = datetime.fromisoformat(metrics["timestamp"])
+            # Si no tiene zona horaria, asumir UTC
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            metrics["timestamp"] = dt.isoformat()
+        except Exception as e:
+            logger.warning(f"No se pudo convertir timestamp en {filename}: {e}")
 
     try:
         response = httpx.post(

@@ -1,0 +1,476 @@
+{
+  "info": {
+    "name": "Dashboard Backend API",
+    "description": "Colección de pruebas para el Dashboard Backend API del Sistema de Monitoreo Acústico Binaural.\n\nTodos los endpoints que reciben rango de fechas usan por defecto las últimas 24 horas si no se especifica 'from' y 'to'.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost/dashboard",
+      "description": "URL base del Dashboard API a través de Nginx. Cambiar si usas otro puerto."
+    },
+    {
+      "key": "station_code",
+      "value": "ST-TEST-01",
+      "description": "Código de la estación de prueba registrada previamente."
+    },
+    {
+      "key": "date_today",
+      "value": "2025-06-16",
+      "description": "Fecha de las mediciones de prueba insertadas (formato YYYY-MM-DD)."
+    },
+    {
+      "key": "from_test",
+      "value": "2025-06-16T00:00:00Z",
+      "description": "Inicio del rango para pruebas con datos históricos."
+    },
+    {
+      "key": "to_test",
+      "value": "2025-06-16T23:59:59Z",
+      "description": "Fin del rango para pruebas con datos históricos."
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health",
+        "description": "Verifica que el Dashboard API está corriendo."
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "exec": [
+            "pm.test('Dashboard API OK (200)', () => pm.response.to.have.status(200));",
+            "pm.test('Status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "Estaciones",
+      "item": [
+        {
+          "name": "GET /stations — Lista para el mapa",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/stations",
+            "description": "Lista todas las estaciones con coordenadas y nivel de ruido actual.\nAlimenta el mapa interactivo de Bogotá.\n\nCada estación incluye 'noise_level': 'low' | 'moderate' | 'high'\npara el color del marcador en el mapa Leaflet."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Lista de estaciones OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Es un array', () => pm.expect(body).to.be.an('array'));",
+                "if (body.length > 0) {",
+                "    const s = body[0];",
+                "    pm.test('Tiene campos del mapa', () => {",
+                "        pm.expect(s).to.have.property('station_code');",
+                "        pm.expect(s).to.have.property('latitude');",
+                "        pm.expect(s).to.have.property('longitude');",
+                "        pm.expect(s).to.have.property('noise_level');",
+                "    });",
+                "    console.log('Estaciones:', body.map(e => e.station_code + ' → ' + e.noise_level));",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /stations/{code}/summary — Tarjeta de detalle",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/stations/{{station_code}}/summary",
+            "description": "Resumen completo de una estación:\n- Último fragmento recibido (leq, dbfs, timestamp)\n- Agregación de la última hora (Leq, L10, L50, L90)\n- Total de mediciones históricas\n\nAlimenta la tarjeta de detalle al hacer clic en un marcador del mapa."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Summary OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene campos requeridos', () => {",
+                "    pm.expect(body).to.have.property('station_code');",
+                "    pm.expect(body).to.have.property('total_measurements');",
+                "    pm.expect(body).to.have.property('latest_leq_dbfs');",
+                "});",
+                "console.log('Total mediciones:', body.total_measurements);",
+                "console.log('Último Leq:', body.latest_leq_dbfs);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /stations/{code}/summary — Estación inexistente (404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/stations/ST-NO-EXISTE/summary",
+            "description": "Prueba que el endpoint devuelve 404 para una estación que no existe."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Estación inexistente → 404', () => pm.response.to.have.status(404));"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Serie temporal (mediciones crudas)",
+      "item": [
+        {
+          "name": "GET /measurements — Leq últimas 24h (default)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/measurements",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "measurements"]
+            },
+            "description": "Serie temporal de leq_dbfs sin parámetros.\nUsa por defecto las últimas 24h y límite de 500 puntos.\n\nAlimenta la gráfica de línea con resolución de ~2 minutos."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Mediciones OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene data array', () => pm.expect(body.data).to.be.an('array'));",
+                "pm.test('Métrica es leq_dbfs', () => pm.expect(body.metric).to.eql('leq_dbfs'));",
+                "console.log('Puntos devueltos:', body.count);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /measurements — Con rango de fechas histórico",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/measurements?from={{from_test}}&to={{to_test}}&metric=leq_dbfs",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "measurements"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to",   "value": "{{to_test}}" },
+                { "key": "metric", "value": "leq_dbfs" }
+              ]
+            },
+            "description": "Serie temporal con rango explícito — útil para ver los datos de prueba insertados."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Mediciones con rango OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "console.log('Puntos en rango:', body.count);",
+                "if (body.data.length > 0) {",
+                "    console.log('Primer punto:', JSON.stringify(body.data[0]));",
+                "    console.log('Último punto:', JSON.stringify(body.data[body.data.length - 1]));",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /measurements — Métrica ild_db",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/measurements?from={{from_test}}&to={{to_test}}&metric=ild_db",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "measurements"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to",   "value": "{{to_test}}" },
+                { "key": "metric", "value": "ild_db" }
+              ]
+            },
+            "description": "Prueba cambiar la métrica a ild_db."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Métrica ild_db OK (200)', () => pm.response.to.have.status(200));",
+                "pm.test('Métrica correcta', () => pm.expect(pm.response.json().metric).to.eql('ild_db'));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /measurements — Métrica inválida (400)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/measurements?metric=campo_inventado",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "measurements"],
+              "query": [{ "key": "metric", "value": "campo_inventado" }]
+            },
+            "description": "Prueba que una métrica inválida devuelve 400."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Métrica inválida → 400', () => pm.response.to.have.status(400));"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Agregaciones horarias",
+      "item": [
+        {
+          "name": "GET /hourly — Banda L10/L50/L90 últimas 24h",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/stations/{{station_code}}/hourly",
+            "description": "Agregaciones horarias sin parámetros (últimas 24h).\n\nDevuelve Leq, L10, L50, L90 por hora.\nAlimenta la gráfica de banda en Recharts (AreaChart)."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Hourly OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene data array', () => pm.expect(body.data).to.be.an('array'));",
+                "if (body.data.length > 0) {",
+                "    const h = body.data[0];",
+                "    pm.test('Tiene L10/L50/L90', () => {",
+                "        pm.expect(h).to.have.property('l10');",
+                "        pm.expect(h).to.have.property('l50');",
+                "        pm.expect(h).to.have.property('l90');",
+                "        pm.expect(h).to.have.property('leq_hour');",
+                "    });",
+                "    console.log('Horas disponibles:', body.data.length);",
+                "    console.log('Primera hora:', h.hour_start, '| Leq:', h.leq_hour, '| L90:', h.l90);",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /hourly — Con rango histórico",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/hourly?from={{from_test}}&to={{to_test}}",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "hourly"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to",   "value": "{{to_test}}" }
+              ]
+            },
+            "description": "Agregaciones horarias con rango explícito para ver datos de prueba."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Hourly con rango OK (200)', () => pm.response.to.have.status(200));",
+                "console.log('Horas en rango:', pm.response.json().data.length);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /daily-profile — Perfil de 24 barras",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/daily-profile?date={{date_today}}",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "daily-profile"],
+              "query": [{ "key": "date", "value": "{{date_today}}" }]
+            },
+            "description": "Perfil diario: una barra por hora (0-23).\nAlimenta BarChart con eje X = hour (0-23).\n\nLa fecha de las pruebas insertadas fue 2025-06-16."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Daily profile OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene data array', () => pm.expect(body.data).to.be.an('array'));",
+                "console.log('Horas con datos:', body.data.length);",
+                "if (body.data.length > 0) {",
+                "    console.log('Primera hora del día:', body.data[0].hour, '→ Leq:', body.data[0].leq_hour);",
+                "}"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Comparación entre estaciones",
+      "item": [
+        {
+          "name": "GET /compare — Todas las estaciones (default)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/compare?from={{from_test}}&to={{to_test}}",
+              "host": ["{{base_url}}"],
+              "path": ["compare"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to",   "value": "{{to_test}}" }
+              ]
+            },
+            "description": "Compara leq_hour entre todas las estaciones activas.\nAlimenta LineChart con una Line por estación."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Compare OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene series array', () => pm.expect(body.series).to.be.an('array'));",
+                "console.log('Estaciones en comparación:', body.series.map(s => s.station_code));",
+                "body.series.forEach(s => console.log(s.station_code, '→', s.data.length, 'puntos'));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /compare — Métrica l90 (ruido de fondo)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/compare?from={{from_test}}&to={{to_test}}&metric=l90",
+              "host": ["{{base_url}}"],
+              "path": ["compare"],
+              "query": [
+                { "key": "from",   "value": "{{from_test}}" },
+                { "key": "to",     "value": "{{to_test}}" },
+                { "key": "metric", "value": "l90" }
+              ]
+            },
+            "description": "Compara el ruido de fondo (L90) entre estaciones."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Compare L90 OK (200)', () => pm.response.to.have.status(200));",
+                "pm.test('Métrica L90', () => pm.expect(pm.response.json().metric).to.eql('l90'));"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Métricas binaurales y espectrales",
+      "item": [
+        {
+          "name": "GET /binaural — ILD y correlación interaural",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/binaural?from={{from_test}}&to={{to_test}}",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "binaural"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to",   "value": "{{to_test}}" }
+              ]
+            },
+            "description": "ILD e correlación interaural en el tiempo.\n\nILD → BarChart centrado en 0 (positivo = izquierda, negativo = derecha).\nCorrelación → LineChart entre -1 y 1."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Binaural OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene data array', () => pm.expect(body.data).to.be.an('array'));",
+                "if (body.data.length > 0) {",
+                "    const p = body.data[0];",
+                "    pm.test('Tiene ild_db', () => pm.expect(p).to.have.property('ild_db'));",
+                "    pm.test('Tiene interaural_correlation', () => pm.expect(p).to.have.property('interaural_correlation'));",
+                "    console.log('ILD:', p.ild_db, '| Correlación:', p.interaural_correlation);",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /spectral — Centroide y frecuencia dominante",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stations/{{station_code}}/spectral?from={{from_test}}&to={{to_test}}",
+              "host": ["{{base_url}}"],
+              "path": ["stations", "{{station_code}}", "spectral"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to",   "value": "{{to_test}}" }
+              ]
+            },
+            "description": "Métricas espectrales: centroide, rolloff, frecuencia dominante, ZCR.\n\nCentroide alto = sonido agudo (bocinas, voces).\nCentroide bajo = graves (tráfico pesado).\nZCR alto = ruido no tonal."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Spectral OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "if (body.data.length > 0) {",
+                "    const p = body.data[0];",
+                "    console.log('Centroide:', p.spectral_centroid, 'Hz');",
+                "    console.log('Frecuencia dominante:', p.dominant_frequency, 'Hz');",
+                "}"
+              ]
+            }
+          }]
+        }
+      ]
+    },
+    {
+      "name": "Sistema",
+      "item": [
+        {
+          "name": "GET /system/stats — Panel de resumen",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/system/stats",
+            "description": "Estadísticas globales del sistema.\nAlimenta las cards de la página principal del dashboard:\n- Estaciones activas/total\n- Total de mediciones\n- Última medición recibida\n- Tabla de estado por estación"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('System stats OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene campos requeridos', () => {",
+                "    pm.expect(body).to.have.property('active_stations');",
+                "    pm.expect(body).to.have.property('total_measurements');",
+                "    pm.expect(body).to.have.property('stations_summary');",
+                "});",
+                "console.log('Estaciones activas:', body.active_stations, '/', body.total_stations);",
+                "console.log('Total mediciones:', body.total_measurements);",
+                "console.log('Total agregaciones horarias:', body.total_hourly_aggregations);",
+                "console.log('Última medición:', body.last_measurement_received_at);"
+              ]
+            }
+          }]
+        }
+      ]
+    }
+  ]
+}
