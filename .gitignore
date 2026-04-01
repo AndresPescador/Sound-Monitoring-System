@@ -3,3 +3,4 @@ ingestion-api/.env
 noise-processing-backend/.env
 docker/.env
 send_metrics/.env
+dashboard-frontend/.env
