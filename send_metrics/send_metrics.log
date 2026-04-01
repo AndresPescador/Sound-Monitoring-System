@@ -115,3 +115,60 @@
 2026-03-31 23:06:12,809 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 201 Created"
 2026-03-31 23:06:12,809 — INFO —  Enviado (insertado): Rec 2026-03-19 11h53m41s 1.txt
 2026-03-31 23:06:12,817 — INFO — Modo --once completado.
+2026-03-31 23:18:39,741 — INFO — Iniciando — estación: ST-CHAPINERO-01, servidor: http://localhost
+2026-03-31 23:18:39,743 — INFO — Archivos pendientes: 27
+2026-03-31 23:18:40,115 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:40,115 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 10h59m41s 1.txt
+2026-03-31 23:18:40,404 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:40,404 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h03m41s 1.txt
+2026-03-31 23:18:40,679 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:40,680 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h05m41s 1.txt
+2026-03-31 23:18:40,967 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:40,968 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h07m41s 1.txt
+2026-03-31 23:18:41,256 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:41,257 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h09m41s 1.txt
+2026-03-31 23:18:41,553 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:41,554 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h11m41s 1.txt
+2026-03-31 23:18:41,833 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:41,833 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h13m41s 1.txt
+2026-03-31 23:18:42,122 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:42,123 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h15m41s 1.txt
+2026-03-31 23:18:42,396 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:42,397 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h17m41s 1.txt
+2026-03-31 23:18:42,684 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:42,684 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h19m41s 1.txt
+2026-03-31 23:18:42,978 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:42,978 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h21m41s 1.txt
+2026-03-31 23:18:43,277 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:43,277 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h23m41s 1.txt
+2026-03-31 23:18:43,561 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:43,561 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h25m41s 1.txt
+2026-03-31 23:18:43,843 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:43,843 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h27m41s 1.txt
+2026-03-31 23:18:44,124 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:44,124 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h29m41s 1.txt
+2026-03-31 23:18:44,396 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:44,396 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h31m41s 1.txt
+2026-03-31 23:18:44,683 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:44,684 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h33m41s 1.txt
+2026-03-31 23:18:44,987 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:44,987 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h35m41s 1.txt
+2026-03-31 23:18:45,262 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:45,262 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h37m41s 1.txt
+2026-03-31 23:18:45,553 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:45,554 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h39m41s 1.txt
+2026-03-31 23:18:45,853 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:45,853 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h41m41s 1.txt
+2026-03-31 23:18:46,141 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:46,142 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h43m41s 1.txt
+2026-03-31 23:18:46,414 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:46,414 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h45m41s 1.txt
+2026-03-31 23:18:46,697 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:46,698 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h47m41s 1.txt
+2026-03-31 23:18:46,977 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:46,977 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h49m41s 1.txt
+2026-03-31 23:18:47,262 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:47,262 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h51m41s 1.txt
+2026-03-31 23:18:47,552 — INFO — HTTP Request: POST http://localhost/ingest/ingest "HTTP/1.1 200 OK"
+2026-03-31 23:18:47,552 — INFO —  Enviado (duplicado ignorado): Rec 2026-03-19 11h53m41s 1.txt
+2026-03-31 23:18:47,555 — INFO — Modo --once completado.
