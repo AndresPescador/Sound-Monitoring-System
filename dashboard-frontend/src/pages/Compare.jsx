@@ -4,6 +4,8 @@ import { getCompare }     from '../api/compare'
 import CompareChart       from '../components/charts/CompareChart'
 import DateRangePicker    from '../components/shared/DateRangePicker'
 import LoadingSpinner     from '../components/shared/LoadingSpinner'
+import ChartInfo          from '../components/shared/ChartInfo'
+import { getMetricDescription } from '../components/shared/metricDescriptions'
 
 const COMPARE_METRICS = [
   { value: 'leq_hour',            label: 'Leq horario' },
@@ -32,6 +34,9 @@ export default function Compare() {
       .finally(() => setLoading(false))
   }, [metric, range])
 
+  const currentMetricLabel = COMPARE_METRICS.find(m => m.value === metric)?.label
+  const currentMetricDescription = getMetricDescription(metric)
+
   return (
     <div className="space-y-5">
       <div>
@@ -39,24 +44,33 @@ export default function Compare() {
         <p className="text-sm text-text-muted mt-0.5">Todas las estaciones activas en el rango seleccionado</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-end gap-4">
         <DateRangePicker onChange={setRange} />
-        <select
-          value={metric}
-          onChange={e => setMetric(e.target.value)}
-          className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
-                     focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          {COMPARE_METRICS.map(m => (
-            <option key={m.value} value={m.value}>{m.label}</option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-display font-medium text-text-muted">Métrica</label>
+          <select
+            value={metric}
+            onChange={e => setMetric(e.target.value)}
+            className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
+                       focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {COMPARE_METRICS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="bg-bg border border-border rounded-lg p-4">
+        <div className="mb-3">
+          <h3 className="text-sm font-display font-semibold text-text flex items-center">
+            {currentMetricLabel}
+            <ChartInfo text={currentMetricDescription} />
+          </h3>
+        </div>
         {loading
           ? <LoadingSpinner />
-          : <CompareChart series={series} metricLabel={COMPARE_METRICS.find(m => m.value === metric)?.label} />
+          : <CompareChart series={series} metricLabel={currentMetricLabel} />
         }
       </div>
 
