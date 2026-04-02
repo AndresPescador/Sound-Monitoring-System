@@ -2,6 +2,8 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from typing import List, Dict, Any
 
 from app.database import get_db
 from app.schemas.measurement import TimeSeriesResponse
@@ -16,6 +18,83 @@ ALLOWED_METRICS = {
     "dominant_frequency", "spectral_centroid",
     "spectral_rolloff", "zero_crossing_rate",
 }
+
+class RawMeasurementsResponse(BaseModel):
+    """Schema para respuesta de mediciones crudas con todos los campos."""
+    station_code: str
+    count: int
+    data: List[Dict[str, Any]]
+
+
+@router.get("/{station_code}/measurements/raw", response_model=RawMeasurementsResponse)
+async def get_measurements_raw(
+    station_code: str,
+    from_: datetime = Query(default=None, alias="from"),
+    to: datetime = Query(default=None),
+    limit: int = Query(default=5000, ge=1, le=10000),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Devuelve TODAS las columnas de acoustic_measurements para una estación y rango.
+    
+    Ejemplo: GET /stations/ST001/measurements/raw?from=2026-03-29T00:00:00Z&to=2026-03-29T23:59:59Z&limit=5000
+    """
+    now = datetime.now(timezone.utc)
+    if to is None:
+        to = now
+    if from_ is None:
+        from_ = now - timedelta(hours=24)
+
+    # Verificar que la estación existe
+    check = await db.execute(
+        text("SELECT id FROM stations WHERE station_code = :code"),
+        {"code": station_code}
+    )
+    station = check.fetchone()
+    if not station:
+        raise HTTPException(status_code=404, detail=f"Estación no encontrada: {station_code}")
+
+    # Query para obtener todas las columnas
+    sql = text("""
+        SELECT
+            recorded_at,
+            dbfs_level,
+            rms_energy,
+            leq_dbfs,
+            ch_left_dbfs,
+            ch_right_dbfs,
+            ch_left_rms,
+            ch_right_rms,
+            ild_db,
+            interaural_correlation,
+            dominant_frequency,
+            spectral_centroid,
+            spectral_rolloff,
+            zero_crossing_rate,
+            duration,
+            sample_rate,
+            is_stereo
+        FROM acoustic_measurements
+        WHERE station_id = :station_id
+          AND recorded_at >= :from_
+          AND recorded_at <= :to
+        ORDER BY recorded_at ASC
+        LIMIT :limit
+    """)
+    
+    result = await db.execute(sql, {
+        "station_id": station[0],
+        "from_": from_,
+        "to": to,
+        "limit": limit
+    })
+    rows = result.mappings().all()
+
+    return RawMeasurementsResponse(
+        station_code=station_code,
+        count=len(rows),
+        data=[dict(r) for r in rows]
+    )
 
 
 @router.get("/{station_code}/measurements", response_model=TimeSeriesResponse)

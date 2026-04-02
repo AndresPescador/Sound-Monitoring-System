@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { subHours, format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { getStations }    from '../api/stations'
-import { getMeasurements } from '../api/measurements'
+import { getMeasurements, getRawMeasurements } from '../api/measurements'
 import { getHourly }       from '../api/aggregations'
 import DateRangePicker     from '../components/shared/DateRangePicker'
 import LoadingSpinner      from '../components/shared/LoadingSpinner'
@@ -133,7 +133,7 @@ export default function OpenData() {
     setLoading(true)
     const params = { from: range.from, to: range.to, limit: 5000 }
     Promise.all([
-      getMeasurements(station, params),
+      getRawMeasurements(station, params),  // ← CAMBIAR aquí
       getHourly(station, { from: range.from, to: range.to }),
     ])
       .then(([m, h]) => {
