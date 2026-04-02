@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link }    from 'react-router-dom'
+import { useParams, Link, useNavigate }    from 'react-router-dom'
 import { subHours }            from 'date-fns'
-import { getStationSummary }   from '../api/stations'
+import { getStationSummary, getStations }   from '../api/stations'
 import { getMeasurements, getBinaural, getSpectral } from '../api/measurements'
 import { getHourly, getDailyProfile } from '../api/aggregations'
 import DateRangePicker  from '../components/shared/DateRangePicker'
@@ -26,8 +26,10 @@ const SectionCard = ({ title, info, children }) => (
 
 export default function StationDetail() {
   const { code } = useParams()
+  const navigate = useNavigate()
 
   const [summary,        setSummary]        = useState(null)
+  const [stations,       setStations]       = useState([])
   const [hourly,        setHourly]        = useState([])
   const [daily,         setDaily]         = useState([])
   const [timeseries,    setTimeseries]    = useState([])
@@ -41,14 +43,21 @@ export default function StationDetail() {
     to:   new Date().toISOString(),
   })
 
+  // Cargar lista de estaciones una sola vez
+  useEffect(() => {
+    getStations()
+      .then(r => setStations(r.data))
+      .catch(err => console.error('Error cargando estaciones:', err))
+  }, [])
 
+  // Cargar resumen de la estación actual
   useEffect(() => {
     getStationSummary(code)
       .then(r => setSummary(r.data))
       .catch(() => {})
   }, [code])
 
-
+  // Carga principal — todo excepto serie temporal
   useEffect(() => {
     setLoadingMain(true)
     const params = { from: range.from, to: range.to }
@@ -69,7 +78,7 @@ export default function StationDetail() {
       .finally(() => setLoadingMain(false))
   }, [code, range])
 
-
+  // Carga independiente — solo serie temporal
   useEffect(() => {
     setLoadingMetric(true)
     getMeasurements(code, { from: range.from, to: range.to, metric })
@@ -78,12 +87,16 @@ export default function StationDetail() {
       .finally(() => setLoadingMetric(false))
   }, [code, range, metric])
 
+  const handleStationChange = (newCode) => {
+    navigate(`/stations/${newCode}`)
+  }
+
   return (
     <div className="space-y-5">
 
       {/* Breadcrumb + header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
+        <div className="flex-1">
           <p className="text-xs text-text-muted font-mono mb-1">
             <Link to="/" className="hover:text-primary">Panel</Link>
             {' / '}
@@ -111,8 +124,27 @@ export default function StationDetail() {
         )}
       </div>
 
-      {/* Rango de fechas */}
-      <DateRangePicker onChange={setRange} />
+      {/* Selector de estaciones + Rango de fechas */}
+      <div className="flex flex-wrap items-end gap-4">
+        {stations.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-display font-medium text-text-muted">Cambiar estación</label>
+            <select
+              value={code}
+              onChange={e => handleStationChange(e.target.value)}
+              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
+                         focus:outline-none focus:ring-2 focus:ring-primary min-w-[240px]"
+            >
+              {stations.map(s => (
+                <option key={s.station_code} value={s.station_code}>
+                  {s.name} ({s.locality})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <DateRangePicker onChange={setRange} />
+      </div>
 
       {loadingMain ? <LoadingSpinner label="Cargando gráficas..." /> : (
         <div className="space-y-4">
