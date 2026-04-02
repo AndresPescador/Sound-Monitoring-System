@@ -7,3 +7,13 @@ dashboard-frontend/.env
 send_metrics/token.json
 send_metrics/send_metrics.log
 send_metrics/register_station.py
+send_metrics/token.json
+send_metrics/send_metrics.log
+send_metrics/register_station.py
+api-testing/test_data/ST-USAQUEN-01/register_station_data.json
+api-testing/test_data/ST-USAQUEN-01/index.json
+api-testing/test_data/ST-KENNEDY-01/register_station_data.json
+api-testing/test_data/ST-KENNEDY-01/index.json
+api-testing/test_data/ST-CHAPINERO-01/register_station_data.json
+api-testing/test_data/ST-CHAPINERO-01/index.json
+send_metrics/register_station.py

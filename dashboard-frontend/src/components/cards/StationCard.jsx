@@ -3,14 +3,18 @@ import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const NOISE_STYLES = {
-  low:    { dot: 'bg-noise-low',    badge: 'bg-green-50  text-noise-low',    label: 'Bajo'    },
-  medium: { dot: 'bg-noise-medium', badge: 'bg-yellow-50 text-noise-medium', label: 'Moderado' },
-  high:   { dot: 'bg-noise-high',   badge: 'bg-red-50    text-noise-high',   label: 'Alto'    },
+  low:      { dot: 'bg-noise-low',    badge: 'bg-green-50  text-noise-low',    label: 'Bajo'     },
+  moderate: { dot: 'bg-noise-medium', badge: 'bg-yellow-50 text-noise-medium', label: 'Moderado' },
+  high:     { dot: 'bg-noise-high',   badge: 'bg-red-50    text-noise-high',   label: 'Alto'     },
 }
 
 export default function StationCard({ station }) {
   const navigate = useNavigate()
-  const style    = NOISE_STYLES[station.noise_level] ?? { dot: 'bg-text-light', badge: 'bg-surface text-text-muted', label: 'Sin datos' }
+  const style = NOISE_STYLES[station.noise_level] ?? {
+    dot:   'bg-text-light',
+    badge: 'bg-surface text-text-muted',
+    label: 'Sin datos',
+  }
 
   return (
     <div

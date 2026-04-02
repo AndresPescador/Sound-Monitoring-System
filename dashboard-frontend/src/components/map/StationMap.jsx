@@ -6,7 +6,7 @@ const BOGOTA = [4.7110, -74.0721]
 
 const NOISE_COLOR = {
   low:    '#16a34a',
-  medium: '#d97706',
+  moderate: '#d97706',
   high:   '#dc2626',
 }
 
