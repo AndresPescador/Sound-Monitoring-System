@@ -17,6 +17,30 @@ async def ingest_measurement(
     payload: MeasurementPayload,
     station_code: str = Depends(get_station_code),
 ) -> IngestResponse:
+    """
+    Recibe métricas acústicas de una estación autenticada.
+
+    Validación de identidad:
+    El stationCode del payload debe coincidir con el stationCode
+    del token JWT. Si no coinciden, se rechaza con HTTP 403.
+    Esto evita que un token válido de una estación pueda enviar
+    datos bajo la identidad de otra.
+    """
+
+    if payload.station_code and payload.station_code != station_code:
+        logger.warning(
+            f"Intento de envío con identidad incorrecta — "
+            f"token: {station_code}, payload stationCode: {payload.station_code}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"El token pertenece a '{station_code}' pero el payload "
+                f"declara '{payload.station_code}'. "
+                f"Usa el token correcto para esta estación."
+            ),
+        )
+
     try:
         processing_status = await forward_measurement(
             station_code=station_code,
@@ -29,9 +53,11 @@ async def ingest_measurement(
             detail="Error al procesar los datos. Intente más tarde.",
         )
 
-    logger.info(f"Ingesta exitosa — estación: {station_code}, recorded_at: {payload.timestamp.isoformat()}")
+    logger.info(
+        f"Ingesta exitosa — estación: {station_code}, "
+        f"recorded_at: {payload.timestamp.isoformat()}"
+    )
 
-    # Propagar el código HTTP exacto del Processing Backend
     if processing_status == 201:
         response.status_code = status.HTTP_201_CREATED
         message = "Métricas recibidas correctamente."
@@ -50,4 +76,3 @@ async def ingest_measurement(
 @router.get("/health", summary="Health check")
 async def health_check() -> dict:
     return {"status": "ok", "service": "ingestion-api"}
-    
