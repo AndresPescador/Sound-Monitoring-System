@@ -18,7 +18,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import httpx
@@ -53,6 +53,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+BOGOTA_TZ = timezone(timedelta(hours=-5))
 
 # =============================================================================
 # VALIDACIÓN DE CONFIGURACIÓN
@@ -227,13 +228,12 @@ def send_file(filename: str, token: str) -> bool:
 
     metrics["stationCode"] = STATION_CODE
     
-    # Convertir timestamp a formato ISO 8601 con zona horaria (UTC)
+    # Convertir timestamp a formato ISO 8601 con zona horaria (UTC-5)
     if "timestamp" in metrics:
         try:
             dt = datetime.fromisoformat(metrics["timestamp"])
-            # Si no tiene zona horaria, asumir UTC
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=BOGOTA_TZ)
             metrics["timestamp"] = dt.isoformat()
         except Exception as e:
             logger.warning(f"No se pudo convertir timestamp en {filename}: {e}")
