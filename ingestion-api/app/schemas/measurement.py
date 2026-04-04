@@ -23,6 +23,7 @@ class MeasurementPayload(BaseModel):
     )
 
     # ── Meta ──────────────────────────────────────────────────────────────────
+    station_code: str   = Field(description="Código de la estación que envía los datos.")
     timestamp: datetime = Field(description="Inicio del fragmento de grabación.")
     filename:  str      = Field(description="Nombre del archivo .wav procesado.")
     duration:  float    = Field(ge=0, description="Duración en segundos.")
