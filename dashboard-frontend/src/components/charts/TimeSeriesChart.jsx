@@ -19,7 +19,16 @@ export default function TimeSeriesChart({ data = [], metricLabel = 'Valor', unit
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis dataKey="t" tickFormatter={fmt} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} />
+        <XAxis
+          dataKey="t"
+          tickFormatter={fmt}
+          interval="preserveStartEnd"
+          minTickGap={60}
+          angle={-45}
+          textAnchor="end"
+          height={50}        // más espacio abajo para las etiquetas rotadas
+          tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
+        />
         <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit={unit ? ` ${unit}` : ''} />
         <Tooltip
           formatter={(v) => [`${v}${unit ? ' ' + unit : ''}`, metricLabel]}
