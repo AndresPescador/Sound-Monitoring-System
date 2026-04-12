@@ -14,7 +14,7 @@ const PRESETS = [
  * El preset activo se resalta; "Personalizado" habilita inputs nativos.
  */
 export default function DateRangePicker({ onChange, className = '' }) {
-  const [active, setActive]   = useState('24h')
+  const [active, setActive]   = useState('6h')
   const [custom, setCustom]   = useState(false)
   const [fromVal, setFromVal] = useState('')
   const [toVal, setToVal]     = useState('')

@@ -23,3 +23,6 @@ send_metrics/failed_files.json
 send_metrics/register_station.py
 send_metrics/send_metrics.log
 send_metrics/token.json
+send_metrics/failed_files.json
+send_metrics/send_metrics.log
+send_metrics/token.json
