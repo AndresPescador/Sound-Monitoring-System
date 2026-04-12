@@ -103,7 +103,7 @@ async def get_measurements(
     metric: str = Query(default="leq_dbfs", description=f"Métrica a graficar. Opciones: {', '.join(sorted(ALLOWED_METRICS))}"),
     from_: datetime = Query(default=None, alias="from"),
     to: datetime = Query(default=None),
-    limit: int = Query(default=500, ge=1, le=5000),
+    limit: int = Query(default=1500, ge=1, le=2000),
     db: AsyncSession = Depends(get_db)
 ):
     """
