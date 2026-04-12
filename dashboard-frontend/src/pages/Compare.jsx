@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { subHours }       from 'date-fns'
-import { getCompare }     from '../api/compare'
-import { getStations }    from '../api/stations'
+import { getCompare }      from '../api/compare'
+import { getStations }     from '../api/stations'
+import { getMeasurements } from '../api/measurements'
 import CompareChart       from '../components/charts/CompareChart'
 import DateRangePicker    from '../components/shared/DateRangePicker'
 import LoadingSpinner     from '../components/shared/LoadingSpinner'
@@ -19,6 +20,21 @@ const COMPARE_METRICS = [
   { value: 'avg_spectral_centroid', label: 'Centroide espectral' },
   { value: 'avg_ild_db',            label: 'ILD promedio' },
   { value: 'avg_interaural_corr',   label: 'Correlación interaural' },
+]
+
+// ─── Métricas crudas disponibles en /measurements (sección 2) ────────────────
+const RAW_METRICS = [
+  { value: 'leq_dbfs',               label: 'Leq (ponderación A)' },
+  { value: 'dbfs_level',             label: 'Nivel dBFS' },
+  { value: 'rms_energy',             label: 'Energía RMS' },
+  { value: 'ild_db',                 label: 'ILD (diferencia interaural)' },
+  { value: 'interaural_correlation', label: 'Correlación interaural' },
+  { value: 'dominant_frequency',     label: 'Frecuencia dominante (Hz)' },
+  { value: 'spectral_centroid',      label: 'Centroide espectral (Hz)' },
+  { value: 'spectral_rolloff',       label: 'Rolloff espectral (Hz)' },
+  { value: 'zero_crossing_rate',     label: 'Tasa de cruces por cero' },
+  { value: 'ch_left_dbfs',           label: 'Canal izquierdo (dBFS)' },
+  { value: 'ch_right_dbfs',          label: 'Canal derecho (dBFS)' },
 ]
 
 // ─── Subcomponente: selector de tags con scroll ───────────────────────────────
@@ -104,7 +120,7 @@ export default function Compare() {
   const [selectedLocalities, setSelectedLocalities] = useState(new Set()) // vacío = todas
 
   // ── Sección 2: comparación por estaciones ──
-  const [stationMetric,    setStationMetric]    = useState('leq_hour')
+  const [stationMetric,    setStationMetric]    = useState('leq_dbfs')
   const [stationRange,     setStationRange]     = useState({
     from: subHours(new Date(), 24).toISOString(),
     to:   new Date().toISOString(),
@@ -161,23 +177,40 @@ export default function Compare() {
       .finally(() => setLoadingLocality(false))
   }, [localityMetric, localityRange, selectedLocalities, allStations])
 
-  // ── Fetch sección 2: estaciones ──
+  // ── Fetch sección 2: mediciones crudas por estación en paralelo ──
   useEffect(() => {
     if (allStations.length === 0) return
     setLoadingStation(true)
 
-    const filtered = selectedStations.size === allStations.length
-      ? null
-      : [...selectedStations].join(',')
+    const targetStations = allStations.filter(s => selectedStations.has(s.station_code))
+    if (targetStations.length === 0) {
+      setStationSeries([])
+      setLoadingStation(false)
+      return
+    }
 
-    getCompare({
-      metric: stationMetric,
-      from:   stationRange.from,
-      to:     stationRange.to,
-      ...(filtered ? { stations: filtered } : {}),
-    })
-      .then(r => setStationSeries(r.data.series))
-      .catch(() => {})
+    const params = { from: stationRange.from, to: stationRange.to, metric: stationMetric }
+
+    Promise.all(
+      targetStations.map(s =>
+        getMeasurements(s.station_code, params)
+          .then(r => ({
+            station_code: s.station_code,
+            locality:     s.locality,
+            // CompareChart espera { hour_start, value } — usamos recorded_at como hora
+            data: (r.data.data ?? []).map(d => ({
+              hour_start: d.recorded_at,
+              value:      d.value,
+            })),
+          }))
+          .catch(() => ({
+            station_code: s.station_code,
+            locality:     s.locality,
+            data:         [],
+          }))
+      )
+    )
+      .then(results => setStationSeries(results.filter(r => r.data.length > 0)))
       .finally(() => setLoadingStation(false))
   }, [stationMetric, stationRange, selectedStations, allStations])
 
@@ -306,7 +339,7 @@ export default function Compare() {
               className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
                          focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              {COMPARE_METRICS.map(m => (
+              {RAW_METRICS.map(m => (
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
@@ -336,7 +369,7 @@ export default function Compare() {
         <div>
           <div className="mb-3 flex items-center">
             <h3 className="text-sm font-display font-semibold text-text">
-              {COMPARE_METRICS.find(m => m.value === stationMetric)?.label}
+              {RAW_METRICS.find(m => m.value === stationMetric)?.label}
             </h3>
             <ChartInfo text={getMetricDescription(stationMetric)} />
           </div>
@@ -344,7 +377,7 @@ export default function Compare() {
             ? <LoadingSpinner />
             : stationSeries.length === 0
               ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y estaciones seleccionadas</p>
-              : <CompareChart series={stationSeries} metricLabel={COMPARE_METRICS.find(m => m.value === stationMetric)?.label} />
+              : <CompareChart series={stationSeries} metricLabel={RAW_METRICS.find(m => m.value === stationMetric)?.label} />
           }
         </div>
 
