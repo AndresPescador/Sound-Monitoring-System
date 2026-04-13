@@ -78,10 +78,10 @@ function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKe
 }
 
 // ─── SectionCard con soporte de descarga ──────────────────────────────────────
-function SectionCard({ title, subtitle, downloadData, children }) {
+function SectionCard({ title, subtitle, downloadData, fileLabel, svgTitle, children }) {
   const cardRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
-  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData)
+  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData, fileLabel, svgTitle)
 
   const handlePNG = useCallback(async () => {
     setDownloading(true)
@@ -210,8 +210,10 @@ export default function Compare() {
 
       {/* ══ SECCIÓN 1 — Localidades ══ */}
       <SectionCard
-        title={`Comparación por localidad — ${localityMetric}`}
+        title="Comparación por localidad"
         subtitle="Agrega las estaciones de cada localidad y compara su evolución en el tiempo"
+        fileLabel={localityMetric}
+        svgTitle={`Comparación por localidad — ${COMPARE_METRICS.find(m => m.value === localityMetric)?.label ?? localityMetric}`}
         downloadData={localityCSV}
       >
         <div className="flex flex-wrap items-end gap-4">
@@ -267,8 +269,10 @@ export default function Compare() {
 
       {/* ══ SECCIÓN 2 — Estaciones individuales ══ */}
       <SectionCard
-        title={`Comparación por estación — ${stationMetric}`}
+        title="Comparación por estación"
         subtitle="Selecciona estaciones específicas para comparar su comportamiento en detalle"
+        fileLabel={stationMetric}
+        svgTitle={`Comparación por estación — ${RAW_METRICS.find(m => m.value === stationMetric)?.label ?? stationMetric}`}
         downloadData={stationCSV}
       >
         <div className="flex flex-wrap items-end gap-4">
