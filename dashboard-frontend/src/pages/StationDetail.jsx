@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate }    from 'react-router-dom'
 import { subHours }            from 'date-fns'
 import { getStationSummary, getStations }   from '../api/stations'
@@ -7,22 +7,49 @@ import { getHourly, getDailyProfile } from '../api/aggregations'
 import DateRangePicker  from '../components/shared/DateRangePicker'
 import MetricSelector   from '../components/shared/MetricSelector'
 import ChartInfo        from '../components/shared/ChartInfo'
+import ChartDownloadMenu from '../components/shared/ChartDownloadMenu'
 import LevelBandChart   from '../components/charts/LevelBandChart'
 import TimeSeriesChart  from '../components/charts/TimeSeriesChart'
 import DailyBarChart    from '../components/charts/DailyBarChart'
 import ILDChart         from '../components/charts/ILDChart'
 import LoadingSpinner   from '../components/shared/LoadingSpinner'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
+import { useChartDownload } from '../hooks/useChartDownload'
 
-const SectionCard = ({ title, info, children }) => (
-  <div className="bg-bg border border-border rounded-lg p-4">
-    <h3 className="text-sm font-display font-semibold text-text mb-3 flex items-center">
-      {title}
-      {info && <ChartInfo text={info} />}
-    </h3>
-    {children}
-  </div>
-)
+// ─── SectionCard con soporte de descarga ──────────────────────────────────────
+// cardRef    : ref del div raíz (para html2canvas y querySelector svg)
+// title      : título visible + nombre base del archivo descargado
+// info       : texto para ChartInfo (tooltip)
+// downloadData: array de datos crudos para el CSV (opcional)
+const SectionCard = ({ title, info, downloadData, children }) => {
+  const cardRef = useRef(null)
+  const [downloading, setDownloading] = useState(false)
+  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData)
+
+  const handlePNG = useCallback(async () => {
+    setDownloading(true)
+    await downloadPNG()
+    setDownloading(false)
+  }, [downloadPNG])
+
+  return (
+    <div ref={cardRef} className="bg-bg border border-border rounded-lg p-4">
+      <h3 className="text-sm font-display font-semibold text-text mb-3 flex items-center justify-between">
+        <span className="flex items-center">
+          {title}
+          {info && <ChartInfo text={info} />}
+        </span>
+        <ChartDownloadMenu
+          onPNG={handlePNG}
+          onSVG={downloadSVG}
+          onCSV={downloadData?.length ? downloadCSV : undefined}
+          downloading={downloading}
+        />
+      </h3>
+      {children}
+    </div>
+  )
+}
 
 export default function StationDetail() {
   const { code } = useParams()
@@ -150,27 +177,30 @@ export default function StationDetail() {
         <div className="space-y-4">
 
           {/* Banda L10/L50/L90 */}
-          <SectionCard 
+          <SectionCard
             title="Niveles horarios — Leq / L10 / L90"
             info="Esta gráfica muestra tres bandas de nivel de ruido por hora. La banda verde (L90) es el ruido de fondo que casi siempre está presente. La línea azul (Leq) es el nivel promedio. La banda roja (L10) son los picos ocasionales, como bocinas o frenadas. Mientras más separadas estén las bandas, más variable es el ambiente sonoro."
+            downloadData={hourly}
           >
             <LevelBandChart data={hourly} />
             <p className="text-xs text-text-light mt-1">L90 = ruido de fondo · Leq = nivel equivalente · L10 = picos de ruido</p>
           </SectionCard>
 
           {/* Perfil diario */}
-          <SectionCard 
+          <SectionCard
             title={`Perfil diario — ${range.to.slice(0, 10)}`}
             info="Muestra el nivel de ruido promedio para cada hora del día (0 a 23 horas). Las barras verdes indican horas tranquilas, amarillas un nivel moderado, y rojas un nivel alto. Permite identificar las horas pico de ruido, como el tráfico matutino o el silencio nocturno."
+            downloadData={daily}
           >
             <DailyBarChart data={daily} />
             <p className="text-xs text-text-light mt-1">Leq por hora del día · Color indica nivel</p>
           </SectionCard>
 
           {/* Serie temporal con selector de métrica */}
-          <SectionCard 
+          <SectionCard
             title="Serie temporal por métrica"
             info={getMetricDescription(metric)}
+            downloadData={timeseries}
           >
             <div className="mb-3">
               <MetricSelector value={metric} onChange={setMetric} />
@@ -183,17 +213,19 @@ export default function StationDetail() {
 
           {/* ILD + correlación */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SectionCard 
+            <SectionCard
               title="ILD — Diferencia interaural"
               info={getMetricDescription('ild_db')}
+              downloadData={binaural}
             >
               <ILDChart data={binaural} />
               <p className="text-xs text-text-light mt-1">Azul = predominio izquierdo · Naranja = derecho</p>
             </SectionCard>
 
-            <SectionCard 
+            <SectionCard
               title="Correlación interaural"
               info={getMetricDescription('interaural_correlation')}
+              downloadData={binaural}
             >
               <TimeSeriesChart
                 data={binaural.map(d => ({ recorded_at: d.recorded_at, value: d.interaural_correlation }))}
@@ -206,9 +238,10 @@ export default function StationDetail() {
 
           {/* Espectral */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SectionCard 
+            <SectionCard
               title="Centroide espectral (Hz)"
               info={getMetricDescription('spectral_centroid')}
+              downloadData={spectral}
             >
               <TimeSeriesChart
                 data={spectral.map(d => ({ recorded_at: d.recorded_at, value: d.spectral_centroid }))}
@@ -216,9 +249,10 @@ export default function StationDetail() {
                 unit="Hz"
               />
             </SectionCard>
-            <SectionCard 
+            <SectionCard
               title="Frecuencia dominante (Hz)"
               info={getMetricDescription('dominant_frequency')}
+              downloadData={spectral}
             >
               <TimeSeriesChart
                 data={spectral.map(d => ({ recorded_at: d.recorded_at, value: d.dominant_frequency }))}
