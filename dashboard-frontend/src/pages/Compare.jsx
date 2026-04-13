@@ -184,8 +184,8 @@ export default function Compare() {
     Promise.all(
       targetStations.map(s =>
         getMeasurements(s.station_code, params)
-          .then(r => ({ station_code: s.station_code, locality: s.locality, data: (r.data.data ?? []).map(d => ({ hour_start: d.recorded_at, value: d.value })) }))
-          .catch(() => ({ station_code: s.station_code, locality: s.locality, data: [] }))
+          .then(r => ({ station_code: s.station_code, locality: s.locality, displayName: `${s.locality} (${s.station_code})`, data: (r.data.data ?? []).map(d => ({ hour_start: d.recorded_at, value: d.value })) }))
+          .catch(() => ({ station_code: s.station_code, locality: s.locality, displayName: `${s.locality} (${s.station_code})`, data: [] }))
       )
     )
       .then(results => setStationSeries(results.filter(r => r.data.length > 0)))

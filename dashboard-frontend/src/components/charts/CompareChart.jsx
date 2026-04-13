@@ -42,7 +42,9 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) 
             key={s.station_code}
             type="monotone"
             dataKey={s.station_code}
-            name={s.locality || s.station_code}
+            // displayName existe en sección 2 (estaciones individuales).
+            // En sección 1 (localidades) no existe y se usa locality como antes.
+            name={s.displayName ?? s.locality ?? s.station_code}
             stroke={COLORS[i % COLORS.length]}
             strokeWidth={2}
             dot={false}
