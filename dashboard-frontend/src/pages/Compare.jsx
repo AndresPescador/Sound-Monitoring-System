@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { subHours }       from 'date-fns'
 import { getCompare }      from '../api/compare'
 import { getStations }     from '../api/stations'
@@ -7,7 +7,9 @@ import CompareChart       from '../components/charts/CompareChart'
 import DateRangePicker    from '../components/shared/DateRangePicker'
 import LoadingSpinner     from '../components/shared/LoadingSpinner'
 import ChartInfo          from '../components/shared/ChartInfo'
+import ChartDownloadMenu  from '../components/shared/ChartDownloadMenu'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
+import { useChartDownload } from '../hooks/useChartDownload'
 
 // ─── Métricas disponibles en /compare ────────────────────────────────────────
 const COMPARE_METRICS = [
@@ -42,24 +44,11 @@ function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKe
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3">
-        <button
-          onClick={onSelectAll}
-          className="text-xs font-display font-medium text-primary hover:text-primary-dark transition-colors"
-        >
-          Todas
-        </button>
+        <button onClick={onSelectAll} className="text-xs font-display font-medium text-primary hover:text-primary-dark transition-colors">Todas</button>
         <span className="text-text-light text-xs">·</span>
-        <button
-          onClick={onClearAll}
-          className="text-xs font-display font-medium text-text-muted hover:text-text transition-colors"
-        >
-          Ninguna
-        </button>
-        <span className="text-xs text-text-light ml-auto">
-          {selected.size} / {items.length} seleccionadas
-        </span>
+        <button onClick={onClearAll} className="text-xs font-display font-medium text-text-muted hover:text-text transition-colors">Ninguna</button>
+        <span className="text-xs text-text-light ml-auto">{selected.size} / {items.length} seleccionadas</span>
       </div>
-      {/* Contenedor con scroll + wrap limitado */}
       <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 scrollbar-thin">
         {items.map(item => {
           const key = getKey(item)
@@ -68,14 +57,11 @@ function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKe
             <button
               key={key}
               onClick={() => onToggle(key)}
-              className={`
-                inline-flex flex-col items-start px-2.5 py-1 rounded-md border text-left
-                transition-all duration-150 leading-tight
-                ${active
+              className={`inline-flex flex-col items-start px-2.5 py-1 rounded-md border text-left transition-all duration-150 leading-tight ${
+                active
                   ? 'bg-primary text-white border-primary shadow-sm'
                   : 'bg-bg text-text-muted border-border hover:border-primary-light hover:text-text'
-                }
-              `}
+              }`}
             >
               <span className="text-xs font-display font-semibold">{getLabel(item)}</span>
               {getSubLabel && (
@@ -91,13 +77,31 @@ function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKe
   )
 }
 
-// ─── Subcomponente: tarjeta de sección ───────────────────────────────────────
-function SectionCard({ title, subtitle, children }) {
+// ─── SectionCard con soporte de descarga ──────────────────────────────────────
+function SectionCard({ title, subtitle, downloadData, children }) {
+  const cardRef = useRef(null)
+  const [downloading, setDownloading] = useState(false)
+  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData)
+
+  const handlePNG = useCallback(async () => {
+    setDownloading(true)
+    await downloadPNG()
+    setDownloading(false)
+  }, [downloadPNG])
+
   return (
-    <div className="bg-bg border border-border rounded-lg p-4 space-y-4">
-      <div>
-        <h2 className="text-base font-display font-bold text-text">{title}</h2>
-        {subtitle && <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>}
+    <div ref={cardRef} className="bg-bg border border-border rounded-lg p-4 space-y-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-base font-display font-bold text-text">{title}</h2>
+          {subtitle && <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>}
+        </div>
+        <ChartDownloadMenu
+          onPNG={handlePNG}
+          onSVG={downloadSVG}
+          onCSV={downloadData?.length ? downloadCSV : undefined}
+          downloading={downloading}
+        />
       </div>
       {children}
     </div>
@@ -106,28 +110,21 @@ function SectionCard({ title, subtitle, children }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Compare() {
-  // Datos cargados una vez
   const [allStations, setAllStations] = useState([])
 
   // ── Sección 1: comparación por localidades ──
-  const [localityMetric,   setLocalityMetric]   = useState('leq_hour')
-  const [localityRange,    setLocalityRange]    = useState({
-    from: subHours(new Date(), 24).toISOString(),
-    to:   new Date().toISOString(),
-  })
-  const [localitySeries,   setLocalitySeries]   = useState([])
-  const [loadingLocality,  setLoadingLocality]  = useState(true)
-  const [selectedLocalities, setSelectedLocalities] = useState(new Set()) // vacío = todas
+  const [localityMetric,     setLocalityMetric]     = useState('leq_hour')
+  const [localityRange,      setLocalityRange]      = useState({ from: subHours(new Date(), 24).toISOString(), to: new Date().toISOString() })
+  const [localitySeries,     setLocalitySeries]     = useState([])
+  const [loadingLocality,    setLoadingLocality]    = useState(true)
+  const [selectedLocalities, setSelectedLocalities] = useState(new Set())
 
   // ── Sección 2: comparación por estaciones ──
   const [stationMetric,    setStationMetric]    = useState('leq_dbfs')
-  const [stationRange,     setStationRange]     = useState({
-    from: subHours(new Date(), 24).toISOString(),
-    to:   new Date().toISOString(),
-  })
+  const [stationRange,     setStationRange]     = useState({ from: subHours(new Date(), 24).toISOString(), to: new Date().toISOString() })
   const [stationSeries,    setStationSeries]    = useState([])
   const [loadingStation,   setLoadingStation]   = useState(true)
-  const [selectedStations, setSelectedStations] = useState(new Set()) // vacío = todas
+  const [selectedStations, setSelectedStations] = useState(new Set())
 
   // ── Derivados ──
   const localities = useMemo(() => {
@@ -139,12 +136,23 @@ export default function Compare() {
     return [...map.values()]
   }, [allStations])
 
-  // ── Cargar estaciones una sola vez ──
+  // ── CSV aplanado para series (pivot inverso) ──────────────────────────────
+  // Genera filas { timestamp, station_code, locality, value } para exportar
+  const localityCSV = useMemo(() =>
+    localitySeries.flatMap(s =>
+      s.data.map(pt => ({ timestamp: pt.hour_start, station_code: s.station_code, locality: s.locality, value: pt.value }))
+    ), [localitySeries])
+
+  const stationCSV = useMemo(() =>
+    stationSeries.flatMap(s =>
+      s.data.map(pt => ({ timestamp: pt.hour_start, station_code: s.station_code, locality: s.locality, value: pt.value }))
+    ), [stationSeries])
+
+  // ── Cargar estaciones ──
   useEffect(() => {
     getStations()
       .then(r => {
         setAllStations(r.data)
-        // Por defecto: todas seleccionadas
         setSelectedLocalities(new Set(r.data.map(s => s.locality)))
         setSelectedStations(new Set(r.data.map(s => s.station_code)))
       })
@@ -155,23 +163,12 @@ export default function Compare() {
   useEffect(() => {
     if (allStations.length === 0) return
     setLoadingLocality(true)
-
-    // Si están todas las localidades, no mandamos filtro de estaciones
     const allLocCodes = localities.flatMap(l => l.codes)
     const filtered = selectedLocalities.size === localities.length
       ? allLocCodes
-      : localities
-          .filter(l => selectedLocalities.has(l.locality))
-          .flatMap(l => l.codes)
-
+      : localities.filter(l => selectedLocalities.has(l.locality)).flatMap(l => l.codes)
     const stationsParam = filtered.length > 0 ? filtered.join(',') : null
-
-    getCompare({
-      metric: localityMetric,
-      from:   localityRange.from,
-      to:     localityRange.to,
-      ...(stationsParam ? { stations: stationsParam } : {}),
-    })
+    getCompare({ metric: localityMetric, from: localityRange.from, to: localityRange.to, ...(stationsParam ? { stations: stationsParam } : {}) })
       .then(r => setLocalitySeries(r.data.series))
       .catch(() => {})
       .finally(() => setLoadingLocality(false))
@@ -181,117 +178,65 @@ export default function Compare() {
   useEffect(() => {
     if (allStations.length === 0) return
     setLoadingStation(true)
-
     const targetStations = allStations.filter(s => selectedStations.has(s.station_code))
-    if (targetStations.length === 0) {
-      setStationSeries([])
-      setLoadingStation(false)
-      return
-    }
-
+    if (targetStations.length === 0) { setStationSeries([]); setLoadingStation(false); return }
     const params = { from: stationRange.from, to: stationRange.to, metric: stationMetric }
-
     Promise.all(
       targetStations.map(s =>
         getMeasurements(s.station_code, params)
-          .then(r => ({
-            station_code: s.station_code,
-            locality:     s.locality,
-            // CompareChart espera { hour_start, value } — usamos recorded_at como hora
-            data: (r.data.data ?? []).map(d => ({
-              hour_start: d.recorded_at,
-              value:      d.value,
-            })),
-          }))
-          .catch(() => ({
-            station_code: s.station_code,
-            locality:     s.locality,
-            data:         [],
-          }))
+          .then(r => ({ station_code: s.station_code, locality: s.locality, data: (r.data.data ?? []).map(d => ({ hour_start: d.recorded_at, value: d.value })) }))
+          .catch(() => ({ station_code: s.station_code, locality: s.locality, data: [] }))
       )
     )
       .then(results => setStationSeries(results.filter(r => r.data.length > 0)))
       .finally(() => setLoadingStation(false))
   }, [stationMetric, stationRange, selectedStations, allStations])
 
-  // ── Helpers tags localidades ──
-  const toggleLocality = (loc) => {
-    setSelectedLocalities(prev => {
-      const next = new Set(prev)
-      next.has(loc) ? next.delete(loc) : next.add(loc)
-      return next
-    })
-  }
+  // ── Helpers tags ──
+  const toggleLocality   = loc  => setSelectedLocalities(prev => { const n = new Set(prev); n.has(loc)  ? n.delete(loc)  : n.add(loc);  return n })
   const selectAllLocalities = () => setSelectedLocalities(new Set(localities.map(l => l.locality)))
   const clearAllLocalities  = () => setSelectedLocalities(new Set())
-
-  // ── Helpers tags estaciones ──
-  const toggleStation = (code) => {
-    setSelectedStations(prev => {
-      const next = new Set(prev)
-      next.has(code) ? next.delete(code) : next.add(code)
-      return next
-    })
-  }
-  const selectAllStations = () => setSelectedStations(new Set(allStations.map(s => s.station_code)))
-  const clearAllStations  = () => setSelectedStations(new Set())
+  const toggleStation    = code => setSelectedStations(prev => { const n = new Set(prev); n.has(code) ? n.delete(code) : n.add(code); return n })
+  const selectAllStations   = () => setSelectedStations(new Set(allStations.map(s => s.station_code)))
+  const clearAllStations    = () => setSelectedStations(new Set())
 
   return (
     <div className="space-y-6">
 
-      {/* ── Título de página ── */}
       <div>
         <h1 className="text-xl font-display font-bold text-text">Comparación entre estaciones</h1>
-        <p className="text-sm text-text-muted mt-0.5">
-          Análisis comparativo por localidad y por estación individual
-        </p>
+        <p className="text-sm text-text-muted mt-0.5">Análisis comparativo por localidad y por estación individual</p>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════
-          SECCIÓN 1 — Comparación por localidades
-      ══════════════════════════════════════════════════════════ */}
+      {/* ══ SECCIÓN 1 — Localidades ══ */}
       <SectionCard
         title="Comparación por localidad"
         subtitle="Agrega las estaciones de cada localidad y compara su evolución en el tiempo"
+        downloadData={localityCSV}
       >
-        {/* Controles */}
         <div className="flex flex-wrap items-end gap-4">
           <DateRangePicker onChange={setLocalityRange} />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-display font-medium text-text-muted">Métrica</label>
-            <select
-              value={localityMetric}
-              onChange={e => setLocalityMetric(e.target.value)}
-              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
-                         focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {COMPARE_METRICS.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
+            <select value={localityMetric} onChange={e => setLocalityMetric(e.target.value)}
+              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary">
+              {COMPARE_METRICS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Selector de localidades */}
         {localities.length > 0 && (
           <div className="border border-border rounded-md p-3 bg-surface">
-            <p className="text-xs font-display font-semibold text-text-muted mb-2 uppercase tracking-wide">
-              Localidades
-            </p>
+            <p className="text-xs font-display font-semibold text-text-muted mb-2 uppercase tracking-wide">Localidades</p>
             <TagSelector
-              items={localities}
-              selected={selectedLocalities}
-              onToggle={toggleLocality}
-              onSelectAll={selectAllLocalities}
-              onClearAll={clearAllLocalities}
-              getKey={l => l.locality}
-              getLabel={l => l.locality}
+              items={localities} selected={selectedLocalities}
+              onToggle={toggleLocality} onSelectAll={selectAllLocalities} onClearAll={clearAllLocalities}
+              getKey={l => l.locality} getLabel={l => l.locality}
               getSubLabel={l => `${l.codes.length} estación${l.codes.length !== 1 ? 'es' : ''}`}
             />
           </div>
         )}
 
-        {/* Gráfica */}
         <div>
           <div className="mb-3 flex items-center">
             <h3 className="text-sm font-display font-semibold text-text">
@@ -307,7 +252,6 @@ export default function Compare() {
           }
         </div>
 
-        {/* Tarjetas resumen */}
         {!loadingLocality && localitySeries.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
             {localitySeries.map(s => (
@@ -321,51 +265,35 @@ export default function Compare() {
         )}
       </SectionCard>
 
-      {/* ══════════════════════════════════════════════════════════
-          SECCIÓN 2 — Comparación por estación individual
-      ══════════════════════════════════════════════════════════ */}
+      {/* ══ SECCIÓN 2 — Estaciones individuales ══ */}
       <SectionCard
         title="Comparación por estación"
         subtitle="Selecciona estaciones específicas para comparar su comportamiento en detalle"
+        downloadData={stationCSV}
       >
-        {/* Controles */}
         <div className="flex flex-wrap items-end gap-4">
           <DateRangePicker onChange={setStationRange} />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-display font-medium text-text-muted">Métrica</label>
-            <select
-              value={stationMetric}
-              onChange={e => setStationMetric(e.target.value)}
-              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
-                         focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {RAW_METRICS.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
+            <select value={stationMetric} onChange={e => setStationMetric(e.target.value)}
+              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary">
+              {RAW_METRICS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Selector de estaciones (tags con scroll) */}
         {allStations.length > 0 && (
           <div className="border border-border rounded-md p-3 bg-surface">
-            <p className="text-xs font-display font-semibold text-text-muted mb-2 uppercase tracking-wide">
-              Estaciones
-            </p>
+            <p className="text-xs font-display font-semibold text-text-muted mb-2 uppercase tracking-wide">Estaciones</p>
             <TagSelector
-              items={allStations}
-              selected={selectedStations}
-              onToggle={toggleStation}
-              onSelectAll={selectAllStations}
-              onClearAll={clearAllStations}
-              getKey={s => s.station_code}
-              getLabel={s => s.name ?? s.station_code}
+              items={allStations} selected={selectedStations}
+              onToggle={toggleStation} onSelectAll={selectAllStations} onClearAll={clearAllStations}
+              getKey={s => s.station_code} getLabel={s => s.name ?? s.station_code}
               getSubLabel={s => s.locality}
             />
           </div>
         )}
 
-        {/* Gráfica */}
         <div>
           <div className="mb-3 flex items-center">
             <h3 className="text-sm font-display font-semibold text-text">
@@ -381,7 +309,6 @@ export default function Compare() {
           }
         </div>
 
-        {/* Tarjetas resumen */}
         {!loadingStation && stationSeries.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
             {stationSeries.map(s => (
