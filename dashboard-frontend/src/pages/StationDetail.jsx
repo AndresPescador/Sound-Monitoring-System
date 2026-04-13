@@ -23,7 +23,7 @@ import { useChartDownload } from '../hooks/useChartDownload'
 // downloadData: array de datos crudos para el CSV (opcional)
 // Labels legibles por métrica para títulos de SVG/PNG
 const METRIC_LABELS = {
-  leq_dbfs:               'Leq (dBFS)',
+  leq_dbfs:               'Leq (ponderación A)',
   dbfs_level:             'Nivel dBFS',
   rms_energy:             'Energía RMS',
   ch_left_dbfs:           'Canal izquierdo (dBFS)',

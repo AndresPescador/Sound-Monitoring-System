@@ -93,14 +93,88 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     line.setAttribute('stroke-width', '1')
     newSvg.appendChild(line)
 
-    // Gráfica desplazada hacia abajo
+    // ── Leyenda HTML de Recharts → elementos SVG nativos ───────────────────
+    // Recharts renderiza la leyenda como un div flotante fuera del <svg>.
+    // La leemos del DOM y la redibujamos como <rect>+<text> en el SVG.
+    const legendItems = []
+    const rechartsWrapper = ref.current.querySelector('.recharts-wrapper')
+    if (rechartsWrapper) {
+      const legendEl = rechartsWrapper.querySelector('.recharts-legend-wrapper')
+      if (legendEl) {
+        const items = legendEl.querySelectorAll('.recharts-legend-item')
+        items.forEach(item => {
+          const colorEl = item.querySelector('.recharts-surface') ?? item.querySelector('svg')
+          const labelEl = item.querySelector('.recharts-legend-item-text')
+          if (!labelEl) return
+          // Color: intentamos leer stroke o fill del path/line/rect dentro del ícono SVG
+          let color = '#94a3b8'
+          if (colorEl) {
+            const shape = colorEl.querySelector('path, line, rect')
+            if (shape) {
+              color = shape.getAttribute('stroke') || shape.getAttribute('fill') || color
+            }
+          }
+          legendItems.push({ label: labelEl.textContent ?? '', color })
+        })
+      }
+    }
+
+    // Altura extra para la leyenda (solo si hay items)
+    const LEGEND_H      = legendItems.length > 0 ? 28 : 0
+    const SWATCH_SIZE   = 10
+    const LEGEND_FONT   = 11
+    const LEGEND_GAP    = 6    // espacio entre ícono y texto
+    const LEGEND_MARGIN = 16   // entre items
+
+    // Ajustar altura total del SVG contenedor
+    const totalH = origH + TITLE_H + LEGEND_H
+    newSvg.setAttribute('height',  String(totalH))
+    newSvg.setAttribute('viewBox', `0 0 ${origW} ${totalH}`)
+
+    // Gráfica desplazada hacia abajo (debajo del título)
     const g = document.createElementNS(ns, 'g')
     g.setAttribute('transform', `translate(0, ${TITLE_H})`)
     const clone = chartSvg.cloneNode(true)
     Array.from(clone.childNodes).forEach(child => g.appendChild(child.cloneNode(true)))
     newSvg.appendChild(g)
 
-    return { svg: newSvg, width: origW, height: origH + TITLE_H }
+    // Dibujar leyenda debajo de la gráfica
+    if (legendItems.length > 0) {
+      const legendY = TITLE_H + origH  // parte superior del área de leyenda
+
+      // Calcular ancho total para centrar
+      const itemWidths = legendItems.map(it =>
+        SWATCH_SIZE + LEGEND_GAP + it.label.length * (LEGEND_FONT * 0.6)
+      )
+      const totalLegendW = itemWidths.reduce((a, b) => a + b, 0) + LEGEND_MARGIN * (legendItems.length - 1)
+      let x = (origW - totalLegendW) / 2
+
+      legendItems.forEach((item, i) => {
+        // Swatch (cuadrado de color)
+        const swatch = document.createElementNS(ns, 'rect')
+        swatch.setAttribute('x',      String(x))
+        swatch.setAttribute('y',      String(legendY + (LEGEND_H - SWATCH_SIZE) / 2))
+        swatch.setAttribute('width',  String(SWATCH_SIZE))
+        swatch.setAttribute('height', String(SWATCH_SIZE))
+        swatch.setAttribute('rx',     '2')
+        swatch.setAttribute('fill',   item.color)
+        newSvg.appendChild(swatch)
+
+        // Etiqueta
+        const lbl = document.createElementNS(ns, 'text')
+        lbl.setAttribute('x',           String(x + SWATCH_SIZE + LEGEND_GAP))
+        lbl.setAttribute('y',           String(legendY + LEGEND_H / 2 + LEGEND_FONT / 2 - 1))
+        lbl.setAttribute('font-family', 'DM Sans, system-ui, sans-serif')
+        lbl.setAttribute('font-size',   String(LEGEND_FONT))
+        lbl.setAttribute('fill',        '#64748b')
+        lbl.textContent = item.label
+        newSvg.appendChild(lbl)
+
+        x += itemWidths[i] + LEGEND_MARGIN
+      })
+    }
+
+    return { svg: newSvg, width: origW, height: totalH }
   }, [ref, title])
 
   // ── SVG ───────────────────────────────────────────────────────────────────
