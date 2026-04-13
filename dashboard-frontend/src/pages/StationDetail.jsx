@@ -21,10 +21,25 @@ import { useChartDownload } from '../hooks/useChartDownload'
 // title      : título visible + nombre base del archivo descargado
 // info       : texto para ChartInfo (tooltip)
 // downloadData: array de datos crudos para el CSV (opcional)
-const SectionCard = ({ title, info, downloadData, children }) => {
+// Labels legibles por métrica para títulos de SVG/PNG
+const METRIC_LABELS = {
+  leq_dbfs:               'Leq (dBFS)',
+  dbfs_level:             'Nivel dBFS',
+  rms_energy:             'Energía RMS',
+  ch_left_dbfs:           'Canal izquierdo (dBFS)',
+  ch_right_dbfs:          'Canal derecho (dBFS)',
+  ild_db:                 'ILD — Diferencia interaural',
+  interaural_correlation: 'Correlación interaural',
+  dominant_frequency:     'Frecuencia dominante (Hz)',
+  spectral_centroid:      'Centroide espectral (Hz)',
+  spectral_rolloff:       'Rolloff espectral (Hz)',
+  zero_crossing_rate:     'Tasa de cruces por cero',
+}
+
+const SectionCard = ({ title, info, downloadData, fileLabel, svgTitle, stationCode, children }) => {
   const cardRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
-  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData)
+  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData, fileLabel, svgTitle, stationCode)
 
   const handlePNG = useCallback(async () => {
     setDownloading(true)
@@ -180,6 +195,7 @@ export default function StationDetail() {
           <SectionCard
             title="Niveles horarios — Leq / L10 / L90"
             info="Esta gráfica muestra tres bandas de nivel de ruido por hora. La banda verde (L90) es el ruido de fondo que casi siempre está presente. La línea azul (Leq) es el nivel promedio. La banda roja (L10) son los picos ocasionales, como bocinas o frenadas. Mientras más separadas estén las bandas, más variable es el ambiente sonoro."
+            stationCode={code}
             downloadData={hourly}
           >
             <LevelBandChart data={hourly} />
@@ -190,6 +206,7 @@ export default function StationDetail() {
           <SectionCard
             title={`Perfil diario — ${range.to.slice(0, 10)}`}
             info="Muestra el nivel de ruido promedio para cada hora del día (0 a 23 horas). Las barras verdes indican horas tranquilas, amarillas un nivel moderado, y rojas un nivel alto. Permite identificar las horas pico de ruido, como el tráfico matutino o el silencio nocturno."
+            stationCode={code}
             downloadData={daily}
           >
             <DailyBarChart data={daily} />
@@ -198,8 +215,11 @@ export default function StationDetail() {
 
           {/* Serie temporal con selector de métrica */}
           <SectionCard
-            title={`Serie temporal — ${metric}`}
+            title="Serie temporal por métrica"
             info={getMetricDescription(metric)}
+            fileLabel={metric}
+            svgTitle={METRIC_LABELS[metric] ?? metric}
+            stationCode={code}
             downloadData={timeseries.map(d => ({ timestamp: d.recorded_at, [metric]: d.value }))}
           >
             <div className="mb-3">
@@ -216,6 +236,7 @@ export default function StationDetail() {
             <SectionCard
               title="ILD — Diferencia interaural"
               info={getMetricDescription('ild_db')}
+            stationCode={code}
               downloadData={binaural.map(d => ({ timestamp: d.recorded_at, ild_db: d.ild_db }))}
             >
               <ILDChart data={binaural} />
@@ -225,6 +246,7 @@ export default function StationDetail() {
             <SectionCard
               title="Correlación interaural"
               info={getMetricDescription('interaural_correlation')}
+            stationCode={code}
               downloadData={binaural.map(d => ({ timestamp: d.recorded_at, interaural_correlation: d.interaural_correlation }))}
             >
               <TimeSeriesChart
@@ -241,6 +263,7 @@ export default function StationDetail() {
             <SectionCard
               title="Centroide espectral (Hz)"
               info={getMetricDescription('spectral_centroid')}
+            stationCode={code}
               downloadData={spectral.map(d => ({ timestamp: d.recorded_at, spectral_centroid_hz: d.spectral_centroid }))}
             >
               <TimeSeriesChart
@@ -252,6 +275,7 @@ export default function StationDetail() {
             <SectionCard
               title="Frecuencia dominante (Hz)"
               info={getMetricDescription('dominant_frequency')}
+            stationCode={code}
               downloadData={spectral.map(d => ({ timestamp: d.recorded_at, dominant_frequency_hz: d.dominant_frequency }))}
             >
               <TimeSeriesChart
