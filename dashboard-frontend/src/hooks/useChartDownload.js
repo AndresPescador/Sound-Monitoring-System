@@ -31,17 +31,26 @@ export function useChartDownload(ref, title, data = []) {
     }
   }, [ref, slug])
 
-  // ── SVG — serializa el primer <svg> encontrado en el card ──────────────────
+  // ── SVG — busca el SVG de Recharts, ignorando íconos pequeños ─────────────
+  // Recharts genera un <svg> dentro de un div.recharts-wrapper.
+  // Fallback: el SVG con mayor área visible en el card.
   const downloadSVG = useCallback(() => {
     if (!ref.current) return
-    const svgEl = ref.current.querySelector('svg')
-    if (!svgEl) {
-      console.warn('No se encontró un elemento <svg> en este card.')
+
+    const wrapper = ref.current.querySelector('.recharts-wrapper svg')
+    const allSvgs = Array.from(ref.current.querySelectorAll('svg'))
+    const chartSvg = wrapper ?? allSvgs.reduce((biggest, svg) => {
+      const a = svg.getBoundingClientRect()
+      const b = biggest?.getBoundingClientRect() ?? { width: 0, height: 0 }
+      return a.width * a.height > b.width * b.height ? svg : biggest
+    }, null)
+
+    if (!chartSvg) {
+      console.warn('No se encontró SVG de gráfica en este card.')
       return
     }
 
-    // Clona para no mutar el DOM real
-    const clone = svgEl.cloneNode(true)
+    const clone = chartSvg.cloneNode(true)
 
     // Inline los estilos computados de los textos para que el SVG sea portable
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')

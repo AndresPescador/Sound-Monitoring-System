@@ -198,9 +198,9 @@ export default function StationDetail() {
 
           {/* Serie temporal con selector de métrica */}
           <SectionCard
-            title="Serie temporal por métrica"
+            title={`Serie temporal — ${metric}`}
             info={getMetricDescription(metric)}
-            downloadData={timeseries}
+            downloadData={timeseries.map(d => ({ timestamp: d.recorded_at, [metric]: d.value }))}
           >
             <div className="mb-3">
               <MetricSelector value={metric} onChange={setMetric} />
@@ -216,7 +216,7 @@ export default function StationDetail() {
             <SectionCard
               title="ILD — Diferencia interaural"
               info={getMetricDescription('ild_db')}
-              downloadData={binaural}
+              downloadData={binaural.map(d => ({ timestamp: d.recorded_at, ild_db: d.ild_db }))}
             >
               <ILDChart data={binaural} />
               <p className="text-xs text-text-light mt-1">Azul = predominio izquierdo · Naranja = derecho</p>
@@ -225,7 +225,7 @@ export default function StationDetail() {
             <SectionCard
               title="Correlación interaural"
               info={getMetricDescription('interaural_correlation')}
-              downloadData={binaural}
+              downloadData={binaural.map(d => ({ timestamp: d.recorded_at, interaural_correlation: d.interaural_correlation }))}
             >
               <TimeSeriesChart
                 data={binaural.map(d => ({ recorded_at: d.recorded_at, value: d.interaural_correlation }))}
@@ -241,7 +241,7 @@ export default function StationDetail() {
             <SectionCard
               title="Centroide espectral (Hz)"
               info={getMetricDescription('spectral_centroid')}
-              downloadData={spectral}
+              downloadData={spectral.map(d => ({ timestamp: d.recorded_at, spectral_centroid_hz: d.spectral_centroid }))}
             >
               <TimeSeriesChart
                 data={spectral.map(d => ({ recorded_at: d.recorded_at, value: d.spectral_centroid }))}
@@ -252,7 +252,7 @@ export default function StationDetail() {
             <SectionCard
               title="Frecuencia dominante (Hz)"
               info={getMetricDescription('dominant_frequency')}
-              downloadData={spectral}
+              downloadData={spectral.map(d => ({ timestamp: d.recorded_at, dominant_frequency_hz: d.dominant_frequency }))}
             >
               <TimeSeriesChart
                 data={spectral.map(d => ({ recorded_at: d.recorded_at, value: d.dominant_frequency }))}

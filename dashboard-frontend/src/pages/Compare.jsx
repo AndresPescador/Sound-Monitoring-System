@@ -140,13 +140,13 @@ export default function Compare() {
   // Genera filas { timestamp, station_code, locality, value } para exportar
   const localityCSV = useMemo(() =>
     localitySeries.flatMap(s =>
-      s.data.map(pt => ({ timestamp: pt.hour_start, station_code: s.station_code, locality: s.locality, value: pt.value }))
-    ), [localitySeries])
+      s.data.map(pt => ({ timestamp: pt.hour_start, station_code: s.station_code, locality: s.locality, [localityMetric]: pt.value }))
+    ), [localitySeries, localityMetric])
 
   const stationCSV = useMemo(() =>
     stationSeries.flatMap(s =>
-      s.data.map(pt => ({ timestamp: pt.hour_start, station_code: s.station_code, locality: s.locality, value: pt.value }))
-    ), [stationSeries])
+      s.data.map(pt => ({ timestamp: pt.hour_start, station_code: s.station_code, locality: s.locality, [stationMetric]: pt.value }))
+    ), [stationSeries, stationMetric])
 
   // ── Cargar estaciones ──
   useEffect(() => {
@@ -210,7 +210,7 @@ export default function Compare() {
 
       {/* ══ SECCIÓN 1 — Localidades ══ */}
       <SectionCard
-        title="Comparación por localidad"
+        title={`Comparación por localidad — ${localityMetric}`}
         subtitle="Agrega las estaciones de cada localidad y compara su evolución en el tiempo"
         downloadData={localityCSV}
       >
@@ -267,7 +267,7 @@ export default function Compare() {
 
       {/* ══ SECCIÓN 2 — Estaciones individuales ══ */}
       <SectionCard
-        title="Comparación por estación"
+        title={`Comparación por estación — ${stationMetric}`}
         subtitle="Selecciona estaciones específicas para comparar su comportamiento en detalle"
         downloadData={stationCSV}
       >
