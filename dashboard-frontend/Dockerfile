@@ -12,8 +12,14 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Config para React Router (todas las rutas → index.html)
-RUN echo 'server { listen 80; location / { root /usr/share/nginx/html; try_files $uri /index.html; } }' \
-    > /etc/nginx/conf.d/default.conf
+# Config para React Router (todas las rutas → index.html).
+# Escucha en 8080 para poder ejecutarse como usuario no-root (nginx).
+RUN echo 'server { listen 8080; location / { root /usr/share/nginx/html; try_files $uri /index.html; } }' \
+    > /etc/nginx/conf.d/default.conf \
+    && touch /run/nginx.pid \
+    && chown nginx:nginx /run/nginx.pid \
+    && chown -R nginx:nginx /var/cache/nginx /etc/nginx/conf.d /usr/share/nginx/html
 
-EXPOSE 80
+USER nginx
+
+EXPOSE 8080

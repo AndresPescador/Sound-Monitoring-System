@@ -1,32 +1,32 @@
+# ── Variables de entorno reales (nunca subir) ───────────────────────────────
 auth-service/.env
 ingestion-api/.env
 noise-processing-backend/.env
 docker/.env
 send_metrics/.env
 dashboard-frontend/.env
+dashboard-api/.env
 
-# Dependencias y build del frontend
+# ── Artefactos de build y cache ──────────────────────────────────────────────
+**/target/
+**/__pycache__/
+*.pyc
+*.jar
+*.class
+
+# ── Backups de base de datos (contienen datos reales) ───────────────────────
+sql/backups/
+
+# ── Dependencias y build del frontend ────────────────────────────────────────
 dashboard-frontend/node_modules/
 dashboard-frontend/dist/
+
+# ── Datos de ejecución de send_metrics (tokens, logs, estado) ───────────────
 send_metrics/token.json
 send_metrics/send_metrics.log
+send_metrics/failed_files.json
 send_metrics/register_station.py
-send_metrics/token.json
-send_metrics/send_metrics.log
-send_metrics/register_station.py
-api-testing/test_data/ST-USAQUEN-01/register_station_data.json
-api-testing/test_data/ST-USAQUEN-01/index.json
-api-testing/test_data/ST-KENNEDY-01/register_station_data.json
-api-testing/test_data/ST-KENNEDY-01/index.json
-api-testing/test_data/ST-CHAPINERO-01/register_station_data.json
-api-testing/test_data/ST-CHAPINERO-01/index.json
-send_metrics/register_station.py
+send_metrics/audio_stats/
+
+# ── Datos de prueba local ────────────────────────────────────────────────────
 /api-testing/test_data
-send_metrics/token.json
-send_metrics/failed_files.json
-send_metrics/register_station.py
-send_metrics/send_metrics.log
-send_metrics/token.json
-send_metrics/failed_files.json
-send_metrics/send_metrics.log
-send_metrics/token.json

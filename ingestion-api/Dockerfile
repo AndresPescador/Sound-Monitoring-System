@@ -9,6 +9,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código fuente
 COPY app/ ./app/
 
+RUN useradd --system --uid 10001 --create-home appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
 # Puerto expuesto por el servicio
 EXPOSE 8000
 

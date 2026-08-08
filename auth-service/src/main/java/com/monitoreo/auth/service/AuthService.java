@@ -7,12 +7,12 @@ import com.monitoreo.auth.dto.ValidateRequest;
 import com.monitoreo.auth.dto.ValidateResponse;
 import com.monitoreo.auth.entity.ApiToken;
 import com.monitoreo.auth.entity.RegisteredStation;
-import com.monitoreo.auth.exception.StationNotFoundException;
 import com.monitoreo.auth.exception.TokenInvalidException;
 import com.monitoreo.auth.repository.ApiTokenRepository;
 import com.monitoreo.auth.repository.RegisteredStationRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +34,17 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
 
     /**
+     * Hash BCrypt ficticio para igualar el tiempo de respuesta cuando la
+     * estación no existe. Evita la enumeración de station_codes por timing.
+     */
+    private String dummyHash;
+
+    @PostConstruct
+    void initDummyHash() {
+        this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
+    }
+
+    /**
      * Emite un JWT para una estación que presenta su station_code + secret.
      *
      * Flujo:
@@ -48,7 +59,16 @@ public class AuthService {
     public TokenResponse issueToken(TokenRequest request) {
         RegisteredStation station = stationRepository
                 .findByStationCode(request.getStationCode())
-                .orElseThrow(() -> new StationNotFoundException(request.getStationCode()));
+                .orElse(null);
+
+        if (station == null) {
+            // Mismo código HTTP (401) y tiempo de ejecución que un secret inválido,
+            // para no revelar si un station_code existe o no.
+            log.warn("Estación no registrada, secret evaluado contra hash dummy: {}",
+                    request.getStationCode());
+            passwordEncoder.matches(request.getSecret(), dummyHash);
+            throw new TokenInvalidException("Credenciales inválidas.");
+        }
 
         if (!station.isActive()) {
             log.warn("Intento de autenticación de estación inactiva: {}", request.getStationCode());

@@ -15,6 +15,11 @@ FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 COPY --from=build /app/target/auth-service-1.0.0.jar app.jar
 
+RUN useradd --system --uid 10001 --create-home appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
 EXPOSE 8081
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
