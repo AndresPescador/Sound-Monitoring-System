@@ -31,6 +31,16 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor.");
     }
 
+        @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String,String>> handle(InvalidCredentialsException ex) {
+        return ResponseEntity.status(401).body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Map<String,String>> handle(ForbiddenException ex) {
+        return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+    }
+
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of(
                 "status", status.value(),

@@ -1,8 +1,6 @@
 services:
 
-  # ════════════════════════════════════════════════════════════════
-  # BASES DE DATOS
-  # ════════════════════════════════════════════════════════════════
+  # ── Bases de datos ──────────────────────────────────────────────────────────
 
   postgres-noise:
     image: postgres:16-alpine
@@ -13,10 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_NOISE_PASSWORD}
     volumes:
       - postgres_noise_data:/var/lib/postgresql/data
-      # El schema se aplica automáticamente en el primer arranque
       - ../schema_noise_analytics.sql:/docker-entrypoint-initdb.d/schema.sql:ro
-    ports:
-      - "${POSTGRES_NOISE_EXTERNAL_PORT}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_NOISE_USER} -d ${POSTGRES_NOISE_DB}"]
       interval: 10s
@@ -34,8 +29,6 @@ services:
     volumes:
       - postgres_auth_data:/var/lib/postgresql/data
       - ../schema_station_registry.sql:/docker-entrypoint-initdb.d/schema.sql:ro
-    ports:
-      - "${POSTGRES_AUTH_EXTERNAL_PORT}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_AUTH_USER} -d ${POSTGRES_AUTH_DB}"]
       interval: 10s
@@ -43,9 +36,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # ════════════════════════════════════════════════════════════════
-  # BACKENDS
-  # ════════════════════════════════════════════════════════════════
+  # ── Auth Service ────────────────────────────────────────────────────────────
 
   auth-service:
     build:
@@ -53,17 +44,22 @@ services:
       dockerfile: Dockerfile
     container_name: auth-service
     environment:
-      DB_URL:                jdbc:postgresql://postgres-auth:5432/${POSTGRES_AUTH_DB}
-      DB_USERNAME:           ${POSTGRES_AUTH_USER}
-      DB_PASSWORD:           ${POSTGRES_AUTH_PASSWORD}
-      JWT_SECRET:            ${JWT_SECRET}
-      JWT_EXPIRATION_DAYS:   ${JWT_EXPIRATION_DAYS}
-      ADMIN_API_KEY:         ${ADMIN_API_KEY}
-      PORT:                  8081
+      DB_URL:                    jdbc:postgresql://postgres-auth:5432/${POSTGRES_AUTH_DB}
+      DB_USERNAME:               ${POSTGRES_AUTH_USER}
+      DB_PASSWORD:               ${POSTGRES_AUTH_PASSWORD}
+      JWT_SECRET:                ${JWT_SECRET}
+      JWT_EXPIRATION_DAYS:       ${JWT_EXPIRATION_DAYS}
+      ADMIN_JWT_EXPIRATION_HOURS: ${ADMIN_JWT_EXPIRATION_HOURS}
+      PORT:                      8081
+      SPRINGDOC_SWAGGER_UI_ENABLED: "false"
+      SPRINGDOC_API_DOCS_ENABLED:   "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health"
     depends_on:
       postgres-auth:
         condition: service_healthy
     restart: unless-stopped
+
+  # ── Noise Processing Backend ────────────────────────────────────────────────
 
   noise-processing:
     build:
@@ -71,15 +67,20 @@ services:
       dockerfile: Dockerfile
     container_name: noise-processing
     environment:
-      DB_URL:       jdbc:postgresql://postgres-noise:5432/${POSTGRES_NOISE_DB}
-      DB_USERNAME:  ${POSTGRES_NOISE_USER}
-      DB_PASSWORD:  ${POSTGRES_NOISE_PASSWORD}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
-      PORT:         8082
+      DB_URL:                   jdbc:postgresql://postgres-noise:5432/${POSTGRES_NOISE_DB}
+      DB_USERNAME:              ${POSTGRES_NOISE_USER}
+      DB_PASSWORD:              ${POSTGRES_NOISE_PASSWORD}
+      PORT:                     8082
+      AUTH_ADMIN_VALIDATE_URL:  http://nginx/auth/admin/validate
+      SPRINGDOC_SWAGGER_UI_ENABLED: "false"
+      SPRINGDOC_API_DOCS_ENABLED:   "false"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health"
     depends_on:
       postgres-noise:
         condition: service_healthy
     restart: unless-stopped
+
+  # ── Ingestion API ───────────────────────────────────────────────────────────
 
   ingestion-api:
     build:
@@ -95,6 +96,8 @@ services:
       - nginx
     restart: unless-stopped
 
+  # ── Dashboard API ───────────────────────────────────────────────────────────
+
   dashboard-api:
     build:
       context: ../dashboard-api
@@ -108,26 +111,18 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ════════════════════════════════════════════════════════════════
-  # FRONTEND
-  # ════════════════════════════════════════════════════════════════
+  # ── Frontend ────────────────────────────────────────────────────────────────
 
   dashboard-frontend:
     build:
       context: ../dashboard-frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://${SERVER_IP}/dashboard
+        VITE_API_URL: ${VITE_API_URL}
     container_name: dashboard-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - nginx
     restart: unless-stopped
 
-  # ════════════════════════════════════════════════════════════════
-  # LOAD BALANCER
-  # ════════════════════════════════════════════════════════════════
+  # ── Nginx (API Gateway interno) ─────────────────────────────────────────────
 
   nginx:
     image: nginx:alpine
@@ -140,11 +135,9 @@ services:
       - auth-service
       - noise-processing
       - dashboard-api
+      - dashboard-frontend
     restart: unless-stopped
 
-# ════════════════════════════════════════════════════════════════
-# VOLÚMENES (persisten datos entre reinicios)
-# ════════════════════════════════════════════════════════════════
 volumes:
   postgres_noise_data:
   postgres_auth_data:
