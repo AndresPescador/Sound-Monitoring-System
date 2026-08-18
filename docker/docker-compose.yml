@@ -119,6 +119,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
+        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY}
     container_name: dashboard-frontend
     restart: unless-stopped
 

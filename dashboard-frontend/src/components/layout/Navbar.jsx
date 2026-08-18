@@ -2,6 +2,7 @@ import { NavLink, Link } from 'react-router-dom'
 
 const links = [
   { to: '/',        label: 'Panel principal' },
+  { to: '/urban-3d', label: 'Visor 3D' },
   { to: '/compare', label: 'Comparar estaciones' },
   { to: '/data',    label: 'Datos abiertos' },
 ]

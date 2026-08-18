@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Home from './pages/Home'
@@ -12,6 +13,9 @@ import AdminUsers from './pages/admin/AdminUsers'
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import PrivateAdminRoute from './components/admin/PrivateAdminRoute'
 
+// Deck.gl es pesado: se descarga solo cuando el usuario abre el visor 3D.
+const UrbanTwin = lazy(() => import('./pages/UrbanTwin'))
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -24,6 +28,11 @@ export default function App() {
             <Route path="/stations/:code" element={<StationDetail />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/data" element={<OpenData />} />
+            <Route path="/urban-3d" element={
+              <Suspense fallback={<p className="py-16 text-center text-sm text-text-muted">Cargando visor 3D…</p>}>
+                <UrbanTwin />
+              </Suspense>
+            } />
           </Route>
 
           {/* ── Panel admin (SIN Layout, usa AdminLayout dentro) ────────── */}

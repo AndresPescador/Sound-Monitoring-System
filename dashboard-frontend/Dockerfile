@@ -6,6 +6,10 @@ COPY package.json .
 RUN npm install
 
 COPY . .
+ARG VITE_API_URL
+ARG VITE_MAPTILER_KEY
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_MAPTILER_KEY=$VITE_MAPTILER_KEY
 RUN npm run build
 
 # ── Serve con Nginx ────────────────────────────────────────────────────────────
