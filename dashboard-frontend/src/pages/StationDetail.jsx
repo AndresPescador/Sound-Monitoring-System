@@ -140,7 +140,7 @@ export default function StationDetail() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex-1">
           <p className="text-xs text-text-muted font-mono mb-1">
-            <Link to="/" className="hover:text-primary">Panel</Link>
+            <Link to="/mapa-2d" className="hover:text-primary">Mapa 2D</Link>
             {' / '}
             <span className="text-text">{code}</span>
           </p>

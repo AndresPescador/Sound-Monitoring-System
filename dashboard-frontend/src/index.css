@@ -3,12 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-surface font-sans text-text antialiased;
   }
   h1, h2, h3, h4 {
     @apply font-display;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }
 
 /* Leaflet fix: z-index conflict with sticky headers */

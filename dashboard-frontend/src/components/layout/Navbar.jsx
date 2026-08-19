@@ -1,7 +1,7 @@
 import { NavLink, Link } from 'react-router-dom'
 
 const links = [
-  { to: '/',        label: 'Panel principal' },
+  { to: '/mapa-2d', label: 'Mapa 2D' },
   { to: '/urban-3d', label: 'Visor 3D' },
   { to: '/compare', label: 'Comparar estaciones' },
   { to: '/data',    label: 'Datos abiertos' },
@@ -27,7 +27,6 @@ export default function Navbar() {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
               className={({ isActive }) =>
                 `px-3 py-1.5 rounded-md text-sm font-display transition-colors ${
                   isActive
@@ -35,6 +34,7 @@ export default function Navbar() {
                     : 'text-text-muted hover:text-text hover:bg-surface'
                 }`
               }
+              end={to === '/mapa-2d'}
             >
               {label}
             </NavLink>

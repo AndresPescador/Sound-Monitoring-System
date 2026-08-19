@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
+import Landing from './pages/Landing'
 import Home from './pages/Home'
 import StationDetail from './pages/StationDetail'
 import Compare from './pages/Compare'
@@ -22,9 +23,12 @@ export default function App() {
       <AdminAuthProvider>
         <Routes>
 
+          {/* Landing pública de introducción */}
+          <Route path="/" element={<Landing />} />
+
           {/* ── Dashboard público (con Layout) ───────────────────────── */}
           <Route element={<Layout />}>
-            <Route path="/" element={<Home />} />
+            <Route path="/mapa-2d" element={<Home />} />
             <Route path="/stations/:code" element={<StationDetail />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/data" element={<OpenData />} />
@@ -32,7 +36,7 @@ export default function App() {
 
           {/* El visor ocupa toda la pantalla; no hereda navbar ni footer. */}
           <Route path="/urban-3d" element={
-            <Suspense fallback={<p className="grid h-screen place-items-center bg-slate-950 text-sm text-white">Cargando visor 3D…</p>}>
+            <Suspense fallback={<p className="grid min-h-[100dvh] place-items-center bg-slate-950 text-sm text-white">Cargando visor 3D…</p>}>
               <UrbanTwin />
             </Suspense>
           } />
