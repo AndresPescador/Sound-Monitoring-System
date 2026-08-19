@@ -62,7 +62,7 @@ export default function Landing() {
     <div className="landing-page" data-design-seed="sms-landing-established-20260818">
       <header className="landing-nav">
         <Link to="/" className="landing-brand" aria-label="Inicio del Sistema de Monitoreo Acústico Binaural">
-          <span className="landing-brand-mark" aria-hidden="true"><i /><i /></span>
+          <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
           <span>Monitoreo Acústico <small>Bogotá D.C.</small></span>
         </Link>
 
@@ -269,7 +269,7 @@ export default function Landing() {
 
       <footer className="landing-footer">
         <div className="landing-brand landing-brand--footer">
-          <span className="landing-brand-mark" aria-hidden="true"><i /><i /></span>
+          <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
           <span>Monitoreo Acústico <small>Bogotá D.C.</small></span>
         </div>
         <p>Proyecto de monitoreo ambiental con captura binaural y datos abiertos.</p>

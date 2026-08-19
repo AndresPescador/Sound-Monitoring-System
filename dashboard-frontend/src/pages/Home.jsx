@@ -81,7 +81,18 @@ export default function Home() {
 
         <aside className="dashboard-station-panel" id="estaciones" aria-labelledby="stations-heading">
           <div className="dashboard-station-panel__heading">
-            <h2 id="stations-heading">Estaciones</h2>
+            <div className="dashboard-station-panel__title">
+              <img
+                className="dashboard-station-panel__logo"
+                src="/assets/logo-estacion-sonora.png"
+                alt=""
+                aria-hidden="true"
+              />
+              <div>
+                <h2 id="stations-heading">Estaciones</h2>
+                <p>Red de escucha binaural</p>
+              </div>
+            </div>
             <span>{stations.length} registradas</span>
           </div>
           <div className="dashboard-station-list">

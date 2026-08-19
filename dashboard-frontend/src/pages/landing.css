@@ -89,31 +89,12 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 }
 
 .landing-brand-mark {
-  position: relative;
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 12px;
-  background: var(--landing-blue);
-}
-
-.landing-brand-mark::before,
-.landing-brand-mark::after,
-.landing-brand-mark i {
-  position: absolute;
   display: block;
-  width: 3px;
-  border-radius: 99px;
-  background: #f8fbff;
-  content: "";
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 auto;
+  object-fit: contain;
 }
-
-.landing-brand-mark::before { height: 0.68rem; transform: translateX(-0.48rem); }
-.landing-brand-mark::after { height: 1.24rem; }
-.landing-brand-mark i:first-child { height: 0.92rem; transform: translateX(0.48rem); }
-.landing-brand-mark i:last-child { width: 1.45rem; height: 1px; opacity: 0.36; }
 
 .landing-nav > nav {
   display: flex;

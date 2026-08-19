@@ -12,7 +12,12 @@ export default function Navbar() {
     <header className="dashboard-nav">
       <div className="dashboard-nav__inner">
         <Link to="/" className="dashboard-nav__brand" aria-label="Volver a la presentación del Sistema de Monitoreo Acústico">
-          <span className="dashboard-nav__mark" aria-hidden="true"><i /><i /></span>
+          <img
+            className="dashboard-nav__mark"
+            src="/assets/logo-oido-urbano.png"
+            alt=""
+            aria-hidden="true"
+          />
           <span>Monitoreo Acústico<small>Bogotá D.C.</small></span>
         </Link>
 
