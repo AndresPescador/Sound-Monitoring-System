@@ -4,8 +4,6 @@ import Map2DLayout from './components/map2d/Map2DLayout'
 import Landing from './pages/Landing'
 import Home from './pages/Home'
 import StationDetail from './pages/StationDetail'
-import Compare from './pages/Compare'
-import OpenData from './pages/OpenData'
 
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminStations from './pages/admin/AdminStations'
@@ -17,6 +15,14 @@ import { ROUTES, map2DStationPath } from './routes'
 
 // Deck.gl es pesado: se descarga solo cuando el usuario abre el mapa 3D.
 const UrbanTwin = lazy(() => import('./pages/UrbanTwin'))
+const Compare = lazy(() => import('./pages/Compare'))
+const OpenData = lazy(() => import('./pages/OpenData'))
+const Map3DCompareRoute = lazy(() => import('./components/map3d/Map3DCompareRoute'))
+const Map3DDataRoute = lazy(() => import('./components/map3d/Map3DDataRoute'))
+
+function RouteLoading({ label = 'Cargando vista...' }) {
+  return <div className="map3d-route-loading" role="status" aria-live="polite">{label}</div>
+}
 
 function LegacyStationRedirect() {
   const { code } = useParams()
@@ -36,16 +42,22 @@ export default function App() {
           <Route path={ROUTES.map2D} element={<Map2DLayout />}>
             <Route index element={<Home />} />
             <Route path="stations/:code" element={<StationDetail />} />
-            <Route path="compare" element={<Compare />} />
-            <Route path="data" element={<OpenData />} />
+            <Route path="compare" element={<Suspense fallback={<RouteLoading />}><Compare /></Suspense>} />
+            <Route path="data" element={<Suspense fallback={<RouteLoading />}><OpenData /></Suspense>} />
           </Route>
 
-          {/* ── Experiencia 3D: visor independiente y preparado para rutas propias ── */}
+          {/* ── Experiencia 3D: el layout mantiene el mapa montado entre rutas ── */}
           <Route path={ROUTES.map3D} element={
-            <Suspense fallback={<p className="grid min-h-[100dvh] place-items-center bg-slate-950 text-sm text-white">Cargando mapa 3D...</p>}>
+            <Suspense fallback={<RouteLoading label="Cargando mapa 3D..." />}>
               <UrbanTwin />
             </Suspense>
-          } />
+          }>
+            <Route index element={null} />
+            {/* La ruta conserva la estación enfocada en el mapa, pero el detalle completo vive en la experiencia 2D. */}
+            <Route path="stations/:code" element={null} />
+            <Route path="compare" element={<Suspense fallback={<RouteLoading label="Cargando comparación..." />}><Map3DCompareRoute /></Suspense>} />
+            <Route path="data" element={<Suspense fallback={<RouteLoading label="Cargando datos abiertos..." />}><Map3DDataRoute /></Suspense>} />
+          </Route>
 
           {/* Compatibilidad con enlaces guardados antes de separar las experiencias. */}
           <Route path="/stations/:code" element={<LegacyStationRedirect />} />

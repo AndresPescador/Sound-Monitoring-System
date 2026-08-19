@@ -1,4 +1,4 @@
 import client from './client'
 
-export const getStations       = ()     => client.get('/stations')
-export const getStationSummary = (code) => client.get(`/stations/${code}/summary`)
+export const getStations       = (config = {}) => client.get('/stations', config)
+export const getStationSummary = (code, config = {}) => client.get(`/stations/${code}/summary`, config)

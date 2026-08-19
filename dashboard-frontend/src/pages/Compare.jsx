@@ -118,7 +118,7 @@ function SectionCard({ title, subtitle, downloadData, fileLabel, svgTitle, child
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
-export default function Compare() {
+export default function Compare({ onStationSelectionChange } = {}) {
   const [allStations, setAllStations] = useState([])
 
   // ── Sección 1: comparación por localidades ──
@@ -176,6 +176,10 @@ export default function Compare() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    onStationSelectionChange?.([...selectedStations])
+  }, [onStationSelectionChange, selectedStations])
 
   // ── Fetch sección 1: localidades ──
   useEffect(() => {

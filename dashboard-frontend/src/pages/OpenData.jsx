@@ -110,7 +110,7 @@ function DataTable({ columns, rows, loading, totalCount }) {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function OpenData() {
+export default function OpenData({ onStationChange } = {}) {
   const RAW_PAGE_SIZE = 1000
   const [stations,   setStations]   = useState([])
   const [station,    setStation]    = useState('')
@@ -129,9 +129,16 @@ export default function OpenData() {
   useEffect(() => {
     getStations().then(r => {
       setStations(r.data)
-      if (r.data.length) setStation(r.data[0].station_code)
+      if (r.data.length) {
+        setStation(r.data[0].station_code)
+        onStationChange?.(r.data[0].station_code)
+      }
     })
-  }, [])
+  }, [onStationChange])
+
+  useEffect(() => {
+    if (station) onStationChange?.(station)
+  }, [onStationChange, station])
 
   useEffect(() => {
     if (!station) return

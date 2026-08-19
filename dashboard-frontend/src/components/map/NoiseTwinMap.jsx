@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { FlyToInterpolator } from '@deck.gl/core'
 import { ColumnLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
@@ -38,13 +38,13 @@ const MAP_STYLE = import.meta.env.VITE_MAPTILER_KEY
   : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
 
 function getNoiseColor(leq) {
-  if (leq < -45) return [44, 216, 112, 220]
-  if (leq < -35) return [0, 205, 222, 225]
-  if (leq < -25) return [190, 47, 214, 235]
-  return [238, 30, 65, 245]
+  if (leq < -30) return [22, 163, 74, 225]
+  if (leq < -20) return [217, 119, 6, 230]
+  return [220, 38, 38, 240]
 }
 
-function getStationColor(leq) {
+function getStationColor(leq, highlighted = true) {
+  if (!highlighted) return [100, 116, 139, 80]
   return Number.isFinite(leq) ? getNoiseColor(leq) : [100, 116, 139, 210]
 }
 
@@ -76,7 +76,7 @@ function addBuildingExtrusions(map) {
     minzoom: 11,
     paint: {
       // Tonos cálidos inspirados en visores de planeación urbana.
-      'fill-extrusion-color': '#e4c98f',
+      'fill-extrusion-color': '#18345e',
       'fill-extrusion-height': height,
       'fill-extrusion-base': 0,
       'fill-extrusion-opacity': 0.88,
@@ -96,7 +96,7 @@ function addBogotaBoundary(map) {
     type: 'line',
     source: BOGOTA_BOUNDARY_SOURCE_ID,
     paint: {
-      'line-color': '#e11d48',
+      'line-color': '#60a5fa',
       'line-width': 2.5,
       'line-opacity': 0.9,
       'line-dasharray': [2, 2],
@@ -109,14 +109,17 @@ function addBogotaBoundary(map) {
  * La altura normaliza dBFS frente a un piso de -60 dBFS: no representa edificios
  * ni metros acústicos reales, sino una intensidad relativa fácil de comparar.
  */
-export default function NoiseTwinMap({
+function NoiseTwinMap({
   stations = [],
   selectedStationCode,
+  highlightedStationCodes = [],
   hoveredStationCode,
   onSelectStation,
+  onStationScreenPosition,
   columnRadius = 35,
 }) {
-  const [viewState, setViewState] = useState(BOGOTA_VIEW)
+  const [cameraTarget, setCameraTarget] = useState(null)
+  const mapRef = useRef(null)
 
   const observedStations = useMemo(() => (
     stations.filter(s => (
@@ -138,28 +141,57 @@ export default function NoiseTwinMap({
     locatedStations.find(s => s.station_code === hoveredStationCode)
   ), [hoveredStationCode, locatedStations])
 
-  // La entrada conserva el encuadre de ciudad. Una selección acerca la cámara
-  // de forma suave sin alterar el comportamiento al cargar el visor.
+  const highlightedKey = highlightedStationCodes.join('|')
+  const highlightedSet = useMemo(() => new Set(highlightedStationCodes), [highlightedKey])
+
+  const reportSelectedPosition = useCallback(() => {
+    if (!onStationScreenPosition) return
+    if (!selectedStation) {
+      onStationScreenPosition(null)
+      return
+    }
+    const map = mapRef.current
+    if (!map) return
+    const point = map.project([selectedStation.longitude, selectedStation.latitude])
+    onStationScreenPosition({ x: point.x, y: point.y })
+  }, [onStationScreenPosition, selectedStation])
+
   useEffect(() => {
-    if (!selectedStation) return
-    setViewState(current => ({
-      ...current,
-      longitude: selectedStation.longitude,
-      latitude: selectedStation.latitude,
-      zoom: 15.8,
-      pitch: 60,
-      bearing: -15,
-      transitionDuration: 1_100,
-      transitionInterpolator: STATION_FLY_TO,
-    }))
+    reportSelectedPosition()
+    if (!selectedStation) return undefined
+    const timeoutId = window.setTimeout(reportSelectedPosition, 1_250)
+    return () => window.clearTimeout(timeoutId)
+  }, [reportSelectedPosition])
+
+  // El mapa usa el seguimiento interno de initialViewState para que los gestos
+  // no provoquen un setState React por frame. Solo cambiamos la cámara cuando
+  // una acción explícita selecciona o restablece una estación.
+  useEffect(() => {
+    if (selectedStation) {
+      setCameraTarget({
+        longitude: selectedStation.longitude,
+        latitude: selectedStation.latitude,
+        zoom: 15.8,
+        pitch: 60,
+        bearing: -15,
+        transitionDuration: 1_100,
+        transitionInterpolator: STATION_FLY_TO,
+      })
+      return
+    }
+    setCameraTarget({ ...BOGOTA_VIEW, transitionDuration: 700, transitionInterpolator: STATION_FLY_TO })
   }, [selectedStationCode, selectedStation?.latitude, selectedStation?.longitude])
+
+  const handleSelect = useCallback(info => {
+    if (info.object) onSelectStation?.(info.object.station_code)
+  }, [onSelectStation])
 
   const layers = useMemo(() => [
     new ColumnLayer({
       id: 'noise-columns',
       data: observedStations,
       getPosition: d => [d.longitude, d.latitude],
-      getFillColor: d => getNoiseColor(d.current_leq_dbfs),
+      getFillColor: d => getStationColor(d.current_leq_dbfs, !highlightedStationCodes.length || highlightedSet.has(d.station_code)),
       // -45 dBFS = 53 m, -30 dBFS = 105 m, -20 dBFS = 140 m.
       getElevation: d => Math.max(18, Math.min(160, (d.current_leq_dbfs + 60) * 3.5)),
       radius: columnRadius,
@@ -168,17 +200,14 @@ export default function NoiseTwinMap({
       pickable: true,
       updateTriggers: {
         getPosition: [observedStations],
-        getFillColor: [observedStations],
+        getFillColor: [observedStations, highlightedKey],
         getElevation: [observedStations],
       },
       transitions: {
         getFillColor: 850,
         getElevation: 850,
       },
-      onClick: info => {
-        if (!info.object) return
-        onSelectStation?.(info.object.station_code)
-      },
+      onClick: handleSelect,
     }),
     new ScatterplotLayer({
       id: 'stations-points',
@@ -188,20 +217,20 @@ export default function NoiseTwinMap({
       radiusUnits: 'meters',
       radiusMinPixels: 5,
       radiusMaxPixels: 16,
-      getFillColor: d => getStationColor(d.current_leq_dbfs),
+      getFillColor: d => getStationColor(d.current_leq_dbfs, !highlightedStationCodes.length || highlightedSet.has(d.station_code)),
       getLineColor: d => d.station_code === selectedStationCode ? [15, 23, 42, 255] : [255, 255, 255, 235],
       lineWidthMinPixels: 1,
       stroked: true,
       pickable: true,
       updateTriggers: {
         getRadius: [selectedStationCode],
-        getFillColor: [locatedStations],
+        getFillColor: [locatedStations, highlightedKey],
       },
       transitions: {
         getRadius: 450,
         getFillColor: 850,
       },
-      onClick: info => info.object && onSelectStation?.(info.object.station_code),
+      onClick: handleSelect,
     }),
     new ScatterplotLayer({
       id: 'station-hover-ring',
@@ -232,9 +261,9 @@ export default function NoiseTwinMap({
       getBackgroundColor: [15, 23, 42, 235],
       backgroundPadding: [10, 7],
       backgroundBorderRadius: 5,
-      getPixelOffset: [12, -48],
+      getPixelOffset: [52, 0],
       getTextAnchor: 'start',
-      getAlignmentBaseline: 'bottom',
+      getAlignmentBaseline: 'center',
       fontFamily: 'DM Sans, sans-serif',
       fontWeight: 600,
       characterSet: 'auto',
@@ -242,33 +271,27 @@ export default function NoiseTwinMap({
       pickable: false,
       parameters: { depthTest: false },
     }),
-  ], [columnRadius, hoveredStation, locatedStations, observedStations, onSelectStation, selectedStationCode])
+  ], [columnRadius, handleSelect, highlightedKey, highlightedSet, hoveredStation, locatedStations, observedStations, selectedStationCode])
 
   const resetToCityView = () => {
-    setViewState(current => ({
-      ...current,
-      ...BOGOTA_VIEW,
-      transitionDuration: 900,
-      transitionInterpolator: STATION_FLY_TO,
-    }))
+    setCameraTarget({ ...BOGOTA_VIEW, transitionDuration: 900, transitionInterpolator: STATION_FLY_TO })
   }
 
   const resetTo3dView = () => {
-    setViewState(current => ({
-      ...current,
-      ...BOGOTA_3D_VIEW,
-      transitionDuration: 900,
-      transitionInterpolator: STATION_FLY_TO,
-    }))
+    setCameraTarget({ ...BOGOTA_3D_VIEW, transitionDuration: 900, transitionInterpolator: STATION_FLY_TO })
   }
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-900" onContextMenu={event => event.preventDefault()}>
       <DeckGL
-        viewState={viewState}
-        onViewStateChange={({ viewState: nextViewState }) => setViewState(nextViewState)}
+        initialViewState={cameraTarget ?? BOGOTA_VIEW}
         controller={{ dragPan: true, dragRotate: true, touchRotate: true, keyboard: true, maxPitch: 85 }}
         layers={layers}
+        onInteractionStateChange={({ interactionState }) => {
+          if (!interactionState?.isDragging && !interactionState?.isPanning && !interactionState?.isRotating && !interactionState?.isZooming) {
+            window.requestAnimationFrame(reportSelectedPosition)
+          }
+        }}
         getTooltip={({ object, layer }) => {
           if (!object) return null
           if (layer?.id === 'stations-points') {
@@ -285,6 +308,7 @@ export default function NoiseTwinMap({
         }}
       >
         <Map
+          ref={mapRef}
           mapLib={maplibregl}
           mapStyle={MAP_STYLE}
           reuseMaps
@@ -293,17 +317,23 @@ export default function NoiseTwinMap({
           onLoad={event => {
             addBuildingExtrusions(event.target)
             addBogotaBoundary(event.target)
+            window.requestAnimationFrame(reportSelectedPosition)
           }}
+          onMoveEnd={() => window.requestAnimationFrame(reportSelectedPosition)}
         />
       </DeckGL>
 
-      <div className="absolute bottom-3 left-3 rounded-md border border-white/20 bg-slate-950/85 px-3 py-2 text-xs text-slate-100 shadow-lg">
-        <p className="font-display font-semibold">Columnas por estación</p>
-        <p className="mt-0.5 text-slate-300">Altura = intensidad relativa de Leq</p>
-        <p className="mt-1 text-[10px] text-slate-400">Límite: IDECA · Base © OpenStreetMap · CARTO</p>
+      <div className="map3d-noise-legend" aria-label="Leyenda de nivel acústico relativo">
+        <span className="map3d-noise-legend__title">Nivel relativo · Leq</span>
+        <div className="map3d-noise-legend__items">
+          <span><i className="map3d-level-dot is-low" aria-hidden="true" />Bajo</span>
+          <span><i className="map3d-level-dot is-medium" aria-hidden="true" />Medio</span>
+          <span><i className="map3d-level-dot is-high" aria-hidden="true" />Alto</span>
+        </div>
+        <small>La altura compara intensidad; no representa metros reales.</small>
       </div>
 
-      <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-white/20 bg-slate-950/85 p-1 shadow-lg backdrop-blur-sm">
+      <div className="map3d-map-controls">
         <button
           type="button"
           onClick={resetToCityView}
@@ -322,3 +352,5 @@ export default function NoiseTwinMap({
     </div>
   )
 }
+
+export default memo(NoiseTwinMap)
