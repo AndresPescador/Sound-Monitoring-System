@@ -24,12 +24,16 @@ export default function ChartAxisModeControl({
   isAutomatic = false,
   onChange,
   range = null,
+  compactGaps = false,
 }) {
   const activeMode = isAutomatic ? automaticMode : mode
   const rangeLabel = formatRangeLabel(range)
-  const description = isAutomatic
+  const baseDescription = isAutomatic
     ? `Automático. ${MODE_COPY[automaticMode]}`
     : MODE_COPY[mode]
+  const description = compactGaps && activeMode === 'data'
+    ? `${baseDescription} Los periodos omitidos se marcan con un separador.`
+    : baseDescription
 
   return (
     <div className="dashboard-axis-mode-control">

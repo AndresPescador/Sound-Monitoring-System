@@ -1080,6 +1080,25 @@
   background: var(--dashboard-paper);
 }
 
+.dashboard-compare-scatter {
+  display: grid;
+  gap: 0.8rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--dashboard-line);
+}
+
+.dashboard-chart-transition {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.dashboard-chart-transition--exit,
+.dashboard-chart-transition--enter {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
 .dashboard-axis-mode-control {
   display: grid;
   width: min(100%, 44rem);
@@ -1158,6 +1177,10 @@
 }
 
 .dashboard-profile-date-field { max-width: 16rem; margin-bottom: 0.55rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-chart-transition { transition: none; }
+}
 
 .dashboard-footer {
   display: grid;

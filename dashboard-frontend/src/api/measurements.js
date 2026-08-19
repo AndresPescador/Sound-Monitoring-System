@@ -3,6 +3,9 @@ import client from './client'
 export const getMeasurements = (code, params) =>
   client.get(`/stations/${code}/measurements`, { params })
 
+export const getCompareMeasurements = (params) =>
+  client.get('/compare/measurements', { params })
+
 export const getRawMeasurements = (code, params) =>
   client.get(`/stations/${code}/measurements/raw`, { params })
 

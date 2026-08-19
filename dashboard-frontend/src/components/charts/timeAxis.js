@@ -79,6 +79,32 @@ export function getChartDataWindow(data, axisMode = 'range', valueKeys = ['value
   return data.slice(start, end)
 }
 
+// Compact view for comparison charts: keep real points and represent each
+// internal run of empty buckets with one null separator. This expands the
+// observed clusters without making a line cross an omitted period.
+export function compactEmptyTimeBuckets(data, valueKeys = ['value']) {
+  const compacted = []
+  let pendingGap = false
+
+  data.forEach(point => {
+    const hasValue = valueKeys.some(key => isObservedValue(point[key]))
+
+    if (hasValue) {
+      if (pendingGap) {
+        const gap = { t: `__gap__${compacted.length}`, axisGap: true }
+        valueKeys.forEach(key => { gap[key] = null })
+        compacted.push(gap)
+      }
+      compacted.push(point)
+      pendingGap = false
+    } else if (compacted.length) {
+      pendingGap = true
+    }
+  })
+
+  return compacted
+}
+
 // Keeps the first and last point visible while avoiding a label for every sample.
 export function getEvenlySpacedTicks(values, maxTicks = DEFAULT_MAX_TICKS) {
   const uniqueValues = [...new Set(values.filter(value => value != null && value !== ''))]
@@ -93,17 +119,22 @@ export function getEvenlySpacedTicks(values, maxTicks = DEFAULT_MAX_TICKS) {
 
 export function getTimeAxis(data, dataKey = 't', { maxTicks = DEFAULT_MAX_TICKS } = {}) {
   const values = data.map(item => item[dataKey]).filter(value => value != null && value !== '')
-  const dates = values.map(value => parseISO(value)).filter(isValid)
+  const gapValues = values.filter(value => String(value).startsWith('__gap__'))
+  const realValues = values.filter(value => !String(value).startsWith('__gap__'))
+  const dates = realValues.map(value => parseISO(value)).filter(isValid)
   const spansMultipleDays = dates.length > 1 && dates.some(date => !isSameDay(date, dates[0]))
   const visibleTickCount = spansMultipleDays ? Math.min(maxTicks, 8) : maxTicks
+  const ticks = getEvenlySpacedTicks(realValues, visibleTickCount)
+  const tickValues = new Set([...ticks, ...gapValues])
 
   return {
-    ticks: getEvenlySpacedTicks(values, visibleTickCount),
+    ticks: [...new Set(values)].filter(value => tickValues.has(value)),
     tickFormatter: value => formatTimeTick(value, { includeDate: spansMultipleDays }),
   }
 }
 
 export function formatTimeTick(value, { includeDate = false } = {}) {
+  if (String(value).startsWith('__gap__')) return '…'
   try {
     return format(parseISO(value), includeDate ? 'dd/MM HH:mm' : 'HH:mm', { locale: es })
   } catch {

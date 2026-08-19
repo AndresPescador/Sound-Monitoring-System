@@ -62,6 +62,29 @@ class CompareResponse(BaseModel):
     series: list[CompareSeriesItem]
 
 
+class CompareMeasurementSeriesItem(BaseModel):
+    """Serie común y puntos exactos de una estación en una comparación."""
+    station_code: str
+    locality: str
+    data: list[dict]
+    raw_data: list[dict]
+    total_count: int
+    raw_returned_count: int
+    raw_has_more: bool
+
+
+class CompareMeasurementsResponse(BaseModel):
+    """Comparación de mediciones con grid temporal común y detalle exacto."""
+    metric: str
+    from_: datetime
+    to: datetime
+    resolution_seconds: int
+    bucket_count: int
+    total_count: int
+    raw_limit: int
+    series: list[CompareMeasurementSeriesItem]
+
+
 class SystemStats(BaseModel):
     """Estadísticas globales del sistema para el panel principal."""
     active_stations: int

@@ -2,8 +2,9 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { subHours }       from 'date-fns'
 import { getCompare }      from '../api/compare'
 import { getStations }     from '../api/stations'
-import { getMeasurements } from '../api/measurements'
+import { getCompareMeasurements } from '../api/measurements'
 import CompareChart       from '../components/charts/CompareChart'
+import ScatterCompareChart from '../components/charts/ScatterCompareChart'
 import DateRangePicker    from '../components/shared/DateRangePicker'
 import LoadingSpinner     from '../components/shared/LoadingSpinner'
 import ChartInfo          from '../components/shared/ChartInfo'
@@ -132,6 +133,7 @@ export default function Compare() {
   const [loadingStation,   setLoadingStation]   = useState(true)
   const [selectedStations, setSelectedStations] = useState(new Set())
   const [stationAxisMode, setStationAxisMode] = useState('auto')
+  const [stationComparisonMeta, setStationComparisonMeta] = useState(null)
 
   // ── Derivados ──
   const localities = useMemo(() => {
@@ -181,27 +183,67 @@ export default function Compare() {
       .finally(() => setLoadingLocality(false))
   }, [localityMetric, localityRange, selectedLocalities, allStations])
 
-  // ── Fetch sección 2: mediciones crudas por estación en paralelo ──
+  // ── Fetch sección 2: grid común + detalle exacto para ScatterChart ──
   useEffect(() => {
     if (allStations.length === 0) return
     setLoadingStation(true)
     const targetStations = allStations.filter(s => selectedStations.has(s.station_code))
-    if (targetStations.length === 0) { setStationSeries([]); setLoadingStation(false); return }
-    const params = { from: stationRange.from, to: stationRange.to, metric: stationMetric }
-    Promise.all(
-      targetStations.map(s =>
-        getMeasurements(s.station_code, params)
-          .then(r => ({
-            station_code: s.station_code,
-            locality: s.locality,
-            displayName: `${s.locality} (${s.station_code})`,
-            data: (r.data.data ?? []).map(d => ({ hour_start: d.recorded_at, value: d.value })),
-            meta: r.data,
+    if (targetStations.length === 0) {
+      setStationSeries([])
+      setStationComparisonMeta(null)
+      setLoadingStation(false)
+      return
+    }
+    const params = {
+      from: stationRange.from,
+      to: stationRange.to,
+      metric: stationMetric,
+      stations: targetStations.map(station => station.station_code).join(','),
+      max_points: 1500,
+      raw_limit: 10000,
+    }
+    getCompareMeasurements(params)
+      .then(r => {
+        const body = r.data
+        const series = (body.series ?? [])
+          .filter(item => (
+            (item.raw_data ?? []).length > 0 ||
+            (item.data ?? []).some(point => point.value != null)
+          ))
+          .map(item => ({
+            station_code: item.station_code,
+            locality: item.locality,
+            displayName: `${item.locality} (${item.station_code})`,
+            data: (item.data ?? []).map(point => ({
+              hour_start: point.recorded_at,
+              value: point.value,
+              value_min: point.value_min,
+              value_max: point.value_max,
+              source_count: point.source_count,
+            })),
+            rawData: item.raw_data ?? [],
+            meta: {
+              is_aggregated: true,
+              total_count: item.total_count,
+              returned_count: item.data?.length ?? 0,
+              count: item.data?.length ?? 0,
+              resolution_seconds: body.resolution_seconds,
+              raw_returned_count: item.raw_returned_count,
+              raw_has_more: item.raw_has_more,
+            },
           }))
-          .catch(() => ({ station_code: s.station_code, locality: s.locality, displayName: `${s.locality} (${s.station_code})`, data: [], meta: null }))
-      )
-    )
-      .then(results => setStationSeries(results.filter(r => r.data.length > 0)))
+        setStationSeries(series)
+        setStationComparisonMeta({
+          is_aggregated: true,
+          total_count: body.total_count,
+          returned_count: series.reduce((sum, item) => sum + item.data.length, 0),
+          resolution_seconds: body.resolution_seconds,
+        })
+      })
+      .catch(() => {
+        setStationSeries([])
+        setStationComparisonMeta(null)
+      })
       .finally(() => setLoadingStation(false))
   }, [stationMetric, stationRange, selectedStations, allStations])
 
@@ -278,6 +320,7 @@ export default function Compare() {
           isAutomatic={localityAxisMode === 'auto'}
           onChange={setLocalityAxisMode}
           range={localityRange}
+          compactGaps
         />
 
         <div>
@@ -348,6 +391,7 @@ export default function Compare() {
           isAutomatic={stationAxisMode === 'auto'}
           onChange={setStationAxisMode}
           range={stationRange}
+          compactGaps
         />
 
         <div>
@@ -369,7 +413,26 @@ export default function Compare() {
           }
         </div>
 
-        <ResolutionNotice meta={stationSeries.find(s => s.meta?.is_aggregated)?.meta} />
+        <ResolutionNotice meta={stationComparisonMeta} />
+
+        {!loadingStation && stationSeries.length > 0 && (
+          <div className="dashboard-compare-scatter">
+            <div className="dashboard-chart-heading">
+              <h3>Puntos exactos por estación</h3>
+              <ChartInfo text="Cada punto conserva el timestamp original de la medición. En 'Ajustar a datos' la escala compacta distribuye los puntos para facilitar la lectura y marca los saltos largos con …; 'Rango completo' conserva la escala temporal real." />
+            </div>
+            <ScatterCompareChart
+              series={stationSeries}
+              metricLabel={RAW_METRICS.find(m => m.value === stationMetric)?.label}
+              axisMode={activeStationAxisMode}
+              range={stationRange}
+            />
+            {stationSeries.some(item => item.meta?.raw_has_more)
+              ? <p className="dashboard-resolution-note dashboard-resolution-note--aggregated">El ScatterChart muestra el límite de puntos exactos configurado; algunas estaciones tienen más mediciones en este rango.</p>
+              : <p className="text-xs text-text-light mt-1">Vista de precisión · cada punto mantiene su timestamp original; la escala visual sigue el ajuste temporal seleccionado</p>
+            }
+          </div>
+        )}
 
         {!loadingStation && stationSeries.length > 0 && (
           <div className="dashboard-result-grid">

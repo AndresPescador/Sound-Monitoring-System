@@ -371,6 +371,39 @@
               ]
             }
           }]
+        },
+        {
+          "name": "GET /compare/measurements — Grid común y puntos exactos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/compare/measurements?from={{from_test}}&to={{to_test}}&metric=leq_dbfs&stations={{station_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["compare", "measurements"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to", "value": "{{to_test}}" },
+                { "key": "metric", "value": "leq_dbfs" },
+                { "key": "stations", "value": "{{station_code}}" }
+              ]
+            },
+            "description": "Devuelve data con buckets temporales comunes para todas las estaciones y raw_data con timestamps exactos para ScatterChart."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Compare measurements OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene resolución común', () => pm.expect(body.resolution_seconds).to.be.a('number'));",
+                "pm.test('Tiene series array', () => pm.expect(body.series).to.be.an('array'));",
+                "if (body.series.length > 0) {",
+                "    pm.expect(body.series[0]).to.have.property('data');",
+                "    pm.expect(body.series[0]).to.have.property('raw_data');",
+                "}"
+              ]
+            }
+          }]
         }
       ]
     },
