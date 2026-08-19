@@ -95,7 +95,7 @@ export default function Landing() {
                 width="1672"
                 height="941"
                 loading="eager"
-                fetchPriority="high"
+                fetchpriority="high"
               />
               <div className="landing-hero-scope" aria-hidden="true">
                 <div><span>Canal L</span><span>Canal R</span></div>
@@ -275,7 +275,7 @@ export default function Landing() {
         <p>Proyecto de monitoreo ambiental con captura binaural y datos abiertos.</p>
         <nav aria-label="Enlaces finales">
           <Link to="/mapa-2d">Mapa 2D</Link>
-          <Link to="/urban-3d">Visor 3D</Link>
+          <Link to="/urban-3d">Mapa 3D</Link>
           <Link to="/data">Datos</Link>
         </nav>
       </footer>

@@ -170,11 +170,11 @@ export default function BogotaMapGateway() {
 
   return (
     <div className="landing-map-gateway">
-      <Link className="landing-map-choice landing-map-choice--2d" to="/mapa-2d" aria-label="Abrir mapa de monitoreo 2D">
+      <Link className="landing-map-choice landing-map-choice--2d" to="/mapa-2d" aria-label="Abrir mapa 2D">
         <div className="landing-map-copy">
           <span className="landing-map-mode">2D</span>
           <div>
-            <h3>Mapa de monitoreo</h3>
+            <h3>Mapa 2D</h3>
             <p>Estaciones, niveles actuales y acceso al detalle acústico.</p>
           </div>
           <span className="landing-map-action">Abrir mapa 2D</span>
@@ -184,14 +184,14 @@ export default function BogotaMapGateway() {
         </div>
       </Link>
 
-      <Link className="landing-map-choice landing-map-choice--3d" to="/urban-3d" aria-label="Abrir gemelo urbano 3D">
+      <Link className="landing-map-choice landing-map-choice--3d" to="/urban-3d" aria-label="Abrir mapa 3D">
         <div className="landing-map-copy">
           <span className="landing-map-mode">3D</span>
           <div>
-            <h3>Gemelo urbano</h3>
+            <h3>Mapa 3D</h3>
             <p>Relieve, edificios y columnas de intensidad por estación.</p>
           </div>
-          <span className="landing-map-action">Abrir visor 3D</span>
+          <span className="landing-map-action">Abrir mapa 3D</span>
         </div>
         <div className="landing-map-visual landing-map-visual--3d">
           <CityShape model={model} dimensional />

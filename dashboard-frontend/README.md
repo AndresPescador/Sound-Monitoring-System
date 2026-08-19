@@ -25,7 +25,7 @@ Interfaz web del Sistema de Monitoreo Acústico Binaural — Bogotá D.C.
 |---|---|
 | `/` | Landing pública de introducción al proyecto |
 | `/mapa-2d` | Panel principal: cards resumen + mapa de Bogotá |
-| `/urban-3d` | Gemelo urbano 3D con intensidad por estación |
+| `/urban-3d` | Mapa 3D con intensidad por estación |
 | `/stations/:code` | Detalle de estación: todas las gráficas |
 | `/compare` | Comparación de métricas entre estaciones |
 | `/data` | Portal de datos abiertos con descarga CSV |

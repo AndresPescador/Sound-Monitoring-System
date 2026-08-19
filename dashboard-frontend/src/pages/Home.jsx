@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getSystemStats } from '../api/system'
 import { getStations }    from '../api/stations'
 import StatCard            from '../components/cards/StatCard'
@@ -24,58 +25,64 @@ export default function Home() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <LoadingSpinner label="Cargando panel principal..." />
-  if (error)   return <p className="text-noise-high text-sm p-4">Error: {error}</p>
+  if (loading) return <LoadingSpinner label="Cargando mapa 2D..." />
+  if (error)   return <p className="dashboard-error" role="alert">No fue posible cargar el mapa 2D: {error}</p>
 
   const lastSeen = stats?.last_measurement_received_at
     ? format(parseISO(stats.last_measurement_received_at), "d MMM yyyy HH:mm", { locale: es })
     : null
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-page dashboard-home">
+      <header className="dashboard-page-header">
+        <div>
+          <h1>Mapa 2D</h1>
+          <p>Estado actual de la red de estaciones y lectura rápida del ruido ambiental en Bogotá D.C.</p>
+        </div>
+        <div className="dashboard-page-header__actions">
+          <a href="#estaciones" className="dashboard-button dashboard-button--secondary">Ver estaciones</a>
+          <Link to="/compare" className="dashboard-button dashboard-button--primary">Comparar datos</Link>
+        </div>
+      </header>
 
-      {/* Título */}
-      <div>
-        <h1 className="text-xl font-display font-bold text-text">Panel de monitoreo acústico</h1>
-        <p className="text-sm text-text-muted mt-0.5">Localidades de Bogotá D.C. — datos en tiempo real</p>
-      </div>
-
-      {/* Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="dashboard-stat-grid">
         <StatCard label="Estaciones activas" value={stats?.active_stations}   accent />
         <StatCard label="Total estaciones"   value={stats?.total_stations} />
         <StatCard label="Mediciones totales" value={stats?.total_measurements?.toLocaleString('es-CO')} />
-        <StatCard label="Última medición"    value={lastSeen ?? '—'} sub="fecha y hora" />
+        <StatCard label="Última medición"    value={lastSeen ?? 'Sin registro'} sub="fecha y hora" />
       </div>
 
-      {/* Mapa + tarjetas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        {/* Mapa */}
-        <div className="lg:col-span-2 bg-bg border border-border rounded-lg overflow-hidden" style={{ height: 420 }}>
-          <StationMap stations={stations} />
+      <section className="dashboard-map-layout" aria-labelledby="map-heading">
+        <div className="dashboard-map-panel">
+          <div className="dashboard-panel-heading">
+            <div>
+              <h2 id="map-heading">Lecturas por estación</h2>
+              <p>Selecciona un punto para consultar el detalle acústico.</p>
+            </div>
+            <span className="dashboard-panel-status">Actualización reciente</span>
+          </div>
+          <div className="dashboard-map-canvas">
+            <StationMap stations={stations} />
+          </div>
+          <div className="dashboard-map-legend" aria-label="Niveles de ruido">
+            <span className="dashboard-map-legend__title">Nivel de ruido</span>
+            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--low" aria-hidden="true" />Bajo</span>
+            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--medium" aria-hidden="true" />Moderado</span>
+            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--high" aria-hidden="true" />Alto</span>
+          </div>
         </div>
 
-        {/* Lista de estaciones */}
-        <div className="flex flex-col gap-2 overflow-y-auto max-h-[420px] pr-1">
-          <p className="text-xs font-display font-semibold text-text-muted uppercase tracking-wide px-1">
-            Estaciones ({stations.length})
-          </p>
+        <aside className="dashboard-station-panel" id="estaciones" aria-labelledby="stations-heading">
+          <div className="dashboard-station-panel__heading">
+            <h2 id="stations-heading">Estaciones</h2>
+            <span>{stations.length} registradas</span>
+          </div>
+          <div className="dashboard-station-list">
           {stations.map(s => <StationCard key={s.station_code} station={s} />)}
-          {!stations.length && <p className="text-sm text-text-muted">No hay estaciones registradas.</p>}
-        </div>
-      </div>
-
-      {/* Leyenda */}
-      <div className="flex items-center gap-4 text-xs text-text-muted font-sans">
-        <span className="font-display font-medium">Nivel de ruido:</span>
-        {[['noise-low','Bajo (< −30 dBFS)'],['noise-medium','Moderado (−30 a −20)'],['noise-high','Alto (> −20 dBFS)']].map(([cls, lbl]) => (
-          <span key={cls} className="flex items-center gap-1">
-            <span className={`w-2.5 h-2.5 rounded-full bg-${cls}`} />
-            {lbl}
-          </span>
-        ))}
-      </div>
+          {!stations.length && <p className="dashboard-empty-state">No hay estaciones registradas.</p>}
+          </div>
+        </aside>
+      </section>
     </div>
   )
 }

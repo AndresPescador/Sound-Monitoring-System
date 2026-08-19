@@ -68,18 +68,18 @@ const AGG_COLS = [
 function DataTable({ columns, rows, loading }) {
   if (loading) return <LoadingSpinner />
   if (!rows.length) return (
-    <p className="text-center text-sm text-text-muted py-10">
+    <p className="dashboard-empty-state">
       Sin datos en el rango seleccionado.
     </p>
   )
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-xs font-mono">
+    <div className="dashboard-data-table-wrap">
+      <table className="dashboard-data-table">
         <thead>
           <tr className="bg-surface border-b border-border">
             {columns.map(c => (
-              <th key={c.key} className="px-3 py-2 text-left font-display font-semibold text-text-muted whitespace-nowrap">
+              <th key={c.key}>
                 {c.label}
               </th>
             ))}
@@ -87,21 +87,21 @@ function DataTable({ columns, rows, loading }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className={`border-b border-border last:border-0 ${i % 2 === 0 ? 'bg-bg' : 'bg-surface'} hover:bg-blue-50 transition-colors`}>
+            <tr key={i}>
               {columns.map(c => (
-                <td key={c.key} className="px-3 py-1.5 text-text whitespace-nowrap">
+                <td key={c.key}>
                   {c.key.endsWith('_at') || c.key === 'hour_start'
                     ? fmtDate(row[c.key])
                     : typeof row[c.key] === 'number'
                       ? row[c.key].toFixed(4)
-                      : row[c.key] ?? '—'}
+                      : row[c.key] ?? 'Sin dato'}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="text-right text-xs text-text-light font-mono px-3 py-2">
+      <p className="dashboard-data-table__count">
         {rows.length} registros
       </p>
     </div>
@@ -159,35 +159,29 @@ export default function OpenData() {
   const activeCols = tab === 'raw' ? RAW_COLS : AGG_COLS
 
   return (
-    <div className="space-y-6">
-
-      {/* Header tipo portal */}
-      <div className="border-b border-border pb-4">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl font-display font-bold text-text">Portal de datos abiertos</h1>
-            <p className="text-sm text-text-muted mt-0.5 max-w-xl">
-              Datos acústicos del Sistema de Monitoreo Binaural de Bogotá D.C.
-              Consulta y descarga mediciones en formato CSV para análisis externos.
-            </p>
-          </div>
-          <span className="px-3 py-1 text-xs rounded-full border border-primary text-primary font-display font-medium">
-            Datos abiertos · Libre uso
-          </span>
+    <div className="dashboard-page dashboard-open-data-page">
+      <header className="dashboard-open-data-intro">
+        <div>
+          <h1>Portal de datos abiertos</h1>
+          <p>
+            Datos acústicos del Sistema de Monitoreo Binaural de Bogotá D.C.
+            Consulta y descarga mediciones en formato CSV para análisis externos.
+          </p>
         </div>
-      </div>
+        <span className="dashboard-open-data-badge">Datos abiertos. Libre uso.</span>
+      </header>
 
       {/* Controles */}
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="dashboard-controls">
 
         {/* Selector de estación */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-display font-medium text-text-muted">Estación</label>
+        <div className="dashboard-field">
+          <label htmlFor="open-data-station">Estación</label>
           <select
+            id="open-data-station"
             value={station}
             onChange={e => setStation(e.target.value)}
-            className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
-                       focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
+            className="dashboard-select"
           >
             {stations.map(s => (
               <option key={s.station_code} value={s.station_code}>
@@ -197,26 +191,26 @@ export default function OpenData() {
           </select>
         </div>
 
-        {/* Rango de fechas */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-display font-medium text-text-muted">Rango de tiempo</label>
+        <div className="dashboard-field">
+          <label>Rango de tiempo</label>
           <DateRangePicker onChange={setRange} />
         </div>
       </div>
 
       {/* Tabs + botón descarga */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-1 border border-border rounded-lg p-1 bg-surface">
+        <div className="dashboard-tabs" role="tablist" aria-label="Tipo de datos">
           {[
             { key: 'raw',    label: `Mediciones crudas (${rawData.length})` },
             { key: 'hourly', label: `Agregaciones horarias (${hourlyData.length})` },
           ].map(t => (
             <button
               key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
               onClick={() => setTab(t.key)}
-              className={`px-4 py-1.5 rounded-md text-sm font-display font-medium transition-colors ${
-                tab === t.key ? 'bg-primary text-white' : 'text-text-muted hover:text-text'
-              }`}
+              className={`dashboard-tab ${tab === t.key ? 'dashboard-tab--active' : ''}`}
             >
               {t.label}
             </button>
@@ -224,13 +218,12 @@ export default function OpenData() {
         </div>
 
         <button
+          type="button"
           onClick={handleDownload}
           disabled={!activeRows.length}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm
-                     font-display font-medium hover:bg-primary-dark transition-colors
-                     disabled:opacity-40 disabled:cursor-not-allowed"
+          className="dashboard-download-button"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
@@ -238,14 +231,10 @@ export default function OpenData() {
         </button>
       </div>
 
-      {/* Nota sobre los datos */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-primary font-sans">
-        <strong className="font-display">Nota:</strong> Los datos descargados corresponden al rango de tiempo y estación seleccionados.
-        Las marcas de tiempo están en UTC. Los valores de nivel acústico están en dBFS (Full Scale).
-        El Leq usa ponderación A según la norma IEC 61672.
+      <div className="dashboard-open-data-note">
+        <strong>Sobre estos datos.</strong> El rango seleccionado se descarga en UTC y los niveles acústicos están expresados en dBFS. El Leq usa ponderación A según IEC 61672.
       </div>
 
-      {/* Tabla */}
       <DataTable columns={activeCols} rows={activeRows} loading={loading} />
 
     </div>

@@ -14,7 +14,7 @@ const PRESETS = [
  * El preset activo se resalta; "Personalizado" habilita inputs nativos.
  */
 export default function DateRangePicker({ onChange, className = '' }) {
-  const [active, setActive]   = useState('6h')
+  const [active, setActive]   = useState('24h')
   const [custom, setCustom]   = useState(false)
   const [fromVal, setFromVal] = useState('')
   const [toVal, setToVal]     = useState('')
@@ -33,15 +33,16 @@ export default function DateRangePicker({ onChange, className = '' }) {
   }
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <div className={`dashboard-range-picker ${className}`}>
       {PRESETS.map(p => (
         <button
           key={p.label}
+          type="button"
           onClick={() => applyPreset(p)}
-          className={`px-3 py-1 rounded text-sm font-display font-medium transition-colors border ${
+          className={`dashboard-range-picker__button ${
             active === p.label && !custom
-              ? 'bg-primary text-white border-primary'
-              : 'bg-bg text-text-muted border-border hover:border-primary hover:text-primary'
+              ? 'dashboard-range-picker__button--active'
+              : ''
           }`}
         >
           {p.label}
@@ -49,34 +50,38 @@ export default function DateRangePicker({ onChange, className = '' }) {
       ))}
 
       <button
+        type="button"
         onClick={() => { setCustom(true); setActive('') }}
-        className={`px-3 py-1 rounded text-sm font-display font-medium transition-colors border ${
+        className={`dashboard-range-picker__button ${
           custom
-            ? 'bg-primary text-white border-primary'
-            : 'bg-bg text-text-muted border-border hover:border-primary hover:text-primary'
+            ? 'dashboard-range-picker__button--active'
+            : ''
         }`}
       >
         Personalizado
       </button>
 
       {custom && (
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="dashboard-range-picker__custom">
           <input
             type="datetime-local"
             value={fromVal}
             onChange={e => setFromVal(e.target.value)}
-            className="border border-border rounded px-2 py-1 text-sm font-mono text-text bg-bg"
+            className="dashboard-input"
+            aria-label="Fecha y hora inicial"
           />
-          <span className="text-text-muted text-sm">—</span>
+          <span className="text-text-muted text-sm">a</span>
           <input
             type="datetime-local"
             value={toVal}
             onChange={e => setToVal(e.target.value)}
-            className="border border-border rounded px-2 py-1 text-sm font-mono text-text bg-bg"
+            className="dashboard-input"
+            aria-label="Fecha y hora final"
           />
           <button
+            type="button"
             onClick={applyCustom}
-            className="px-3 py-1 rounded text-sm font-display bg-primary text-white hover:bg-primary-dark transition-colors"
+            className="dashboard-button dashboard-button--primary"
           >
             Aplicar
           </button>

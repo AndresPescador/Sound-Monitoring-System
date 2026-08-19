@@ -171,7 +171,7 @@ export default function UrbanTwin() {
 
   const stationMenuExpanded = stationMenuOpen
 
-  if (loading) return <LoadingSpinner label="Cargando gemelo urbano 3D..." />
+  if (loading) return <LoadingSpinner label="Cargando mapa 3D..." />
 
   return (
     <div className="relative h-[100dvh] min-h-[620px] overflow-hidden bg-slate-950">
@@ -186,8 +186,8 @@ export default function UrbanTwin() {
         {stationMenuOpen ? (
           <div className="border-b border-slate-200 px-4 py-4">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-display font-semibold uppercase tracking-[0.15em] text-primary">Selector de estaciones</p>
+            <div>
+                <p className="text-[10px] font-display font-semibold uppercase tracking-[0.15em] text-primary">Mapa 3D</p>
                 <h2 className="mt-1 font-display text-xl font-bold text-slate-800">Buscar estación</h2>
               </div>
               <button type="button" onClick={() => { setStationMenuOpen(false); setHoveredStationCode(null) }} className="grid min-h-11 min-w-11 place-items-center rounded p-1 text-lg leading-none text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/30" aria-label="Replegar selector de estaciones">×</button>
@@ -208,8 +208,8 @@ export default function UrbanTwin() {
           </div>
         ) : (
           <button type="button" onClick={() => setStationMenuOpen(true)} className="flex items-center justify-between gap-3 px-4 py-3 text-left transition-[background-color,transform] hover:bg-slate-50 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/30" aria-expanded={stationMenuOpen} aria-controls="station-selector-content" aria-label="Abrir selector de estaciones">
-            <span>
-              <span className="block text-[10px] font-display font-semibold uppercase tracking-[0.15em] text-primary">Selector de estaciones</span>
+          <span>
+              <span className="block text-[10px] font-display font-semibold uppercase tracking-[0.15em] text-primary">Mapa 3D</span>
               <span className="mt-1 block font-display text-base font-bold text-slate-800">Buscar estación</span>
             </span>
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-lg text-slate-500" aria-hidden="true">⌄</span>
@@ -235,7 +235,7 @@ export default function UrbanTwin() {
                   className={`flex min-h-11 w-full items-center justify-between rounded-md border px-2.5 py-2 text-left text-sm transition-[background-color,border-color,transform] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-primary/30 ${station.station_code === selectedStationCode ? 'border-primary bg-primary text-white' : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50'}`}
                 >
                   <span className="min-w-0"><span className="block truncate font-display text-xs font-semibold">{station.name}</span><span className={`block truncate text-[11px] ${station.station_code === selectedStationCode ? 'text-blue-100' : 'text-slate-500'}`}>{station.locality}</span></span>
-                  <span className="ml-2 shrink-0 font-mono text-[11px]">{station.current_leq_dbfs?.toFixed(1) ?? '—'}</span>
+                  <span className="ml-2 shrink-0 font-mono text-[11px]">{station.current_leq_dbfs?.toFixed(1) ?? 'Sin dato'}</span>
                 </button>
               ))}
               {!leftFilteredStations.length && <p className="px-2 py-4 text-center text-xs text-slate-500">No hay estaciones que coincidan.</p>}
@@ -256,7 +256,7 @@ export default function UrbanTwin() {
             <button type="button" onClick={refreshStations} className="min-h-11 rounded border border-slate-300 px-2.5 py-1.5 text-xs font-display font-semibold text-slate-700 transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30">Actualizar</button>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-x-5">
-            <SideMetric label="Leq ciudad" value={cityLeq?.toFixed(1) ?? '—'} detail="dBFS · promedio energético" />
+            <SideMetric label="Leq ciudad" value={cityLeq?.toFixed(1) ?? 'Sin dato'} detail="dBFS · promedio energético" />
             <SideMetric label="Lecturas activas" value={`${observedStations.length}/${stations.length}`} detail={updatedAt ? relativeTime(updatedAt.toISOString()) : 'sin snapshot'} />
           </div>
         </div>
@@ -281,9 +281,9 @@ export default function UrbanTwin() {
             {selectedStation ? (
               <>
                 <div className="mt-3 grid grid-cols-2 gap-x-3 rounded-md bg-slate-50 px-3">
-                  <SideMetric label="Leq actual" value={selectedStation.current_leq_dbfs?.toFixed(1) ?? '—'} detail="dBFS" />
-                  <SideMetric label="Última hora" value={selectedSummary?.last_hour_leq?.toFixed(1) ?? '—'} detail="Leq dBFS" />
-                  <SideMetric label="L10 / L90" value={`${selectedSummary?.last_hour_l10?.toFixed(1) ?? '—'} / ${selectedSummary?.last_hour_l90?.toFixed(1) ?? '—'}`} detail="dBFS" />
+                  <SideMetric label="Leq actual" value={selectedStation.current_leq_dbfs?.toFixed(1) ?? 'Sin dato'} detail="dBFS" />
+                  <SideMetric label="Última hora" value={selectedSummary?.last_hour_leq?.toFixed(1) ?? 'Sin dato'} detail="Leq dBFS" />
+                  <SideMetric label="L10 / L90" value={`${selectedSummary?.last_hour_l10?.toFixed(1) ?? 'Sin dato'} / ${selectedSummary?.last_hour_l90?.toFixed(1) ?? 'Sin dato'}`} detail="dBFS" />
                   <SideMetric label="Estado" value={selectedStation.is_active ? 'Activa' : 'Inactiva'} detail={relativeTime(selectedStation.last_seen_at)} />
                 </div>
 
@@ -299,7 +299,7 @@ export default function UrbanTwin() {
 
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <h4 className="font-display text-sm font-bold text-slate-800">Canales binaurales</h4>
-                  <div className="flex gap-2 text-[10px] text-slate-500"><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-cyan-700" />L</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-violet-600" />R</span></div>
+                  <div className="flex gap-2 text-[10px] text-slate-700"><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-cyan-700" aria-hidden="true" />L</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-violet-600" aria-hidden="true" />R</span></div>
                 </div>
                 <div className="mt-1 rounded-md border border-slate-200 bg-white px-1 py-1">
                   <TimeSeriesChart

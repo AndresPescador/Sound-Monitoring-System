@@ -1,15 +1,20 @@
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import Navbar from './Navbar'
 
 export default function Layout() {
   return (
-    <div className="min-h-screen flex flex-col bg-surface">
+    <div className="dashboard-shell">
       <Navbar />
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-screen-2xl mx-auto w-full">
+      <main className="dashboard-main">
         <Outlet />
       </main>
-      <footer className="border-t border-border py-3 text-center text-xs text-text-light font-mono">
-        Sistema de Monitoreo Acústico Binaural · Bogotá D.C. · {new Date().getFullYear()}
+      <footer className="dashboard-footer">
+        <span className="dashboard-footer__brand">Monitoreo Acústico · Bogotá D.C.</span>
+        <p className="dashboard-footer__copy">Datos acústicos binaurales para explorar la ciudad.</p>
+        <nav className="dashboard-footer__links" aria-label="Enlaces del pie de página">
+          <Link to="/">Presentación</Link>
+          <Link to="/data">Datos abiertos</Link>
+        </nav>
       </footer>
     </div>
   )

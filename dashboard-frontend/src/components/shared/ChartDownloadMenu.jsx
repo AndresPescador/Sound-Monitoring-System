@@ -31,18 +31,14 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
   }
 
   return (
-    <div ref={menuRef} className="relative inline-flex items-center">
+    <div ref={menuRef} className="dashboard-export relative inline-flex items-center">
       {/* Botón trigger */}
       <button
+        type="button"
         onClick={() => setOpen(v => !v)}
         disabled={downloading}
         title="Exportar gráfica"
-        className="
-          w-6 h-6 rounded border border-border bg-surface
-          flex items-center justify-center
-          text-text-muted hover:text-primary hover:border-primary
-          transition-colors disabled:opacity-50 disabled:cursor-wait
-        "
+        className="dashboard-export__trigger"
       >
         {downloading ? (
           // Mini spinner mientras genera PNG
@@ -67,12 +63,9 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
         ">
           {/* PNG */}
           <button
+            type="button"
             onClick={() => handle(onPNG)}
-            className="
-              w-full flex items-center gap-2 px-3 py-1.5
-              text-xs font-sans text-text
-              hover:bg-surface transition-colors text-left
-            "
+            className="dashboard-export__item"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"
                  stroke="currentColor" strokeWidth="1.5"
@@ -86,12 +79,9 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
 
           {/* SVG */}
           <button
+            type="button"
             onClick={() => handle(onSVG)}
-            className="
-              w-full flex items-center gap-2 px-3 py-1.5
-              text-xs font-sans text-text
-              hover:bg-surface transition-colors text-left
-            "
+            className="dashboard-export__item"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"
                  stroke="currentColor" strokeWidth="1.5"
@@ -108,14 +98,10 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
 
           {/* CSV */}
           <button
+            type="button"
             onClick={() => handle(onCSV)}
             disabled={!onCSV}
-            className="
-              w-full flex items-center gap-2 px-3 py-1.5
-              text-xs font-sans text-text
-              hover:bg-surface transition-colors text-left
-              disabled:opacity-40 disabled:cursor-not-allowed
-            "
+            className="dashboard-export__item"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"
                  stroke="currentColor" strokeWidth="1.5"

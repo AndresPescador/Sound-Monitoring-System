@@ -12,13 +12,13 @@ const METRICS = [
   { value: 'ch_right_dbfs',         label: 'Canal derecho (dBFS)' },
 ]
 
-export default function MetricSelector({ value, onChange, className = '' }) {
+export default function MetricSelector({ value, onChange, className = '', id }) {
   return (
     <select
+      id={id}
       value={value}
       onChange={e => onChange(e.target.value)}
-      className={`border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
-                  focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${className}`}
+      className={className || 'dashboard-select'}
     >
       {METRICS.map(m => (
         <option key={m.value} value={m.value}>{m.label}</option>

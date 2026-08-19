@@ -17,7 +17,7 @@ export default function StationMap({ stations = [] }) {
     <MapContainer
       center={BOGOTA}
       zoom={11}
-      className="w-full h-full rounded-lg z-0"
+      className="dashboard-leaflet-map"
       scrollWheelZoom={true}
     >
       <TileLayer
@@ -35,19 +35,20 @@ export default function StationMap({ stations = [] }) {
             pathOptions={{ color, fillColor: color, fillOpacity: 0.85, weight: 2 }}
           >
             <Popup>
-              <div className="font-sans text-sm min-w-[160px]">
-                <p className="font-display font-semibold text-text">{s.name}</p>
-                <p className="text-text-muted text-xs mb-2">{s.locality}</p>
+              <div className="dashboard-map-popup">
+                <p className="dashboard-map-popup__name">{s.name}</p>
+                <p className="dashboard-map-popup__meta">{s.locality}</p>
                 {s.current_leq_dbfs != null && (
-                  <p className="text-text font-mono text-sm">
+                  <p className="dashboard-map-popup__value">
                     Leq: <strong>{s.current_leq_dbfs.toFixed(1)} dBFS</strong>
                   </p>
                 )}
                 <button
+                  type="button"
                   onClick={() => navigate(`/stations/${s.station_code}`)}
-                  className="mt-2 w-full text-xs bg-primary text-white rounded px-2 py-1 font-display hover:bg-primary-dark transition-colors"
+                  className="dashboard-map-popup__action"
                 >
-                  Ver detalle →
+                  Ver detalle
                 </button>
               </div>
             </Popup>

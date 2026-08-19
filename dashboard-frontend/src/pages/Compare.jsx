@@ -42,30 +42,32 @@ const RAW_METRICS = [
 // ─── Subcomponente: selector de tags con scroll ───────────────────────────────
 function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKey, getLabel, getSubLabel }) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <button onClick={onSelectAll} className="text-xs font-display font-medium text-primary hover:text-primary-dark transition-colors">Todas</button>
-        <span className="text-text-light text-xs">·</span>
-        <button onClick={onClearAll} className="text-xs font-display font-medium text-text-muted hover:text-text transition-colors">Ninguna</button>
-        <span className="text-xs text-text-light ml-auto">{selected.size} / {items.length} seleccionadas</span>
+    <div className="dashboard-tag-selector">
+      <div className="dashboard-tag-group__heading">
+        <div className="dashboard-tag-group__actions">
+          <button type="button" onClick={onSelectAll} className="dashboard-text-button">Todas</button>
+          <button type="button" onClick={onClearAll} className="dashboard-text-button">Ninguna</button>
+        </div>
+        <span className="dashboard-tag-group__count">{selected.size} / {items.length} seleccionadas</span>
       </div>
-      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 scrollbar-thin">
+      <div className="dashboard-tag-list">
         {items.map(item => {
           const key = getKey(item)
           const active = selected.has(key)
           return (
             <button
               key={key}
+              type="button"
               onClick={() => onToggle(key)}
-              className={`inline-flex flex-col items-start px-2.5 py-1 rounded-md border text-left transition-all duration-150 leading-tight ${
+              className={`dashboard-tag ${
                 active
-                  ? 'bg-primary text-white border-primary shadow-sm'
-                  : 'bg-bg text-text-muted border-border hover:border-primary-light hover:text-text'
+                  ? 'dashboard-tag--active'
+                  : ''
               }`}
             >
-              <span className="text-xs font-display font-semibold">{getLabel(item)}</span>
+              <span className="dashboard-tag__label">{getLabel(item)}</span>
               {getSubLabel && (
-                <span className={`text-[10px] font-mono ${active ? 'text-blue-200' : 'text-text-light'}`}>
+                <span className="dashboard-tag__sub">
                   {getSubLabel(item)}
                 </span>
               )}
@@ -90,11 +92,11 @@ function SectionCard({ title, subtitle, downloadData, fileLabel, svgTitle, child
   }, [downloadPNG])
 
   return (
-    <div ref={cardRef} className="bg-bg border border-border rounded-lg p-4 space-y-4">
-      <div className="flex items-start justify-between gap-2">
+    <div ref={cardRef} className="dashboard-section-card">
+      <div className="dashboard-section-card__heading">
         <div>
-          <h2 className="text-base font-display font-bold text-text">{title}</h2>
-          {subtitle && <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>}
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
         </div>
         <ChartDownloadMenu
           onPNG={handlePNG}
@@ -201,35 +203,35 @@ export default function Compare() {
   const clearAllStations    = () => setSelectedStations(new Set())
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-page dashboard-compare-page">
+      <header className="dashboard-page-header">
+        <div>
+          <h1>Comparar estaciones</h1>
+          <p>Contrasta localidades y estaciones individuales para reconocer cambios, picos y diferencias espaciales.</p>
+        </div>
+      </header>
 
-      <div>
-        <h1 className="text-xl font-display font-bold text-text">Comparación entre estaciones</h1>
-        <p className="text-sm text-text-muted mt-0.5">Análisis comparativo por localidad y por estación individual</p>
-      </div>
-
-      {/* ══ SECCIÓN 1 — Localidades ══ */}
       <SectionCard
         title="Comparación por localidad"
         subtitle="Agrega las estaciones de cada localidad y compara su evolución en el tiempo"
         fileLabel={localityMetric}
-        svgTitle={`Comparación por localidad — ${COMPARE_METRICS.find(m => m.value === localityMetric)?.label ?? localityMetric}`}
+        svgTitle={`Comparación por localidad: ${COMPARE_METRICS.find(m => m.value === localityMetric)?.label ?? localityMetric}`}
         downloadData={localityCSV}
       >
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="dashboard-controls">
           <DateRangePicker onChange={setLocalityRange} />
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-display font-medium text-text-muted">Métrica</label>
+          <div className="dashboard-field">
+            <label htmlFor="locality-metric">Métrica</label>
             <select value={localityMetric} onChange={e => setLocalityMetric(e.target.value)}
-              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary">
+              id="locality-metric" className="dashboard-select">
               {COMPARE_METRICS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
         </div>
 
         {localities.length > 0 && (
-          <div className="border border-border rounded-md p-3 bg-surface">
-            <p className="text-xs font-display font-semibold text-text-muted mb-2 uppercase tracking-wide">Localidades</p>
+          <div className="dashboard-tag-group">
+            <div className="dashboard-tag-group__heading"><p>Localidades</p></div>
             <TagSelector
               items={localities} selected={selectedLocalities}
               onToggle={toggleLocality} onSelectAll={selectAllLocalities} onClearAll={clearAllLocalities}
@@ -240,8 +242,8 @@ export default function Compare() {
         )}
 
         <div>
-          <div className="mb-3 flex items-center">
-            <h3 className="text-sm font-display font-semibold text-text">
+          <div className="dashboard-chart-heading">
+            <h3>
               {COMPARE_METRICS.find(m => m.value === localityMetric)?.label}
             </h3>
             <ChartInfo text={getMetricDescription(localityMetric)} />
@@ -255,40 +257,39 @@ export default function Compare() {
         </div>
 
         {!loadingLocality && localitySeries.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+          <div className="dashboard-result-grid">
             {localitySeries.map(s => (
-              <div key={s.station_code} className="bg-bg border border-border rounded-lg p-3">
-                <p className="text-xs font-mono text-text-muted">{s.station_code}</p>
-                <p className="text-sm font-display font-semibold text-text">{s.locality}</p>
-                <p className="text-xs text-text-light">{s.data.length} puntos</p>
+              <div key={s.station_code} className="dashboard-result">
+                <p className="dashboard-result__code">{s.station_code}</p>
+                <p className="dashboard-result__name">{s.locality}</p>
+                <p className="dashboard-result__meta">{s.data.length} puntos</p>
               </div>
             ))}
           </div>
         )}
       </SectionCard>
 
-      {/* ══ SECCIÓN 2 — Estaciones individuales ══ */}
       <SectionCard
         title="Comparación por estación"
         subtitle="Selecciona estaciones específicas para comparar su comportamiento en detalle"
         fileLabel={stationMetric}
-        svgTitle={`Comparación por estación — ${RAW_METRICS.find(m => m.value === stationMetric)?.label ?? stationMetric}`}
+        svgTitle={`Comparación por estación: ${RAW_METRICS.find(m => m.value === stationMetric)?.label ?? stationMetric}`}
         downloadData={stationCSV}
       >
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="dashboard-controls">
           <DateRangePicker onChange={setStationRange} />
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-display font-medium text-text-muted">Métrica</label>
+          <div className="dashboard-field">
+            <label htmlFor="station-metric">Métrica</label>
             <select value={stationMetric} onChange={e => setStationMetric(e.target.value)}
-              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary">
+              id="station-metric" className="dashboard-select">
               {RAW_METRICS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
         </div>
 
         {allStations.length > 0 && (
-          <div className="border border-border rounded-md p-3 bg-surface">
-            <p className="text-xs font-display font-semibold text-text-muted mb-2 uppercase tracking-wide">Estaciones</p>
+          <div className="dashboard-tag-group">
+            <div className="dashboard-tag-group__heading"><p>Estaciones</p></div>
             <TagSelector
               items={allStations} selected={selectedStations}
               onToggle={toggleStation} onSelectAll={selectAllStations} onClearAll={clearAllStations}
@@ -299,8 +300,8 @@ export default function Compare() {
         )}
 
         <div>
-          <div className="mb-3 flex items-center">
-            <h3 className="text-sm font-display font-semibold text-text">
+          <div className="dashboard-chart-heading">
+            <h3>
               {RAW_METRICS.find(m => m.value === stationMetric)?.label}
             </h3>
             <ChartInfo text={getMetricDescription(stationMetric)} />
@@ -314,12 +315,12 @@ export default function Compare() {
         </div>
 
         {!loadingStation && stationSeries.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+          <div className="dashboard-result-grid">
             {stationSeries.map(s => (
-              <div key={s.station_code} className="bg-bg border border-border rounded-lg p-3">
-                <p className="text-xs font-mono text-text-muted">{s.station_code}</p>
-                <p className="text-sm font-display font-semibold text-text">{s.locality}</p>
-                <p className="text-xs text-text-light">{s.data.length} puntos</p>
+              <div key={s.station_code} className="dashboard-result">
+                <p className="dashboard-result__code">{s.station_code}</p>
+                <p className="dashboard-result__name">{s.locality}</p>
+                <p className="dashboard-result__meta">{s.data.length} puntos</p>
               </div>
             ))}
           </div>

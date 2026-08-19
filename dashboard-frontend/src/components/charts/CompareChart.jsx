@@ -5,7 +5,7 @@ import {
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const COLORS = ['#1d4ed8','#dc2626','#16a34a','#d97706','#7c3aed','#0891b2','#be185d']
+const COLORS = ['#1d4ed8', '#153781', '#4774bd', '#6f94cf', '#8aa8d4', '#365b96', '#10223f']
 
 export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) {
   if (!series.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos.</p>

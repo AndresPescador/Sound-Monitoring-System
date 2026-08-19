@@ -28,7 +28,7 @@ const METRIC_LABELS = {
   rms_energy:             'Energía RMS',
   ch_left_dbfs:           'Canal izquierdo (dBFS)',
   ch_right_dbfs:          'Canal derecho (dBFS)',
-  ild_db:                 'ILD — Diferencia interaural',
+  ild_db:                 'ILD: diferencia interaural',
   interaural_correlation: 'Correlación interaural',
   dominant_frequency:     'Frecuencia dominante (Hz)',
   spectral_centroid:      'Centroide espectral (Hz)',
@@ -48,21 +48,21 @@ const SectionCard = ({ title, info, downloadData, fileLabel, svgTitle, stationCo
   }, [downloadPNG])
 
   return (
-    <div ref={cardRef} className="bg-bg border border-border rounded-lg p-4">
-      <h3 className="text-sm font-display font-semibold text-text mb-3 flex items-center justify-between">
-        <span className="flex items-center">
+    <section ref={cardRef} className="dashboard-section-card">
+      <div className="dashboard-section-card__heading">
+        <h3>
           {title}
           {info && <ChartInfo text={info} />}
-        </span>
+        </h3>
         <ChartDownloadMenu
           onPNG={handlePNG}
           onSVG={downloadSVG}
           onCSV={downloadData?.length ? downloadCSV : undefined}
           downloading={downloading}
         />
-      </h3>
+      </div>
       {children}
-    </div>
+    </section>
   )
 }
 
@@ -134,48 +134,41 @@ export default function StationDetail() {
   }
 
   return (
-    <div className="space-y-5">
-
-      {/* Breadcrumb + header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex-1">
-          <p className="text-xs text-text-muted font-mono mb-1">
-            <Link to="/mapa-2d" className="hover:text-primary">Mapa 2D</Link>
-            {' / '}
-            <span className="text-text">{code}</span>
+    <div className="dashboard-page dashboard-station-page">
+      <header className="dashboard-station-header">
+        <div>
+          <p className="dashboard-breadcrumb">
+            <Link to="/mapa-2d">Mapa 2D</Link> / <span>{code}</span>
           </p>
-          <h1 className="text-xl font-display font-bold text-text">
-            {summary?.name ?? code}
-          </h1>
-          <p className="text-sm text-text-muted">{summary?.locality} · {summary?.is_active ? 'Activa' : 'Inactiva'}</p>
+          <h1>{summary?.name ?? code}</h1>
+          <p className="dashboard-station-header__meta">{summary?.locality} · {summary?.is_active ? 'Activa' : 'Inactiva'}</p>
         </div>
 
         {summary && (
-          <div className="flex gap-4 text-sm">
-            <div className="text-right">
-              <p className="text-text-muted text-xs">Último Leq</p>
-              <p className="font-display font-bold text-lg text-text">
-                {summary.latest_leq_dbfs?.toFixed(1) ?? '—'} <span className="text-xs font-normal text-text-muted">dBFS</span>
+          <div className="dashboard-station-header__stats">
+            <div className="dashboard-inline-stat">
+              <p className="dashboard-inline-stat__label">Último Leq</p>
+              <p className="dashboard-inline-stat__value">
+                {summary.latest_leq_dbfs?.toFixed(1) ?? 'Sin dato'} <span className="dashboard-inline-stat__unit">dBFS</span>
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-text-muted text-xs">Total mediciones</p>
-              <p className="font-display font-bold text-lg text-text">{summary.total_measurements?.toLocaleString('es-CO')}</p>
+            <div className="dashboard-inline-stat">
+              <p className="dashboard-inline-stat__label">Total mediciones</p>
+              <p className="dashboard-inline-stat__value">{summary.total_measurements?.toLocaleString('es-CO')}</p>
             </div>
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Selector de estaciones + Rango de fechas */}
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="dashboard-controls">
         {stations.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-display font-medium text-text-muted">Cambiar estación</label>
+          <div className="dashboard-field">
+            <label htmlFor="station-select">Cambiar estación</label>
             <select
+              id="station-select"
               value={code}
               onChange={e => handleStationChange(e.target.value)}
-              className="border border-border rounded px-3 py-1.5 text-sm font-sans text-text bg-bg
-                         focus:outline-none focus:ring-2 focus:ring-primary min-w-[240px]"
+              className="dashboard-select"
             >
               {stations.map(s => (
                 <option key={s.station_code} value={s.station_code}>
@@ -189,11 +182,11 @@ export default function StationDetail() {
       </div>
 
       {loadingMain ? <LoadingSpinner label="Cargando gráficas..." /> : (
-        <div className="space-y-4">
+        <div className="dashboard-page dashboard-station-charts">
 
           {/* Banda L10/L50/L90 */}
           <SectionCard
-            title="Niveles horarios — Leq / L10 / L90"
+            title="Niveles horarios: Leq / L10 / L90"
             info="Esta gráfica muestra tres bandas de nivel de ruido por hora. La banda verde (L90) es el ruido de fondo que casi siempre está presente. La línea azul (Leq) es el nivel promedio. La banda roja (L10) son los picos ocasionales, como bocinas o frenadas. Mientras más separadas estén las bandas, más variable es el ambiente sonoro."
             stationCode={code}
             downloadData={hourly}
@@ -204,7 +197,7 @@ export default function StationDetail() {
 
           {/* Perfil diario */}
           <SectionCard
-            title={`Perfil diario — ${range.to.slice(0, 10)}`}
+            title={`Perfil diario: ${range.to.slice(0, 10)}`}
             info="Muestra el nivel de ruido promedio para cada hora del día (0 a 23 horas). Las barras verdes indican horas tranquilas, amarillas un nivel moderado, y rojas un nivel alto. Permite identificar las horas pico de ruido, como el tráfico matutino o el silencio nocturno."
             stationCode={code}
             downloadData={daily}
@@ -222,8 +215,9 @@ export default function StationDetail() {
             stationCode={code}
             downloadData={timeseries.map(d => ({ timestamp: d.recorded_at, [metric]: d.value }))}
           >
-            <div className="mb-3">
-              <MetricSelector value={metric} onChange={setMetric} />
+            <div className="dashboard-field">
+              <label htmlFor="station-metric-selector">Métrica de la serie</label>
+              <MetricSelector value={metric} onChange={setMetric} className="dashboard-select" id="station-metric-selector" />
             </div>
             {loadingMetric
               ? <LoadingSpinner label="Actualizando gráfica..." />
@@ -232,9 +226,9 @@ export default function StationDetail() {
           </SectionCard>
 
           {/* ILD + correlación */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="dashboard-chart-grid">
             <SectionCard
-              title="ILD — Diferencia interaural"
+              title="ILD: diferencia interaural"
               info={getMetricDescription('ild_db')}
             stationCode={code}
               downloadData={binaural.map(d => ({ timestamp: d.recorded_at, ild_db: d.ild_db }))}
@@ -259,7 +253,7 @@ export default function StationDetail() {
           </div>
 
           {/* Espectral */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="dashboard-chart-grid">
             <SectionCard
               title="Centroide espectral (Hz)"
               info={getMetricDescription('spectral_centroid')}
