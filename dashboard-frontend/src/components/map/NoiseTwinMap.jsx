@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { FlyToInterpolator } from '@deck.gl/core'
-import { ColumnLayer, ScatterplotLayer } from '@deck.gl/layers'
+import { ColumnLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import Map from 'react-map-gl/maplibre'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -42,6 +42,10 @@ function getNoiseColor(leq) {
   if (leq < -35) return [0, 205, 222, 225]
   if (leq < -25) return [190, 47, 214, 235]
   return [238, 30, 65, 245]
+}
+
+function getStationColor(leq) {
+  return Number.isFinite(leq) ? getNoiseColor(leq) : [100, 116, 139, 210]
 }
 
 /** Agrega edificios 3D cuando el estilo vectorial expone source-layer "building". */
@@ -108,9 +112,9 @@ function addBogotaBoundary(map) {
 export default function NoiseTwinMap({
   stations = [],
   selectedStationCode,
+  hoveredStationCode,
   onSelectStation,
   columnRadius = 35,
-  onSelectColumn,
 }) {
   const [viewState, setViewState] = useState(BOGOTA_VIEW)
 
@@ -122,9 +126,17 @@ export default function NoiseTwinMap({
     ))
   ), [stations])
 
+  const locatedStations = useMemo(() => (
+    stations.filter(s => Number.isFinite(s.latitude) && Number.isFinite(s.longitude))
+  ), [stations])
+
   const selectedStation = useMemo(() => (
-    observedStations.find(s => s.station_code === selectedStationCode)
-  ), [observedStations, selectedStationCode])
+    locatedStations.find(s => s.station_code === selectedStationCode)
+  ), [locatedStations, selectedStationCode])
+
+  const hoveredStation = useMemo(() => (
+    locatedStations.find(s => s.station_code === hoveredStationCode)
+  ), [hoveredStationCode, locatedStations])
 
   // La entrada conserva el encuadre de ciudad. Una selección acerca la cámara
   // de forma suave sin alterar el comportamiento al cargar el visor.
@@ -165,30 +177,25 @@ export default function NoiseTwinMap({
       },
       onClick: info => {
         if (!info.object) return
-        onSelectColumn?.({
-          stationCode: info.object.station_code,
-          leqDbfs: info.object.current_leq_dbfs,
-          elevationValue: Math.max(18, Math.min(160, (info.object.current_leq_dbfs + 60) * 3.5)),
-        })
         onSelectStation?.(info.object.station_code)
       },
     }),
     new ScatterplotLayer({
       id: 'stations-points',
-      data: observedStations,
+      data: locatedStations,
       getPosition: d => [d.longitude, d.latitude],
       getRadius: d => d.station_code === selectedStationCode ? 34 : 24,
       radiusUnits: 'meters',
       radiusMinPixels: 5,
       radiusMaxPixels: 16,
-      getFillColor: d => getNoiseColor(d.current_leq_dbfs),
+      getFillColor: d => getStationColor(d.current_leq_dbfs),
       getLineColor: d => d.station_code === selectedStationCode ? [15, 23, 42, 255] : [255, 255, 255, 235],
       lineWidthMinPixels: 1,
       stroked: true,
       pickable: true,
       updateTriggers: {
         getRadius: [selectedStationCode],
-        getFillColor: [observedStations],
+        getFillColor: [locatedStations],
       },
       transitions: {
         getRadius: 450,
@@ -196,7 +203,46 @@ export default function NoiseTwinMap({
       },
       onClick: info => info.object && onSelectStation?.(info.object.station_code),
     }),
-  ], [columnRadius, observedStations, onSelectColumn, onSelectStation, selectedStationCode])
+    new ScatterplotLayer({
+      id: 'station-hover-ring',
+      data: hoveredStation ? [hoveredStation] : [],
+      getPosition: d => [d.longitude, d.latitude],
+      getRadius: 46,
+      radiusUnits: 'meters',
+      radiusMinPixels: 9,
+      radiusMaxPixels: 20,
+      getFillColor: [255, 255, 255, 0],
+      getLineColor: [15, 23, 42, 255],
+      lineWidthMinPixels: 2,
+      stroked: true,
+      pickable: false,
+      parameters: { depthTest: false },
+    }),
+    new TextLayer({
+      id: 'station-hover-label',
+      data: hoveredStation ? [hoveredStation] : [],
+      getPosition: d => [d.longitude, d.latitude],
+      getText: d => `${d.name}\nLeq: ${Number.isFinite(d.current_leq_dbfs) ? `${d.current_leq_dbfs.toFixed(1)} dBFS` : 'sin dato reciente'}`,
+      getColor: [241, 245, 249, 255],
+      getSize: 14,
+      sizeUnits: 'pixels',
+      sizeMinPixels: 12,
+      billboard: true,
+      background: true,
+      getBackgroundColor: [15, 23, 42, 235],
+      backgroundPadding: [10, 7],
+      backgroundBorderRadius: 5,
+      getPixelOffset: [12, -48],
+      getTextAnchor: 'start',
+      getAlignmentBaseline: 'bottom',
+      fontFamily: 'DM Sans, sans-serif',
+      fontWeight: 600,
+      characterSet: 'auto',
+      maxWidth: 260,
+      pickable: false,
+      parameters: { depthTest: false },
+    }),
+  ], [columnRadius, hoveredStation, locatedStations, observedStations, onSelectStation, selectedStationCode])
 
   const resetToCityView = () => {
     setViewState(current => ({
@@ -227,7 +273,7 @@ export default function NoiseTwinMap({
           if (!object) return null
           if (layer?.id === 'stations-points') {
             return {
-              text: `${object.name}\n${object.current_leq_dbfs.toFixed(1)} dBFS · ${object.locality}`,
+              text: `${object.name}\n${object.current_leq_dbfs != null ? `${object.current_leq_dbfs.toFixed(1)} dBFS` : 'Sin dato reciente'} · ${object.locality}`,
             }
           }
           if (layer?.id === 'noise-columns') {
@@ -257,20 +303,22 @@ export default function NoiseTwinMap({
         <p className="mt-1 text-[10px] text-slate-400">Límite: IDECA · Base © OpenStreetMap · CARTO</p>
       </div>
 
-      <button
-        type="button"
-        onClick={resetToCityView}
-        className="absolute left-3 top-32 rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 shadow-lg transition-colors hover:border-primary hover:text-primary"
-      >
-        Vista general
-      </button>
-      <button
-        type="button"
-        onClick={resetTo3dView}
-        className="absolute left-3 top-[11.25rem] rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 shadow-lg transition-colors hover:border-primary hover:text-primary"
-      >
-        Vista 3D
-      </button>
+      <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-white/20 bg-slate-950/85 p-1 shadow-lg backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={resetToCityView}
+          className="pointer-events-auto min-h-11 whitespace-nowrap rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+        >
+          Vista general
+        </button>
+        <button
+          type="button"
+          onClick={resetTo3dView}
+          className="pointer-events-auto min-h-11 whitespace-nowrap rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+        >
+          Restablecer ángulo
+        </button>
+      </div>
     </div>
   )
 }
