@@ -8,14 +8,25 @@ const NOISE_STYLES = {
   high:     { tone: 'high',   label: 'Alto'     },
 }
 
-export default function StationCard({ station }) {
+export default function StationCard({ station, onHover, onSelect }) {
   const style = NOISE_STYLES[station.noise_level] ?? {
     tone:  'unknown',
     label: 'Sin datos',
   }
 
   return (
-    <Link to={`/stations/${station.station_code}`} className="dashboard-station-row">
+    <Link
+      to={`/stations/${station.station_code}`}
+      className="dashboard-station-row"
+      onClick={event => {
+        event.preventDefault()
+        onSelect?.(station.station_code)
+      }}
+      onMouseEnter={() => onHover?.(station.station_code)}
+      onMouseLeave={() => onHover?.(null)}
+      onFocus={() => onHover?.(station.station_code)}
+      onBlur={() => onHover?.(null)}
+    >
       <div>
         <span className="dashboard-station-row__name">{station.name}</span>
         <span className="dashboard-station-row__meta">{station.locality}</span>

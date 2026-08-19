@@ -12,6 +12,8 @@ import { es } from 'date-fns/locale'
 export default function Home() {
   const [stats,    setStats]    = useState(null)
   const [stations, setStations] = useState([])
+  const [hoveredStationCode, setHoveredStationCode] = useState(null)
+  const [selectedStationCode, setSelectedStationCode] = useState(null)
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState(null)
 
@@ -57,12 +59,17 @@ export default function Home() {
           <div className="dashboard-panel-heading">
             <div>
               <h2 id="map-heading">Lecturas por estación</h2>
-              <p>Selecciona un punto para consultar el detalle acústico.</p>
+              <p>Haz clic en una fila o en un punto para acercarte y consultar el detalle acústico.</p>
             </div>
             <span className="dashboard-panel-status">Actualización reciente</span>
           </div>
           <div className="dashboard-map-canvas">
-            <StationMap stations={stations} />
+            <StationMap
+              stations={stations}
+              hoveredStationCode={hoveredStationCode}
+              selectedStationCode={selectedStationCode}
+              onSelect={setSelectedStationCode}
+            />
           </div>
           <div className="dashboard-map-legend" aria-label="Niveles de ruido">
             <span className="dashboard-map-legend__title">Nivel de ruido</span>
@@ -78,7 +85,14 @@ export default function Home() {
             <span>{stations.length} registradas</span>
           </div>
           <div className="dashboard-station-list">
-          {stations.map(s => <StationCard key={s.station_code} station={s} />)}
+          {stations.map(s => (
+            <StationCard
+              key={s.station_code}
+              station={s}
+              onHover={setHoveredStationCode}
+              onSelect={setSelectedStationCode}
+            />
+          ))}
           {!stations.length && <p className="dashboard-empty-state">No hay estaciones registradas.</p>}
           </div>
         </aside>

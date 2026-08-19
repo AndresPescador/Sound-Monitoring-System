@@ -1052,6 +1052,25 @@
 .dashboard-map-popup__action { display: inline-flex; min-height: 44px; width: 100%; align-items: center; justify-content: center; margin-top: 0.7rem; border-radius: 10px; background: var(--dashboard-blue); color: var(--dashboard-paper); font-family: "DM Sans", sans-serif; font-size: 0.75rem; font-weight: 700; }
 .dashboard-map-popup__action:hover { background: var(--dashboard-blue-dark); }
 
+.dashboard-map-label {
+  border: 1px solid rgb(15 23 42 / 0.14);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: 0 10px 24px rgb(28 60 107 / 0.18);
+  color: var(--dashboard-ink);
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  padding: 0.55rem 0.7rem;
+}
+
+.dashboard-map-label::before { border-top-color: rgb(255 255 255 / 0.96); }
+.dashboard-map-label strong,
+.dashboard-map-label span { display: block; }
+.dashboard-map-label > strong { font-family: "DM Sans", sans-serif; font-size: 0.82rem; }
+.dashboard-map-label span + span { margin-top: 0.15rem; }
+.dashboard-map-label span:last-child { font-family: "JetBrains Mono", monospace; }
+
 @keyframes dashboard-loading {
   from { transform: scaleY(0.55); opacity: 0.45; }
   to { transform: scaleY(1); opacity: 1; }
