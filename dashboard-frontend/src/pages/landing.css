@@ -614,10 +614,29 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 }
 
 .landing-project-mosaic .landing-project-feature {
+  position: relative;
+  overflow: hidden;
   grid-column: 1 / -1;
   min-height: 340px;
   background: var(--landing-blue);
   color: #f8fbff;
+}
+
+.landing-project-feature-art {
+  position: absolute;
+  right: -2%;
+  bottom: -12%;
+  z-index: 0;
+  width: min(62%, 760px);
+  max-height: 125%;
+  object-fit: contain;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.landing-project-feature > :not(.landing-project-feature-art) {
+  position: relative;
+  z-index: 1;
 }
 
 .landing-feature-word {
@@ -762,6 +781,7 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 }
 
 .landing-system-evidence {
+  position: relative;
   margin: 0;
 }
 
@@ -772,6 +792,18 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   border-radius: 16px;
   object-fit: cover;
   box-shadow: 0 28px 75px rgb(20 47 85 / 0.2);
+}
+
+.landing-system-evidence .landing-system-technical-art {
+  position: absolute;
+  right: -1.5rem;
+  bottom: 1.8rem;
+  z-index: 2;
+  width: clamp(8rem, 17vw, 13rem);
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 18px 22px rgb(16 34 63 / 0.22));
 }
 
 .landing-system-evidence figcaption {
@@ -993,15 +1025,43 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   max-width: 12ch;
 }
 
+.landing-audiences-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.16fr) minmax(300px, 0.84fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+}
+
 .landing-audience-grid {
   display: grid;
   grid-template-columns: 1.25fr 0.75fr;
   gap: 1px;
-  max-width: 1100px;
+  max-width: none;
   margin-top: clamp(3rem, 7vw, 6rem);
   overflow: hidden;
   border-radius: 16px;
   background: var(--landing-line);
+}
+
+.landing-audiences-visual {
+  margin: 0;
+}
+
+.landing-audiences-visual img {
+  display: block;
+  width: 100%;
+  max-height: 29rem;
+  object-fit: contain;
+}
+
+.landing-audiences-visual figcaption {
+  max-width: 30ch;
+  margin: 0.8rem auto 0;
+  color: var(--landing-muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.66rem;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .landing-audience-grid article {
@@ -1040,9 +1100,9 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 }
 
 .landing-open-data {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr) auto;
   align-items: end;
-  justify-content: space-between;
   gap: 3rem;
   padding: clamp(5rem, 9vw, 8rem) clamp(1.25rem, 4vw, 4.5rem);
   background: #dce9ff;
@@ -1050,6 +1110,34 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 
 .landing-open-data > div {
   max-width: 54rem;
+}
+
+.landing-open-data-art {
+  position: relative;
+  display: block;
+  min-height: clamp(12rem, 19vw, 18rem);
+  align-self: center;
+  width: min(100%, 38rem);
+}
+
+.landing-open-data-art img {
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.landing-open-data-river {
+  inset: 0;
+  opacity: 0.88;
+}
+
+.landing-open-data-constellation {
+  inset: 15% -5% -8% 8%;
+  width: 88% !important;
+  opacity: 0.42;
+  transform: rotate(-2deg);
 }
 
 .landing-open-data h2 {
@@ -1200,6 +1288,20 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   .landing-system-header .landing-section-heading {
     max-width: 46rem;
   }
+
+  .landing-open-data {
+    grid-template-columns: minmax(240px, 0.85fr) minmax(280px, 1.15fr);
+    gap: 1.75rem;
+  }
+
+  .landing-open-data > .landing-button {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .landing-system-evidence .landing-system-technical-art {
+    right: -0.5rem;
+  }
 }
 
 @media (max-width: 767px) {
@@ -1345,6 +1447,13 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
     grid-column: auto;
   }
 
+  .landing-project-feature-art {
+    right: -13%;
+    bottom: -3%;
+    width: 95%;
+    opacity: 0.3;
+  }
+
   .landing-feature-word {
     margin-bottom: 3rem;
     font-size: clamp(4rem, 24vw, 7rem);
@@ -1376,6 +1485,19 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
     height: 112px;
   }
 
+  .landing-audiences-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-audiences-visual {
+    order: -1;
+    margin-top: -1rem;
+  }
+
+  .landing-audiences-visual img {
+    max-height: 15rem;
+  }
+
   .landing-audience-grid {
     grid-template-columns: 1fr;
   }
@@ -1388,6 +1510,26 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   .landing-open-data {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .landing-open-data {
+    display: flex;
+  }
+
+  .landing-open-data-art {
+    width: 100%;
+    min-height: 13rem;
+    order: 2;
+  }
+
+  .landing-open-data > .landing-button {
+    order: 3;
+  }
+
+  .landing-system-evidence .landing-system-technical-art {
+    right: -0.35rem;
+    bottom: 1.4rem;
+    width: 7.5rem;
   }
 
   .landing-footer {

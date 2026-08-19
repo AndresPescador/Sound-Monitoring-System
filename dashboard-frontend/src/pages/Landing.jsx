@@ -132,6 +132,13 @@ export default function Landing() {
 
           <div className="landing-project-mosaic" data-reveal="sequence">
             <article className="landing-project-feature">
+              <img
+                className="landing-project-feature-art"
+                src="/assets/landing-mapa-sonoro.webp"
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+              />
               <span className="landing-feature-word">Estéreo</span>
               <h3>Escucha en dos canales</h3>
               <p>La diferencia entre izquierda y derecha permite observar lateralización y carácter espacial de las fuentes sonoras.</p>
@@ -187,6 +194,13 @@ export default function Landing() {
                 height="803"
                 loading="lazy"
               />
+              <img
+                className="landing-system-technical-art"
+                src="/assets/landing-sistema-estacion.webp"
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+              />
               <figcaption>Integración del sistema completo antes del despliegue.</figcaption>
             </figure>
           </div>
@@ -239,22 +253,32 @@ export default function Landing() {
 
         <section className="landing-audiences" aria-labelledby="audiences-title">
           <h2 id="audiences-title" data-reveal="copy">Una red, tres maneras de usarla</h2>
-          <div className="landing-audience-grid" data-reveal="sequence">
-            <article className="landing-audience-primary">
-              <h3>Ciudadanía</h3>
-              <p>Consultar el nivel reciente de una zona y entender qué significan las métricas publicadas.</p>
-              <Link to="/mapa-2d">Consultar la ciudad</Link>
-            </article>
-            <article>
-              <h3>Análisis ambiental</h3>
-              <p>Comparar estaciones, revisar tendencias y descargar información replicable.</p>
-              <Link to="/compare">Comparar estaciones</Link>
-            </article>
-            <article>
-              <h3>Operación técnica</h3>
-              <p>Gestionar la red y verificar el estado de las estaciones autorizadas.</p>
-              <Link to="/admin/login">Ingresar al panel</Link>
-            </article>
+          <div className="landing-audiences-layout">
+            <div className="landing-audience-grid" data-reveal="sequence">
+              <article className="landing-audience-primary">
+                <h3>Ciudadanía</h3>
+                <p>Consultar el nivel reciente de una zona y entender qué significan las métricas publicadas.</p>
+                <Link to="/mapa-2d">Consultar la ciudad</Link>
+              </article>
+              <article>
+                <h3>Análisis ambiental</h3>
+                <p>Comparar estaciones, revisar tendencias y descargar información replicable.</p>
+                <Link to="/compare">Comparar estaciones</Link>
+              </article>
+              <article>
+                <h3>Operación técnica</h3>
+                <p>Gestionar la red y verificar el estado de las estaciones autorizadas.</p>
+                <Link to="/admin/login">Ingresar al panel</Link>
+              </article>
+            </div>
+            <figure className="landing-audiences-visual" data-reveal="visual">
+              <img
+                src="/assets/landing-tres-formas.webp"
+                alt="Ilustración de ciudadanía, análisis ambiental y operación técnica conectados por una red de escucha"
+                loading="lazy"
+              />
+              <figcaption>Una red que se puede consultar, analizar y operar.</figcaption>
+            </figure>
           </div>
         </section>
 
@@ -262,6 +286,10 @@ export default function Landing() {
           <div data-reveal="copy">
             <h2 id="open-data-title">Los datos también deben circular.</h2>
             <p>Consulta intervalos acotados, filtra por estación y descarga mediciones en CSV desde el portal público.</p>
+          </div>
+          <div className="landing-open-data-art" data-reveal="visual" aria-hidden="true">
+            <img className="landing-open-data-river" src="/assets/landing-rio-datos.webp" alt="" loading="lazy" />
+            <img className="landing-open-data-constellation" src="/assets/landing-constelacion-binaural.webp" alt="" loading="lazy" />
           </div>
           <Link to="/data" className="landing-button landing-button--light" data-reveal="visual">Abrir datos públicos</Link>
         </section>
