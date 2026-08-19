@@ -15,6 +15,12 @@ const BOGOTA_VIEW = {
   bearing: 0,
 }
 
+const BOGOTA_3D_VIEW = {
+  ...BOGOTA_VIEW,
+  pitch: 60,
+  bearing: -15,
+}
+
 const STATION_FLY_TO = new FlyToInterpolator({ speed: 1.7 })
 
 const BUILDINGS_LAYER_ID = 'urban-buildings-3d'
@@ -62,12 +68,14 @@ function addBuildingExtrusions(map) {
     type: 'fill-extrusion',
     source: buildings.source,
     'source-layer': buildings['source-layer'],
-    minzoom: 13,
+    // Se muestran desde la vista urbana general para conservar la lectura 3D.
+    minzoom: 11,
     paint: {
-      'fill-extrusion-color': '#c6cec8',
+      // Tonos cálidos inspirados en visores de planeación urbana.
+      'fill-extrusion-color': '#e4c98f',
       'fill-extrusion-height': height,
       'fill-extrusion-base': 0,
-      'fill-extrusion-opacity': 0.82,
+      'fill-extrusion-opacity': 0.88,
     },
   }, firstLabel)
 }
@@ -199,12 +207,21 @@ export default function NoiseTwinMap({
     }))
   }
 
+  const resetTo3dView = () => {
+    setViewState(current => ({
+      ...current,
+      ...BOGOTA_3D_VIEW,
+      transitionDuration: 900,
+      transitionInterpolator: STATION_FLY_TO,
+    }))
+  }
+
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-slate-900">
+    <div className="relative h-full min-h-0 overflow-hidden bg-slate-900" onContextMenu={event => event.preventDefault()}>
       <DeckGL
         viewState={viewState}
         onViewStateChange={({ viewState: nextViewState }) => setViewState(nextViewState)}
-        controller={{ dragRotate: true, touchRotate: true, keyboard: true }}
+        controller={{ dragPan: true, dragRotate: true, touchRotate: true, keyboard: true, maxPitch: 85 }}
         layers={layers}
         getTooltip={({ object, layer }) => {
           if (!object) return null
@@ -225,6 +242,8 @@ export default function NoiseTwinMap({
           mapLib={maplibregl}
           mapStyle={MAP_STYLE}
           reuseMaps
+          dragRotate
+          maxPitch={85}
           onLoad={event => {
             addBuildingExtrusions(event.target)
             addBogotaBoundary(event.target)
@@ -244,6 +263,13 @@ export default function NoiseTwinMap({
         className="absolute left-3 top-32 rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 shadow-lg transition-colors hover:border-primary hover:text-primary"
       >
         Vista general
+      </button>
+      <button
+        type="button"
+        onClick={resetTo3dView}
+        className="absolute left-3 top-[11.25rem] rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 shadow-lg transition-colors hover:border-primary hover:text-primary"
+      >
+        Vista 3D
       </button>
     </div>
   )
