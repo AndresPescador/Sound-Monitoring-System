@@ -4,6 +4,8 @@ import {
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import ChartCursor from './ChartCursor'
+import { ACTIVE_DOT, getTimeAxis } from './timeAxis'
 
 const COLORS = ['#1d4ed8', '#153781', '#4774bd', '#6f94cf', '#8aa8d4', '#365b96', '#10223f']
 
@@ -20,6 +22,7 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) 
     })
   })
   const chartData = Object.values(timeMap).sort((a, b) => a.t.localeCompare(b.t))
+  const timeAxis = getTimeAxis(chartData)
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -27,11 +30,16 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) 
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis
           dataKey="t"
-          tickFormatter={iso => { try { return format(parseISO(iso), 'HH:mm', { locale: es }) } catch { return '' } }}
+          ticks={timeAxis.ticks}
+          tickFormatter={timeAxis.tickFormatter}
+          interval={0}
+          height={28}
+          tickLine={false}
           tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }}
         />
         <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
         <Tooltip
+          cursor={<ChartCursor />}
           formatter={(v, name) => [`${v} dBFS`, name]}
           labelFormatter={l => { try { return format(parseISO(l), "d MMM HH:mm", { locale: es }) } catch { return l } }}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
@@ -48,6 +56,7 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) 
             stroke={COLORS[i % COLORS.length]}
             strokeWidth={2}
             dot={false}
+            activeDot={ACTIVE_DOT}
           />
         ))}
       </LineChart>

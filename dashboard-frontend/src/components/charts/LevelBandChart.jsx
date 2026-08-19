@@ -4,8 +4,8 @@ import {
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-
-const fmt = (iso) => format(parseISO(iso), 'HH:mm', { locale: es })
+import ChartCursor from './ChartCursor'
+import { ACTIVE_DOT, getTimeAxis } from './timeAxis'
 
 export default function LevelBandChart({ data = [] }) {
   if (!data.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos en este rango.</p>
@@ -17,6 +17,7 @@ export default function LevelBandChart({ data = [] }) {
     l50: +d.l50.toFixed(2),
     l90: +d.l90.toFixed(2),
   }))
+  const timeAxis = getTimeAxis(chartData)
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -38,24 +39,24 @@ export default function LevelBandChart({ data = [] }) {
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis
           dataKey="t"
-          tickFormatter={fmt}
-          interval="preserveStartEnd"
-          minTickGap={60}
-          angle={-45}
-          textAnchor="end"
-          height={50}        // más espacio abajo para las etiquetas rotadas
+          ticks={timeAxis.ticks}
+          tickFormatter={timeAxis.tickFormatter}
+          interval={0}
+          height={28}
+          tickLine={false}
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
         />
         <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
         <Tooltip
+          cursor={<ChartCursor />}
           formatter={(v, name) => [`${v} dBFS`, name.toUpperCase()]}
           labelFormatter={(l) => format(parseISO(l), "d MMM HH:mm", { locale: es })}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
         />
         <Legend wrapperStyle={{ fontFamily: 'DM Sans', fontSize: 12 }} />
-        <Area type="monotone" dataKey="l10" name="L10 (picos)"   stroke="#dc2626" fill="url(#gradL10)" strokeWidth={1.5} dot={false} />
-        <Area type="monotone" dataKey="leq" name="Leq"           stroke="#1d4ed8" fill="url(#gradL50)" strokeWidth={2}   dot={false} />
-        <Area type="monotone" dataKey="l90" name="L90 (fondo)"   stroke="#16a34a" fill="url(#gradL90)" strokeWidth={1.5} dot={false} />
+        <Area type="monotone" dataKey="l10" name="L10 (picos)"   stroke="#dc2626" fill="url(#gradL10)" strokeWidth={1.5} dot={false} activeDot={ACTIVE_DOT} />
+        <Area type="monotone" dataKey="leq" name="Leq"           stroke="#1d4ed8" fill="url(#gradL50)" strokeWidth={2}   dot={false} activeDot={ACTIVE_DOT} />
+        <Area type="monotone" dataKey="l90" name="L90 (fondo)"   stroke="#16a34a" fill="url(#gradL90)" strokeWidth={1.5} dot={false} activeDot={ACTIVE_DOT} />
       </AreaChart>
     </ResponsiveContainer>
   )

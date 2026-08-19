@@ -4,6 +4,8 @@ import {
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import ChartCursor from './ChartCursor'
+import { getTimeAxis } from './timeAxis'
 
 export default function ILDChart({ data = [] }) {
   if (!data.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos en este rango.</p>
@@ -12,18 +14,24 @@ export default function ILDChart({ data = [] }) {
     t:   d.recorded_at,
     ild: +d.ild_db.toFixed(3),
   }))
+  const timeAxis = getTimeAxis(chartData)
 
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
         <XAxis dataKey="t"
-          tickFormatter={iso => { try { return format(parseISO(iso), 'HH:mm') } catch { return '' } }}
+          ticks={timeAxis.ticks}
+          tickFormatter={timeAxis.tickFormatter}
+          interval={0}
+          height={28}
+          tickLine={false}
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
         />
         <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
         <ReferenceLine y={0} stroke="#1e293b" strokeWidth={1.5} />
         <Tooltip
+          cursor={<ChartCursor />}
           formatter={(v) => [`${v} dB`, 'ILD']}
           labelFormatter={l => { try { return format(parseISO(l), "d MMM HH:mm", { locale: es }) } catch { return l } }}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}

@@ -4,11 +4,8 @@ import {
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-
-const fmt = (iso) => {
-  try { return format(parseISO(iso), 'HH:mm', { locale: es }) }
-  catch { return iso }
-}
+import ChartCursor from './ChartCursor'
+import { ACTIVE_DOT, getTimeAxis } from './timeAxis'
 
 export default function TimeSeriesChart({
   data = [],
@@ -26,6 +23,7 @@ export default function TimeSeriesChart({
       ...Object.fromEntries(series.map(item => [item.dataKey, Number(d[item.dataKey])])),
     }))
     : data.map(d => ({ t: d.recorded_at, v: +Number(d.value).toFixed(4) }))
+  const timeAxis = getTimeAxis(chartData)
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -33,17 +31,17 @@ export default function TimeSeriesChart({
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={!compact} />
         <XAxis
           dataKey="t"
-          tickFormatter={fmt}
+          ticks={timeAxis.ticks}
+          tickFormatter={timeAxis.tickFormatter}
           hide={compact}
-          interval="preserveStartEnd"
-          minTickGap={60}
-          angle={-45}
-          textAnchor="end"
-          height={50}        // más espacio abajo para las etiquetas rotadas
+          interval={0}
+          height={28}
+          tickLine={false}
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
         />
         <YAxis hide={compact} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit={unit ? ` ${unit}` : ''} />
         <Tooltip
+          cursor={<ChartCursor />}
           formatter={(v, name) => [`${Number(v).toFixed(1)}${unit ? ' ' + unit : ''}`, name ?? metricLabel]}
           labelFormatter={(l) => { try { return format(parseISO(l), "d MMM HH:mm:ss", { locale: es }) } catch { return l } }}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
@@ -57,6 +55,7 @@ export default function TimeSeriesChart({
             stroke={item.color ?? '#1d4ed8'}
             strokeWidth={compact ? 2 : 1.5}
             dot={false}
+            activeDot={ACTIVE_DOT}
             name={item.label}
             connectNulls
           />
