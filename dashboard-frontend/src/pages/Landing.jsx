@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import BogotaMapGateway from '../components/landing/BogotaMapGateway'
+import { ROUTES } from '../routes'
 import './landing.css'
 
 const waveform = [18, 34, 24, 58, 44, 72, 36, 82, 54, 28, 64, 40, 76, 48, 30, 56, 68, 38, 78, 46, 26, 62, 42, 70]
@@ -69,7 +70,7 @@ export default function Landing() {
         <nav aria-label="Navegación de la presentación">
           <a href="#proyecto">Proyecto</a>
           <a href="#sistema">Sistema</a>
-          <Link to="/data">Datos abiertos</Link>
+          <Link to={ROUTES.map2DData}>Datos abiertos</Link>
         </nav>
 
         <a href="#explorar" className="landing-nav-cta">Explorar mapas</a>
@@ -258,12 +259,12 @@ export default function Landing() {
               <article className="landing-audience-primary">
                 <h3>Ciudadanía</h3>
                 <p>Consultar el nivel reciente de una zona y entender qué significan las métricas publicadas.</p>
-                <Link to="/mapa-2d">Consultar la ciudad</Link>
+                <Link to={ROUTES.map2D}>Consultar la ciudad</Link>
               </article>
               <article>
                 <h3>Análisis ambiental</h3>
                 <p>Comparar estaciones, revisar tendencias y descargar información replicable.</p>
-                <Link to="/compare">Comparar estaciones</Link>
+                <Link to={ROUTES.map2DCompare}>Comparar estaciones</Link>
               </article>
               <article>
                 <h3>Operación técnica</h3>
@@ -273,7 +274,7 @@ export default function Landing() {
             </div>
             <figure className="landing-audiences-visual" data-reveal="visual">
               <img
-                src="/assets/landing-tres-formas.webp"
+                src="/assets/landing-tres-formas-v2.webp"
                 alt="Ilustración de ciudadanía, análisis ambiental y operación técnica conectados por una red de escucha"
                 loading="lazy"
               />
@@ -289,9 +290,9 @@ export default function Landing() {
           </div>
           <div className="landing-open-data-visual">
             <div className="landing-open-data-art" data-reveal="visual" aria-hidden="true">
-              <img className="landing-open-data-illustration" src="/assets/landing-datos-binaural-wide.webp" alt="" loading="lazy" />
+              <img className="landing-open-data-illustration" src="/assets/landing-datos-binaural-wide-v2.webp" alt="" loading="lazy" />
             </div>
-            <Link to="/data" className="landing-button landing-button--light" data-reveal="visual">Abrir datos públicos</Link>
+            <Link to={ROUTES.map2DData} className="landing-button landing-button--light" data-reveal="visual">Abrir datos públicos</Link>
           </div>
         </section>
       </main>
@@ -303,9 +304,9 @@ export default function Landing() {
         </div>
         <p>Proyecto de monitoreo ambiental con captura binaural y datos abiertos.</p>
         <nav aria-label="Enlaces finales">
-          <Link to="/mapa-2d">Mapa 2D</Link>
-          <Link to="/urban-3d">Mapa 3D</Link>
-          <Link to="/data">Datos</Link>
+          <Link to={ROUTES.map2D}>Mapa 2D</Link>
+          <Link to={ROUTES.map3D}>Mapa 3D</Link>
+          <Link to={ROUTES.map2DData}>Datos 2D</Link>
         </nav>
       </footer>
     </div>

@@ -7,6 +7,7 @@ import { getRawMeasurements } from '../api/measurements'
 import NoiseTwinMap from '../components/map/NoiseTwinMap'
 import TimeSeriesChart from '../components/charts/TimeSeriesChart'
 import LoadingSpinner from '../components/shared/LoadingSpinner'
+import { map2DStationPath } from '../routes'
 
 const POLL_INTERVAL_MS = 60_000
 const CHART_WINDOW_HOURS = 6
@@ -275,7 +276,7 @@ export default function UrbanTwin() {
                   <h3 className="mt-1 font-display text-base font-bold text-slate-800">Sin selección</h3>
                 )}
               </div>
-              {selectedStation && <Link className="shrink-0 text-[11px] font-display font-semibold text-primary hover:text-primary-dark" to={`/stations/${selectedStation.station_code}`}>Detalle →</Link>}
+              {selectedStation && <Link className="shrink-0 text-[11px] font-display font-semibold text-primary hover:text-primary-dark" to={map2DStationPath(selectedStation.station_code)}>Abrir detalle 2D →</Link>}
             </div>
 
             {selectedStation ? (

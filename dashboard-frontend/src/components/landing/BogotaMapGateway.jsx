@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { ROUTES } from '../../routes'
 
 const MAP_VIEWS = [
   {
@@ -7,7 +8,7 @@ const MAP_VIEWS = [
     mode: '2D',
     description: 'Estaciones, niveles actuales y acceso al detalle acústico.',
     action: 'Abrir mapa 2D',
-    href: '/mapa-2d',
+    href: ROUTES.map2D,
     image: '/assets/landing-map-2d.webp',
     alt: 'Vista cartográfica de Bogotá con red de estaciones acústicas y pulsos de medición',
   },
@@ -17,7 +18,7 @@ const MAP_VIEWS = [
     mode: '3D',
     description: 'Relieve, edificios y columnas de intensidad por estación.',
     action: 'Abrir mapa 3D',
-    href: '/urban-3d',
+    href: ROUTES.map3D,
     image: '/assets/landing-map-3d.webp',
     alt: 'Gemelo urbano tridimensional con edificios wireframe y una onda acústica luminosa',
   },

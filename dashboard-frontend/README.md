@@ -24,11 +24,13 @@ Interfaz web del Sistema de Monitoreo Acústico Binaural — Bogotá D.C.
 | Ruta | Descripción |
 |---|---|
 | `/` | Landing pública de introducción al proyecto |
-| `/mapa-2d` | Panel principal: cards resumen + mapa de Bogotá |
-| `/urban-3d` | Mapa 3D con intensidad por estación |
-| `/stations/:code` | Detalle de estación: todas las gráficas |
-| `/compare` | Comparación de métricas entre estaciones |
-| `/data` | Portal de datos abiertos con descarga CSV |
+| `/mapa-2d` | Inicio de la experiencia 2D: resumen + mapa de Bogotá |
+| `/mapa-2d/stations/:code` | Detalle 2D de estación con todas las gráficas |
+| `/mapa-2d/compare` | Comparación 2D de métricas entre estaciones |
+| `/mapa-2d/data` | Portal de datos abiertos de la experiencia 2D |
+| `/mapa-3d` | Inicio independiente de la experiencia 3D |
+
+Las rutas históricas `/stations/:code`, `/compare`, `/data` y `/urban-3d` redirigen a sus equivalentes canónicos para conservar enlaces existentes.
 
 ---
 

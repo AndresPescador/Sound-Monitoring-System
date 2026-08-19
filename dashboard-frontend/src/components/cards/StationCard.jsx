@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { map2DStationPath } from '../../routes'
 
 const NOISE_STYLES = {
   low:      { tone: 'low',    label: 'Bajo'     },
@@ -16,7 +17,7 @@ export default function StationCard({ station, onHover, onSelect }) {
 
   return (
     <Link
-      to={`/stations/${station.station_code}`}
+      to={map2DStationPath(station.station_code)}
       className="dashboard-station-row"
       onClick={event => {
         event.preventDefault()

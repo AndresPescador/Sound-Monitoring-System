@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
+import { map2DStationPath } from '../../routes'
 
 // Bogotá center
 const BOGOTA = [4.7110, -74.0721]
@@ -68,7 +69,7 @@ function StationMarker({ station, isHovered, isSelected, onSelect, navigate }) {
           )}
           <button
             type="button"
-            onClick={() => navigate(`/stations/${station.station_code}`)}
+            onClick={() => navigate(map2DStationPath(station.station_code))}
             className="dashboard-map-popup__action"
           >
             Ver detalle

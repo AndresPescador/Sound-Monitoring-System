@@ -18,6 +18,7 @@ import ResolutionNotice from '../components/shared/ResolutionNotice'
 import { AUTO_FOCUS_THRESHOLD, getCoverageRatio } from '../components/charts/timeAxis'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
 import { useChartDownload } from '../hooks/useChartDownload'
+import { ROUTES, map2DStationPath } from '../routes'
 
 // ─── SectionCard con soporte de descarga ──────────────────────────────────────
 // cardRef    : ref del div raíz (para html2canvas y querySelector svg)
@@ -261,7 +262,7 @@ export default function StationDetail() {
   }, [code, range, metric])
 
   const handleStationChange = (newCode) => {
-    navigate(`/stations/${newCode}`)
+    navigate(map2DStationPath(newCode))
   }
 
   const coverageRatio = getCoverageRatio([
@@ -278,7 +279,7 @@ export default function StationDetail() {
       <header className="dashboard-station-header">
         <div>
           <p className="dashboard-breadcrumb">
-            <Link to="/mapa-2d">Mapa 2D</Link> / <span>{code}</span>
+            <Link to={ROUTES.map2D}>Mapa 2D</Link> / <span>{code}</span>
           </p>
           <h1>{summary?.name ?? code}</h1>
           <p className="dashboard-station-header__meta">{summary?.locality} · {summary?.is_active ? 'Activa' : 'Inactiva'}</p>

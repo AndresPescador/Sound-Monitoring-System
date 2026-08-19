@@ -8,6 +8,7 @@ import StationMap          from '../components/map/StationMap'
 import LoadingSpinner      from '../components/shared/LoadingSpinner'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { ROUTES } from '../routes'
 
 export default function Home() {
   const [stats,    setStats]    = useState(null)
@@ -43,7 +44,7 @@ export default function Home() {
         </div>
         <div className="dashboard-page-header__actions">
           <a href="#estaciones" className="dashboard-button dashboard-button--secondary">Ver estaciones</a>
-          <Link to="/compare" className="dashboard-button dashboard-button--primary">Comparar datos</Link>
+          <Link to={ROUTES.map2DCompare} className="dashboard-button dashboard-button--primary">Comparar datos</Link>
         </div>
       </header>
 
