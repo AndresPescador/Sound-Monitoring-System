@@ -283,15 +283,16 @@ export default function Landing() {
         </section>
 
         <section className="landing-open-data" aria-labelledby="open-data-title">
-          <div data-reveal="copy">
+          <div className="landing-open-data-copy" data-reveal="copy">
             <h2 id="open-data-title">Los datos también deben circular.</h2>
             <p>Consulta intervalos acotados, filtra por estación y descarga mediciones en CSV desde el portal público.</p>
           </div>
-          <div className="landing-open-data-art" data-reveal="visual" aria-hidden="true">
-            <img className="landing-open-data-river" src="/assets/landing-rio-datos.webp" alt="" loading="lazy" />
-            <img className="landing-open-data-constellation" src="/assets/landing-constelacion-binaural.webp" alt="" loading="lazy" />
+          <div className="landing-open-data-visual">
+            <div className="landing-open-data-art" data-reveal="visual" aria-hidden="true">
+              <img className="landing-open-data-illustration" src="/assets/landing-datos-binaural-wide.webp" alt="" loading="lazy" />
+            </div>
+            <Link to="/data" className="landing-button landing-button--light" data-reveal="visual">Abrir datos públicos</Link>
           </div>
-          <Link to="/data" className="landing-button landing-button--light" data-reveal="visual">Abrir datos públicos</Link>
         </section>
       </main>
 

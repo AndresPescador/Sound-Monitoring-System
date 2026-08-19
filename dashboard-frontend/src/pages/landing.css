@@ -526,14 +526,37 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 
 .landing-map-visual {
   position: absolute;
-  inset: 34% -6% -7%;
+  inset: 0;
+  z-index: 0;
   display: grid;
   place-items: center;
+  overflow: hidden;
   transition: transform 550ms cubic-bezier(.16, 1, .3, 1);
+}
+
+.landing-map-visual::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 48%, rgb(16 34 63 / 0.08));
+  content: "";
+  pointer-events: none;
+}
+
+.landing-map-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 550ms cubic-bezier(.16, 1, .3, 1), filter 300ms ease;
 }
 
 .landing-map-choice:hover .landing-map-visual--2d {
   transform: scale(1.035) translateY(-0.6rem);
+}
+
+.landing-map-choice:hover .landing-map-visual img {
+  transform: scale(1.03);
 }
 
 .landing-map-visual--3d {
@@ -1101,23 +1124,34 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 
 .landing-open-data {
   display: grid;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr) auto;
-  align-items: end;
-  gap: 3rem;
-  padding: clamp(5rem, 9vw, 8rem) clamp(1.25rem, 4vw, 4.5rem);
+  grid-template-columns: minmax(320px, 0.76fr) minmax(620px, 1.24fr);
+  align-items: center;
+  gap: clamp(2rem, 4vw, 4.5rem);
+  min-height: clamp(18rem, 24vw, 24rem);
+  padding: clamp(2.75rem, 4vw, 4.5rem) clamp(1.25rem, 4vw, 4.5rem);
   background: #dce9ff;
 }
 
-.landing-open-data > div {
-  max-width: 54rem;
+.landing-open-data-copy {
+  max-width: 36rem;
+  min-width: 0;
+}
+
+.landing-open-data-visual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(1rem, 2vw, 2rem);
+  min-width: 0;
 }
 
 .landing-open-data-art {
   position: relative;
+  left: clamp(-3rem, -2.5vw, -1rem);
   display: block;
-  min-height: clamp(12rem, 19vw, 18rem);
+  width: 100%;
+  min-height: clamp(13rem, 17vw, 18rem);
   align-self: center;
-  width: min(100%, 38rem);
 }
 
 .landing-open-data-art img {
@@ -1128,20 +1162,18 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   object-fit: contain;
 }
 
-.landing-open-data-river {
+.landing-open-data-illustration {
   inset: 0;
-  opacity: 0.88;
-}
-
-.landing-open-data-constellation {
-  inset: 15% -5% -8% 8%;
-  width: 88% !important;
-  opacity: 0.42;
-  transform: rotate(-2deg);
+  opacity: 0.96;
+  transform: scale(1.08);
 }
 
 .landing-open-data h2 {
   max-width: 13ch;
+}
+
+.landing-open-data-visual > .landing-button {
+  justify-self: end;
 }
 
 .landing-footer {
@@ -1263,7 +1295,7 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   }
 
   .landing-map-visual {
-    top: 40%;
+    top: 0;
   }
 
   .landing-project,
@@ -1290,13 +1322,22 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   }
 
   .landing-open-data {
-    grid-template-columns: minmax(240px, 0.85fr) minmax(280px, 1.15fr);
-    gap: 1.75rem;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    min-height: auto;
   }
 
-  .landing-open-data > .landing-button {
-    grid-column: 1;
-    justify-self: start;
+  .landing-open-data-copy {
+    max-width: 46rem;
+  }
+
+  .landing-open-data-visual {
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .landing-open-data-art {
+    left: 0;
   }
 
   .landing-system-evidence .landing-system-technical-art {
@@ -1412,7 +1453,7 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   }
 
   .landing-map-visual {
-    inset: 38% -4% -5%;
+    inset: 0;
   }
 
   .landing-project,
@@ -1508,22 +1549,28 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   }
 
   .landing-open-data {
-    align-items: flex-start;
-    flex-direction: column;
+    gap: 1.5rem;
+    padding-block: 4rem;
   }
 
-  .landing-open-data {
+  .landing-open-data-visual {
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
   }
 
   .landing-open-data-art {
     width: 100%;
     min-height: 13rem;
-    order: 2;
   }
 
-  .landing-open-data > .landing-button {
-    order: 3;
+  .landing-open-data-illustration {
+    transform: scale(1.02);
+  }
+
+  .landing-open-data-visual > .landing-button {
+    align-self: flex-start;
   }
 
   .landing-system-evidence .landing-system-technical-art {
