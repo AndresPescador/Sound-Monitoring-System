@@ -5,9 +5,9 @@ import {
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import ChartCursor from './ChartCursor'
-import { ACTIVE_DOT, getTimeAxis } from './timeAxis'
+import { ACTIVE_DOT, getChartDataWindow, getTimeAxis } from './timeAxis'
 
-export default function LevelBandChart({ data = [] }) {
+export default function LevelBandChart({ data = [], axisMode = 'range' }) {
   if (!data.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos en este rango.</p>
 
   const chartData = data.map(d => ({
@@ -17,11 +17,12 @@ export default function LevelBandChart({ data = [] }) {
     l50: +d.l50.toFixed(2),
     l90: +d.l90.toFixed(2),
   }))
-  const timeAxis = getTimeAxis(chartData)
+  const visibleData = getChartDataWindow(chartData, axisMode, ['leq', 'l10', 'l50', 'l90'])
+  const timeAxis = getTimeAxis(visibleData)
 
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <AreaChart data={visibleData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="gradL10" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%"  stopColor="#dc2626" stopOpacity={0.15} />

@@ -134,7 +134,7 @@
               "host": ["{{base_url}}"],
               "path": ["stations", "{{station_code}}", "measurements"]
             },
-            "description": "Serie temporal de leq_dbfs sin parámetros.\nUsa por defecto las últimas 24h y límite de 500 puntos.\n\nAlimenta la gráfica de línea con resolución de ~2 minutos."
+            "description": "Serie temporal de leq_dbfs sin parámetros.\nUsa por defecto las últimas 24h y hasta 1500 puntos visuales. Si el rango contiene más mediciones, devuelve ventanas agregadas con promedio, mínimo, máximo y source_count sin recortar el intervalo."
           },
           "event": [{
             "listen": "test",

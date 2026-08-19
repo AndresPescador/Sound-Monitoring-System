@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta, date
+from zoneinfo import ZoneInfo
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,6 +8,7 @@ from app.database import get_db
 from app.schemas.aggregation import HourlyResponse, HourlyPoint, DailyProfileResponse, DailyProfilePoint
 
 router = APIRouter(prefix="/stations", tags=["aggregations"])
+BOGOTA = ZoneInfo("America/Bogota")
 
 
 @router.get("/{station_code}/hourly", response_model=HourlyResponse)
@@ -49,7 +51,13 @@ async def get_hourly(
             dbfs_min,
             dbfs_max,
             dbfs_avg,
-            measurement_count
+            measurement_count,
+            avg_dominant_frequency,
+            avg_spectral_centroid,
+            avg_spectral_rolloff,
+            avg_zero_crossing_rate,
+            avg_ild_db,
+            avg_interaural_corr
         FROM hourly_aggregations
         WHERE station_id = :station_id
           AND hour_start >= :from_
@@ -89,7 +97,7 @@ async def get_daily_profile(
     Recharts: usar BarChart con XAxis dataKey="hour".
     """
     if date_ is None:
-        date_ = datetime.now(timezone.utc).date()
+        date_ = datetime.now(BOGOTA).date()
 
     check = await db.execute(
         text("SELECT id FROM stations WHERE station_code = :code"),

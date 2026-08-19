@@ -8,6 +8,9 @@ import DateRangePicker    from '../components/shared/DateRangePicker'
 import LoadingSpinner     from '../components/shared/LoadingSpinner'
 import ChartInfo          from '../components/shared/ChartInfo'
 import ChartDownloadMenu  from '../components/shared/ChartDownloadMenu'
+import ChartAxisModeControl from '../components/shared/ChartAxisModeControl'
+import ResolutionNotice   from '../components/shared/ResolutionNotice'
+import { AUTO_FOCUS_THRESHOLD, getCoverageRatio } from '../components/charts/timeAxis'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
 import { useChartDownload } from '../hooks/useChartDownload'
 
@@ -120,6 +123,7 @@ export default function Compare() {
   const [localitySeries,     setLocalitySeries]     = useState([])
   const [loadingLocality,    setLoadingLocality]    = useState(true)
   const [selectedLocalities, setSelectedLocalities] = useState(new Set())
+  const [localityAxisMode, setLocalityAxisMode] = useState('auto')
 
   // ── Sección 2: comparación por estaciones ──
   const [stationMetric,    setStationMetric]    = useState('leq_dbfs')
@@ -127,6 +131,7 @@ export default function Compare() {
   const [stationSeries,    setStationSeries]    = useState([])
   const [loadingStation,   setLoadingStation]   = useState(true)
   const [selectedStations, setSelectedStations] = useState(new Set())
+  const [stationAxisMode, setStationAxisMode] = useState('auto')
 
   // ── Derivados ──
   const localities = useMemo(() => {
@@ -186,13 +191,27 @@ export default function Compare() {
     Promise.all(
       targetStations.map(s =>
         getMeasurements(s.station_code, params)
-          .then(r => ({ station_code: s.station_code, locality: s.locality, displayName: `${s.locality} (${s.station_code})`, data: (r.data.data ?? []).map(d => ({ hour_start: d.recorded_at, value: d.value })) }))
-          .catch(() => ({ station_code: s.station_code, locality: s.locality, displayName: `${s.locality} (${s.station_code})`, data: [] }))
+          .then(r => ({
+            station_code: s.station_code,
+            locality: s.locality,
+            displayName: `${s.locality} (${s.station_code})`,
+            data: (r.data.data ?? []).map(d => ({ hour_start: d.recorded_at, value: d.value })),
+            meta: r.data,
+          }))
+          .catch(() => ({ station_code: s.station_code, locality: s.locality, displayName: `${s.locality} (${s.station_code})`, data: [], meta: null }))
       )
     )
       .then(results => setStationSeries(results.filter(r => r.data.length > 0)))
       .finally(() => setLoadingStation(false))
   }, [stationMetric, stationRange, selectedStations, allStations])
+
+  useEffect(() => {
+    setLocalityAxisMode('auto')
+  }, [localityRange.from, localityRange.to])
+
+  useEffect(() => {
+    setStationAxisMode('auto')
+  }, [stationRange.from, stationRange.to])
 
   // ── Helpers tags ──
   const toggleLocality   = loc  => setSelectedLocalities(prev => { const n = new Set(prev); n.has(loc)  ? n.delete(loc)  : n.add(loc);  return n })
@@ -201,6 +220,18 @@ export default function Compare() {
   const toggleStation    = code => setSelectedStations(prev => { const n = new Set(prev); n.has(code) ? n.delete(code) : n.add(code); return n })
   const selectAllStations   = () => setSelectedStations(new Set(allStations.map(s => s.station_code)))
   const clearAllStations    = () => setSelectedStations(new Set())
+
+  const localityCoverage = getCoverageRatio([
+    { data: localitySeries.flatMap(s => s.data), timeKey: 'hour_start', valueKeys: ['value'] },
+  ], localityRange)
+  const localityAutomaticMode = localityCoverage !== null && localityCoverage < AUTO_FOCUS_THRESHOLD ? 'data' : 'range'
+  const activeLocalityAxisMode = localityAxisMode === 'auto' ? localityAutomaticMode : localityAxisMode
+
+  const stationCoverage = getCoverageRatio([
+    { data: stationSeries.flatMap(s => s.data), timeKey: 'hour_start', valueKeys: ['value'] },
+  ], stationRange)
+  const stationAutomaticMode = stationCoverage !== null && stationCoverage < AUTO_FOCUS_THRESHOLD ? 'data' : 'range'
+  const activeStationAxisMode = stationAxisMode === 'auto' ? stationAutomaticMode : stationAxisMode
 
   return (
     <div className="dashboard-page dashboard-compare-page">
@@ -241,6 +272,14 @@ export default function Compare() {
           </div>
         )}
 
+        <ChartAxisModeControl
+          mode={activeLocalityAxisMode}
+          automaticMode={localityAutomaticMode}
+          isAutomatic={localityAxisMode === 'auto'}
+          onChange={setLocalityAxisMode}
+          range={localityRange}
+        />
+
         <div>
           <div className="dashboard-chart-heading">
             <h3>
@@ -252,7 +291,11 @@ export default function Compare() {
             ? <LoadingSpinner />
             : localitySeries.length === 0
               ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y localidades seleccionadas</p>
-              : <CompareChart series={localitySeries} metricLabel={COMPARE_METRICS.find(m => m.value === localityMetric)?.label} />
+              : <CompareChart
+                  series={localitySeries}
+                  metricLabel={COMPARE_METRICS.find(m => m.value === localityMetric)?.label}
+                  axisMode={activeLocalityAxisMode}
+                />
           }
         </div>
 
@@ -299,6 +342,14 @@ export default function Compare() {
           </div>
         )}
 
+        <ChartAxisModeControl
+          mode={activeStationAxisMode}
+          automaticMode={stationAutomaticMode}
+          isAutomatic={stationAxisMode === 'auto'}
+          onChange={setStationAxisMode}
+          range={stationRange}
+        />
+
         <div>
           <div className="dashboard-chart-heading">
             <h3>
@@ -310,9 +361,15 @@ export default function Compare() {
             ? <LoadingSpinner />
             : stationSeries.length === 0
               ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y estaciones seleccionadas</p>
-              : <CompareChart series={stationSeries} metricLabel={RAW_METRICS.find(m => m.value === stationMetric)?.label} />
+              : <CompareChart
+                  series={stationSeries}
+                  metricLabel={RAW_METRICS.find(m => m.value === stationMetric)?.label}
+                  axisMode={activeStationAxisMode}
+                />
           }
         </div>
+
+        <ResolutionNotice meta={stationSeries.find(s => s.meta?.is_aggregated)?.meta} />
 
         {!loadingStation && stationSeries.length > 0 && (
           <div className="dashboard-result-grid">
@@ -320,7 +377,11 @@ export default function Compare() {
               <div key={s.station_code} className="dashboard-result">
                 <p className="dashboard-result__code">{s.station_code}</p>
                 <p className="dashboard-result__name">{s.locality}</p>
-                <p className="dashboard-result__meta">{s.data.length} puntos</p>
+                <p className="dashboard-result__meta">
+                  {s.meta?.is_aggregated
+                    ? `${s.data.length.toLocaleString('es-CO')} ventanas · ${s.meta.total_count.toLocaleString('es-CO')} mediciones`
+                    : `${s.data.length.toLocaleString('es-CO')} puntos`}
+                </p>
               </div>
             ))}
           </div>

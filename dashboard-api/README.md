@@ -50,8 +50,9 @@ dashboard-api/
 |---|---|---|---|
 | `from` | datetime ISO | últimas 24h | Inicio del rango |
 | `to` | datetime ISO | ahora | Fin del rango |
-| `limit` | int (1-5000) | 500 | Máximo de puntos devueltos |
+| `limit` | int | 1500 | Máximo de puntos visuales en `/measurements`, `/binaural` y `/spectral`; si se supera, el backend agrupa el rango completo en ventanas estadísticas |
 | `metric` | string | `leq_dbfs` | Métrica a graficar (en `/measurements`) |
+| `cursor` | datetime ISO | — | Cursor temporal para paginar `/measurements/raw` |
 
 ---
 
@@ -62,6 +63,14 @@ dashboard-api/
 ## Métricas disponibles en `/compare`
 
 `leq_hour`, `l10`, `l50`, `l90`, `dbfs_avg`, `dbfs_max`, `avg_spectral_centroid`, `avg_ild_db`, `avg_interaural_corr`
+
+## Resolución y paginación
+
+Las respuestas de series visuales incluyen `total_count`, `returned_count`, `is_aggregated` y `resolution_seconds`. Cuando el rango supera el máximo visual, se conserva todo el intervalo y cada punto representa una ventana con promedio, mínimo, máximo y `source_count`.
+
+`/stations/{code}/measurements/raw` devuelve mediciones exactas por páginas. Usa `limit` (máximo 5000) y el `next_cursor` de la respuesta para solicitar la página siguiente. La descarga completa debe recorrer las páginas hasta que `has_more` sea `false`.
+
+Las agregaciones horarias incluyen también promedios espectrales y binaurales para permitir vistas históricas sin transportar todas las mediciones crudas.
 
 ---
 

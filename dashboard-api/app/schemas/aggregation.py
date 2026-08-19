@@ -13,6 +13,12 @@ class HourlyPoint(BaseModel):
     dbfs_max: float
     dbfs_avg: float
     measurement_count: int
+    avg_dominant_frequency: float | None = None
+    avg_spectral_centroid: float | None = None
+    avg_spectral_rolloff: float | None = None
+    avg_zero_crossing_rate: float | None = None
+    avg_ild_db: float | None = None
+    avg_interaural_corr: float | None = None
 
 
 class HourlyResponse(BaseModel):

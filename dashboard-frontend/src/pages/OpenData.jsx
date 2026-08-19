@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { subHours, format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { getStations }    from '../api/stations'
-import { getMeasurements, getRawMeasurements } from '../api/measurements'
+import { getRawMeasurements, getAllRawMeasurements } from '../api/measurements'
 import { getHourly }       from '../api/aggregations'
 import DateRangePicker     from '../components/shared/DateRangePicker'
 import LoadingSpinner      from '../components/shared/LoadingSpinner'
@@ -19,8 +19,8 @@ const toCSV = (rows, columns) => {
     columns.map(c => {
       const v = row[c.key]
       if (v == null) return ''
-      if (typeof v === 'string' && v.includes(',')) return `"${v}"`
-      return v
+      const value = String(v)
+      return /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
     }).join(',')
   )
   return [header, ...body].join('\n')
@@ -65,7 +65,7 @@ const AGG_COLS = [
 ]
 
 // ── Componente de tabla ───────────────────────────────────────────────────────
-function DataTable({ columns, rows, loading }) {
+function DataTable({ columns, rows, loading, totalCount }) {
   if (loading) return <LoadingSpinner />
   if (!rows.length) return (
     <p className="dashboard-empty-state">
@@ -102,7 +102,8 @@ function DataTable({ columns, rows, loading }) {
         </tbody>
       </table>
       <p className="dashboard-data-table__count">
-        {rows.length} registros
+        {rows.length.toLocaleString('es-CO')} registros cargados
+        {totalCount > rows.length ? ` de ${totalCount.toLocaleString('es-CO')}` : ''}
       </p>
     </div>
   )
@@ -110,12 +111,16 @@ function DataTable({ columns, rows, loading }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function OpenData() {
+  const RAW_PAGE_SIZE = 1000
   const [stations,   setStations]   = useState([])
   const [station,    setStation]    = useState('')
   const [tab,        setTab]        = useState('raw')   // 'raw' | 'hourly'
   const [rawData,    setRawData]    = useState([])
+  const [rawMeta,    setRawMeta]    = useState(null)
   const [hourlyData, setHourlyData] = useState([])
   const [loading,    setLoading]    = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [range,      setRange]      = useState({
     from: subHours(new Date(), 24).toISOString(),
     to:   new Date().toISOString(),
@@ -131,32 +136,63 @@ export default function OpenData() {
   useEffect(() => {
     if (!station) return
     setLoading(true)
-    const params = { from: range.from, to: range.to, limit: 5000 }
+    setRawData([])
+    setRawMeta(null)
+    const params = { from: range.from, to: range.to, limit: RAW_PAGE_SIZE }
     Promise.all([
-      getRawMeasurements(station, params),  // ← CAMBIAR aquí
+      getRawMeasurements(station, params),
       getHourly(station, { from: range.from, to: range.to }),
     ])
       .then(([m, h]) => {
         setRawData(m.data.data)
+        setRawMeta(m.data)
         setHourlyData(h.data.data)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [station, range])
 
-  const handleDownload = () => {
+  const handleLoadMore = async () => {
+    if (!rawMeta?.has_more || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const response = await getRawMeasurements(station, {
+        from: range.from,
+        to: range.to,
+        limit: RAW_PAGE_SIZE,
+        cursor: rawMeta.next_cursor,
+      })
+      setRawData(current => [...current, ...response.data.data])
+      setRawMeta(response.data)
+    } catch {
+      // La tabla conserva la página ya cargada si falla la siguiente.
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  const handleDownload = async () => {
     if (!station) return
     const isRaw     = tab === 'raw'
-    const cols      = isRaw ? RAW_COLS : AGG_COLS
-    const rows      = isRaw ? rawData  : hourlyData
     const fromLabel = range.from.slice(0, 10)
     const toLabel   = range.to.slice(0, 10)
     const filename  = `${station}_${isRaw ? 'mediciones' : 'agregaciones'}_${fromLabel}_${toLabel}.csv`
-    downloadCSV(toCSV(rows, cols), filename)
+    setExporting(true)
+    try {
+      const rows = isRaw
+        ? (await getAllRawMeasurements(station, { from: range.from, to: range.to })).data
+        : hourlyData
+      downloadCSV(toCSV(rows, isRaw ? RAW_COLS : AGG_COLS), filename)
+    } catch {
+      // No se borra la tabla si una descarga completa falla.
+    } finally {
+      setExporting(false)
+    }
   }
 
   const activeRows = tab === 'raw' ? rawData : hourlyData
   const activeCols = tab === 'raw' ? RAW_COLS : AGG_COLS
+  const activeTotal = tab === 'raw' ? (rawMeta?.total_count ?? rawData.length) : hourlyData.length
 
   return (
     <div className="dashboard-page dashboard-open-data-page">
@@ -201,7 +237,7 @@ export default function OpenData() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="dashboard-tabs" role="tablist" aria-label="Tipo de datos">
           {[
-            { key: 'raw',    label: `Mediciones crudas (${rawData.length})` },
+            { key: 'raw',    label: `Mediciones crudas (${activeTotal.toLocaleString('es-CO')})` },
             { key: 'hourly', label: `Agregaciones horarias (${hourlyData.length})` },
           ].map(t => (
             <button
@@ -220,22 +256,33 @@ export default function OpenData() {
         <button
           type="button"
           onClick={handleDownload}
-          disabled={!activeRows.length}
+          disabled={!activeRows.length || exporting}
           className="dashboard-download-button"
         >
           <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Descargar CSV ({activeRows.length} filas)
+          {exporting ? 'Preparando descarga completa...' : `Descargar CSV completo (${activeTotal.toLocaleString('es-CO')} filas)`}
         </button>
       </div>
 
       <div className="dashboard-open-data-note">
-        <strong>Sobre estos datos.</strong> El rango seleccionado se descarga en UTC y los niveles acústicos están expresados en dBFS. El Leq usa ponderación A según IEC 61672.
+        <strong>Sobre estos datos.</strong> El rango seleccionado se consulta en UTC y los niveles acústicos están expresados en dBFS. El Leq usa ponderación A según IEC 61672. La tabla se carga por páginas; la descarga solicita todas las mediciones exactas del rango.
       </div>
 
-      <DataTable columns={activeCols} rows={activeRows} loading={loading} />
+      <DataTable columns={activeCols} rows={activeRows} loading={loading} totalCount={activeTotal} />
+
+      {tab === 'raw' && rawMeta?.has_more && (
+        <button
+          type="button"
+          onClick={handleLoadMore}
+          disabled={loadingMore}
+          className="dashboard-load-more-button"
+        >
+          {loadingMore ? 'Cargando más registros...' : `Cargar más (${rawData.length.toLocaleString('es-CO')} de ${rawMeta.total_count.toLocaleString('es-CO')})`}
+        </button>
+      )}
 
     </div>
   )

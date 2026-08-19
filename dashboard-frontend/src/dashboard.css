@@ -641,6 +641,13 @@
   gap: 0.45rem;
 }
 
+.dashboard-range-picker__error {
+  flex-basis: 100%;
+  margin: 0.1rem 0 0;
+  color: var(--noise-high, #b91c1c);
+  font-size: 0.75rem;
+}
+
 .dashboard-tag-group {
   display: grid;
   gap: 0.75rem;
@@ -733,6 +740,27 @@
   font-size: 0.95rem;
   font-weight: 700;
 }
+
+.dashboard-chart-tooltip {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 10rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 10px;
+  background: var(--dashboard-white);
+  box-shadow: 0 12px 28px rgb(28 60 107 / 0.16);
+  color: var(--dashboard-ink);
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.dashboard-chart-tooltip p,
+.dashboard-chart-tooltip strong,
+.dashboard-chart-tooltip span { margin: 0; }
+.dashboard-chart-tooltip p,
+.dashboard-chart-tooltip span { color: var(--dashboard-muted); }
 
 .dashboard-info__button {
   display: inline-grid;
@@ -1010,6 +1038,126 @@
 .dashboard-data-table tbody tr:last-child td { border-bottom: 0; }
 .dashboard-data-table tbody tr:hover td { background: #f2f7ff; }
 .dashboard-data-table__count { margin: 0; padding: 0.75rem; color: #7183a0; text-align: right; }
+
+.dashboard-load-more-button {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid var(--dashboard-blue);
+  border-radius: 12px;
+  background: var(--dashboard-white);
+  color: var(--dashboard-blue-dark);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
+}
+
+.dashboard-load-more-button:hover { background: var(--dashboard-sky); }
+.dashboard-load-more-button:disabled { cursor: wait; opacity: 0.55; }
+
+.dashboard-resolution-note {
+  margin: 0.55rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 10px;
+  background: var(--dashboard-sky);
+  color: var(--dashboard-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.dashboard-resolution-note--aggregated {
+  border-color: #a9c4e8;
+  color: var(--dashboard-blue-dark);
+}
+
+.dashboard-chart-axis-toolbar {
+  display: flex;
+  margin: 0 0 1.25rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 12px;
+  background: var(--dashboard-paper);
+}
+
+.dashboard-axis-mode-control {
+  display: grid;
+  width: min(100%, 44rem);
+  gap: 0.55rem;
+}
+
+.dashboard-axis-mode-control__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.dashboard-axis-mode-control__label {
+  color: var(--dashboard-ink);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.dashboard-axis-mode-control__status {
+  color: var(--dashboard-blue-dark);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.dashboard-axis-mode-control__options {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 10px;
+  background: var(--dashboard-white);
+}
+
+.dashboard-axis-mode-control__option {
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
+  border: 0;
+  background: transparent;
+  color: var(--dashboard-muted);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.dashboard-axis-mode-control__option + .dashboard-axis-mode-control__option {
+  border-left: 1px solid var(--dashboard-line);
+}
+
+.dashboard-axis-mode-control__option:hover {
+  background: var(--dashboard-sky);
+  color: var(--dashboard-blue-dark);
+}
+
+.dashboard-axis-mode-control__option.is-active {
+  background: var(--dashboard-blue);
+  color: var(--dashboard-white);
+}
+
+.dashboard-axis-mode-control__option:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid rgb(29 78 216 / 0.22);
+  outline-offset: -3px;
+}
+
+.dashboard-axis-mode-control__description {
+  max-width: 74ch;
+  margin: 0;
+  color: var(--dashboard-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.dashboard-profile-date-field { max-width: 16rem; margin-bottom: 0.55rem; }
 
 .dashboard-footer {
   display: grid;

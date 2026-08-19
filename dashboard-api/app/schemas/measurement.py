@@ -19,12 +19,17 @@ class MeasurementPoint(BaseModel):
 
 
 class TimeSeriesResponse(BaseModel):
-    """Serie temporal de mediciones crudas para gráfica de línea."""
+    """Serie completa o resumida para gráfica de línea."""
     station_code: str
     metric: str
     from_: datetime
     to: datetime
     count: int
+    returned_count: int
+    total_count: int
+    has_more: bool = False
+    is_aggregated: bool = False
+    resolution_seconds: int | None = None
     data: list[dict]   # [{ "recorded_at": ..., "value": ... }]
 
 

@@ -18,18 +18,34 @@ export default function DateRangePicker({ onChange, className = '' }) {
   const [custom, setCustom]   = useState(false)
   const [fromVal, setFromVal] = useState('')
   const [toVal, setToVal]     = useState('')
+  const [error, setError]     = useState('')
 
   const applyPreset = (preset) => {
     setActive(preset.label)
     setCustom(false)
+    setError('')
     const to   = new Date()
     const from = subHours(to, preset.hours)
     onChange({ from: from.toISOString(), to: to.toISOString() })
   }
 
   const applyCustom = () => {
-    if (!fromVal || !toVal) return
-    onChange({ from: new Date(fromVal).toISOString(), to: new Date(toVal).toISOString() })
+    if (!fromVal || !toVal) {
+      setError('Seleccione el inicio y el final del rango.')
+      return
+    }
+    const from = new Date(fromVal)
+    const to = new Date(toVal)
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      setError('El rango contiene una fecha no válida.')
+      return
+    }
+    if (from > to) {
+      setError('El inicio no puede ser posterior al final.')
+      return
+    }
+    setError('')
+    onChange({ from: from.toISOString(), to: to.toISOString() })
   }
 
   return (
@@ -51,7 +67,7 @@ export default function DateRangePicker({ onChange, className = '' }) {
 
       <button
         type="button"
-        onClick={() => { setCustom(true); setActive('') }}
+        onClick={() => { setCustom(true); setActive(''); setError('') }}
         className={`dashboard-range-picker__button ${
           custom
             ? 'dashboard-range-picker__button--active'
@@ -69,6 +85,7 @@ export default function DateRangePicker({ onChange, className = '' }) {
             onChange={e => setFromVal(e.target.value)}
             className="dashboard-input"
             aria-label="Fecha y hora inicial"
+            aria-invalid={Boolean(error)}
           />
           <span className="text-text-muted text-sm">a</span>
           <input
@@ -77,6 +94,8 @@ export default function DateRangePicker({ onChange, className = '' }) {
             onChange={e => setToVal(e.target.value)}
             className="dashboard-input"
             aria-label="Fecha y hora final"
+            min={fromVal || undefined}
+            aria-invalid={Boolean(error)}
           />
           <button
             type="button"
@@ -85,6 +104,7 @@ export default function DateRangePicker({ onChange, className = '' }) {
           >
             Aplicar
           </button>
+          {error && <p className="dashboard-range-picker__error" role="alert">{error}</p>}
         </div>
       )}
     </div>

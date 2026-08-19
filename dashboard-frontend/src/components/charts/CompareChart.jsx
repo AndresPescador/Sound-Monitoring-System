@@ -5,11 +5,11 @@ import {
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import ChartCursor from './ChartCursor'
-import { ACTIVE_DOT, getTimeAxis } from './timeAxis'
+import { ACTIVE_DOT, getChartDataWindow, getTimeAxis } from './timeAxis'
 
 const COLORS = ['#1d4ed8', '#153781', '#4774bd', '#6f94cf', '#8aa8d4', '#365b96', '#10223f']
 
-export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) {
+export default function CompareChart({ series = [], metricLabel = 'Leq hora', axisMode = 'range' }) {
   if (!series.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos.</p>
 
   // Pivot: merge all series by hour_start timestamp
@@ -18,15 +18,16 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) 
     s.data.forEach(pt => {
       const key = pt.hour_start
       if (!timeMap[key]) timeMap[key] = { t: key }
-      timeMap[key][s.station_code] = +pt.value.toFixed(2)
+      timeMap[key][s.station_code] = pt.value == null ? null : +Number(pt.value).toFixed(2)
     })
   })
   const chartData = Object.values(timeMap).sort((a, b) => a.t.localeCompare(b.t))
-  const timeAxis = getTimeAxis(chartData)
+  const visibleData = getChartDataWindow(chartData, axisMode, series.map(s => s.station_code))
+  const timeAxis = getTimeAxis(visibleData)
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <LineChart data={visibleData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis
           dataKey="t"
@@ -57,6 +58,7 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora' }) 
             strokeWidth={2}
             dot={false}
             activeDot={ACTIVE_DOT}
+            connectNulls={false}
           />
         ))}
       </LineChart>

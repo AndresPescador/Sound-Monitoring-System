@@ -8,11 +8,14 @@ import DateRangePicker  from '../components/shared/DateRangePicker'
 import MetricSelector   from '../components/shared/MetricSelector'
 import ChartInfo        from '../components/shared/ChartInfo'
 import ChartDownloadMenu from '../components/shared/ChartDownloadMenu'
+import ChartAxisModeControl from '../components/shared/ChartAxisModeControl'
 import LevelBandChart   from '../components/charts/LevelBandChart'
 import TimeSeriesChart  from '../components/charts/TimeSeriesChart'
 import DailyBarChart    from '../components/charts/DailyBarChart'
 import ILDChart         from '../components/charts/ILDChart'
 import LoadingSpinner   from '../components/shared/LoadingSpinner'
+import ResolutionNotice from '../components/shared/ResolutionNotice'
+import { AUTO_FOCUS_THRESHOLD, getCoverageRatio } from '../components/charts/timeAxis'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
 import { useChartDownload } from '../hooks/useChartDownload'
 
@@ -34,6 +37,21 @@ const METRIC_LABELS = {
   spectral_centroid:      'Centroide espectral (Hz)',
   spectral_rolloff:       'Rolloff espectral (Hz)',
   zero_crossing_rate:     'Tasa de cruces por cero',
+}
+
+const bogotaDate = (iso) => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(iso))
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+    return `${values.year}-${values.month}-${values.day}`
+  } catch {
+    return String(iso).slice(0, 10)
+  }
 }
 
 const SectionCard = ({ title, info, downloadData, fileLabel, svgTitle, stationCode, children }) => {
@@ -77,13 +95,19 @@ export default function StationDetail() {
   const [timeseries,    setTimeseries]    = useState([])
   const [binaural,      setBinaural]      = useState([])
   const [spectral,      setSpectral]      = useState([])
+  const [timeseriesMeta, setTimeseriesMeta] = useState(null)
+  const [binauralMeta,   setBinauralMeta]   = useState(null)
+  const [spectralMeta,   setSpectralMeta]   = useState(null)
   const [loadingMain,   setLoadingMain]   = useState(true)
+  const [loadingDaily,  setLoadingDaily]  = useState(true)
   const [loadingMetric, setLoadingMetric] = useState(false)
   const [metric,        setMetric]        = useState('leq_dbfs')
+  const [axisMode,      setAxisMode]      = useState('auto')
   const [range,         setRange]         = useState({
     from: subHours(new Date(), 24).toISOString(),
     to:   new Date().toISOString(),
   })
+  const [profileDate, setProfileDate] = useState(() => bogotaDate(new Date().toISOString()))
 
   // Cargar lista de estaciones una sola vez
   useEffect(() => {
@@ -99,32 +123,53 @@ export default function StationDetail() {
       .catch(() => {})
   }, [code])
 
-  // Carga principal — todo excepto serie temporal
+  // El perfil diario es una fecha concreta dentro del rango seleccionado.
+  useEffect(() => {
+    setProfileDate(bogotaDate(range.to))
+  }, [range.to])
+
+  useEffect(() => {
+    setAxisMode('auto')
+  }, [range.from, range.to])
+
+  // Carga principal — agregados horarios y series adaptativas.
   useEffect(() => {
     setLoadingMain(true)
     const params = { from: range.from, to: range.to }
-    const today  = range.to.slice(0, 10)
     Promise.all([
       getHourly(code, params),
-      getDailyProfile(code, { date: today }),
       getBinaural(code, params),
       getSpectral(code, params),
     ])
-      .then(([h, d, b, s]) => {
+      .then(([h, b, s]) => {
         setHourly(h.data.data)
-        setDaily(d.data.data)
         setBinaural(b.data.data)
         setSpectral(s.data.data)
+        setBinauralMeta(b.data)
+        setSpectralMeta(s.data)
       })
       .catch(() => {})
       .finally(() => setLoadingMain(false))
   }, [code, range])
 
+  useEffect(() => {
+    let active = true
+    setLoadingDaily(true)
+    getDailyProfile(code, { date: profileDate })
+      .then(r => { if (active) setDaily(r.data.data) })
+      .catch(() => { if (active) setDaily([]) })
+      .finally(() => { if (active) setLoadingDaily(false) })
+    return () => { active = false }
+  }, [code, profileDate])
+
   // Carga independiente — solo serie temporal
   useEffect(() => {
     setLoadingMetric(true)
     getMeasurements(code, { from: range.from, to: range.to, metric })
-      .then(r => setTimeseries(r.data.data))
+      .then(r => {
+        setTimeseries(r.data.data)
+        setTimeseriesMeta(r.data)
+      })
       .catch(() => {})
       .finally(() => setLoadingMetric(false))
   }, [code, range, metric])
@@ -132,6 +177,15 @@ export default function StationDetail() {
   const handleStationChange = (newCode) => {
     navigate(`/stations/${newCode}`)
   }
+
+  const coverageRatio = getCoverageRatio([
+    { data: hourly, timeKey: 'hour_start', valueKeys: ['leq_hour', 'l10', 'l50', 'l90'] },
+    { data: timeseries, timeKey: 'recorded_at', valueKeys: ['value'] },
+    { data: binaural, timeKey: 'recorded_at', valueKeys: ['ild_db', 'interaural_correlation'] },
+    { data: spectral, timeKey: 'recorded_at', valueKeys: ['dominant_frequency', 'spectral_centroid', 'spectral_rolloff', 'zero_crossing_rate'] },
+  ], range)
+  const automaticAxisMode = coverageRatio !== null && coverageRatio < AUTO_FOCUS_THRESHOLD ? 'data' : 'range'
+  const activeAxisMode = axisMode === 'auto' ? automaticAxisMode : axisMode
 
   return (
     <div className="dashboard-page dashboard-station-page">
@@ -181,6 +235,16 @@ export default function StationDetail() {
         <DateRangePicker onChange={setRange} />
       </div>
 
+      <div className="dashboard-chart-axis-toolbar">
+        <ChartAxisModeControl
+          mode={activeAxisMode}
+          automaticMode={automaticAxisMode}
+          isAutomatic={axisMode === 'auto'}
+          onChange={setAxisMode}
+          range={range}
+        />
+      </div>
+
       {loadingMain ? <LoadingSpinner label="Cargando gráficas..." /> : (
         <div className="dashboard-page dashboard-station-charts">
 
@@ -191,18 +255,30 @@ export default function StationDetail() {
             stationCode={code}
             downloadData={hourly}
           >
-            <LevelBandChart data={hourly} />
+            <LevelBandChart data={hourly} axisMode={activeAxisMode} />
             <p className="text-xs text-text-light mt-1">L90 = ruido de fondo · Leq = nivel equivalente · L10 = picos de ruido</p>
           </SectionCard>
 
           {/* Perfil diario */}
           <SectionCard
-            title={`Perfil diario: ${range.to.slice(0, 10)}`}
+            title={`Perfil diario: ${profileDate}`}
             info="Muestra el nivel de ruido promedio para cada hora del día (0 a 23 horas). Las barras verdes indican horas tranquilas, amarillas un nivel moderado, y rojas un nivel alto. Permite identificar las horas pico de ruido, como el tráfico matutino o el silencio nocturno."
             stationCode={code}
             downloadData={daily}
           >
-            <DailyBarChart data={daily} />
+            <div className="dashboard-field dashboard-profile-date-field">
+              <label htmlFor="station-profile-date">Día del perfil (hora Bogotá)</label>
+              <input
+                id="station-profile-date"
+                type="date"
+                value={profileDate}
+                min={bogotaDate(range.from)}
+                max={bogotaDate(range.to)}
+                onChange={event => setProfileDate(event.target.value)}
+                className="dashboard-input"
+              />
+            </div>
+            {loadingDaily ? <LoadingSpinner label="Cargando perfil diario..." /> : <DailyBarChart data={daily} />}
             <p className="text-xs text-text-light mt-1">Leq por hora del día · Color indica nivel</p>
           </SectionCard>
 
@@ -221,11 +297,13 @@ export default function StationDetail() {
             </div>
             {loadingMetric
               ? <LoadingSpinner label="Actualizando gráfica..." />
-              : <TimeSeriesChart data={timeseries} metricLabel={metric} unit="dBFS" />
+              : <TimeSeriesChart data={timeseries} metricLabel={metric} unit="dBFS" axisMode={activeAxisMode} />
             }
+            <ResolutionNotice meta={timeseriesMeta} />
           </SectionCard>
 
           {/* ILD + correlación */}
+          <ResolutionNotice meta={binauralMeta} />
           <div className="dashboard-chart-grid">
             <SectionCard
               title="ILD: diferencia interaural"
@@ -233,7 +311,7 @@ export default function StationDetail() {
             stationCode={code}
               downloadData={binaural.map(d => ({ timestamp: d.recorded_at, ild_db: d.ild_db }))}
             >
-              <ILDChart data={binaural} />
+              <ILDChart data={binaural} axisMode={activeAxisMode} />
               <p className="text-xs text-text-light mt-1">Azul = predominio izquierdo · Naranja = derecho</p>
             </SectionCard>
 
@@ -244,15 +322,23 @@ export default function StationDetail() {
               downloadData={binaural.map(d => ({ timestamp: d.recorded_at, interaural_correlation: d.interaural_correlation }))}
             >
               <TimeSeriesChart
-                data={binaural.map(d => ({ recorded_at: d.recorded_at, value: d.interaural_correlation }))}
+                data={binaural.map(d => ({
+                  recorded_at: d.recorded_at,
+                  value: d.interaural_correlation,
+                  value_min: d.interaural_correlation_min,
+                  value_max: d.interaural_correlation_max,
+                  source_count: d.source_count,
+                }))}
                 metricLabel="Correlación"
                 unit=""
+                axisMode={activeAxisMode}
               />
               <p className="text-xs text-text-light mt-1">+1 = campo difuso/frontal · 0 = fuente lateral</p>
             </SectionCard>
           </div>
 
           {/* Espectral */}
+          <ResolutionNotice meta={spectralMeta} />
           <div className="dashboard-chart-grid">
             <SectionCard
               title="Centroide espectral (Hz)"
@@ -261,9 +347,16 @@ export default function StationDetail() {
               downloadData={spectral.map(d => ({ timestamp: d.recorded_at, spectral_centroid_hz: d.spectral_centroid }))}
             >
               <TimeSeriesChart
-                data={spectral.map(d => ({ recorded_at: d.recorded_at, value: d.spectral_centroid }))}
+                data={spectral.map(d => ({
+                  recorded_at: d.recorded_at,
+                  value: d.spectral_centroid,
+                  value_min: d.spectral_centroid_min,
+                  value_max: d.spectral_centroid_max,
+                  source_count: d.source_count,
+                }))}
                 metricLabel="Centroide"
                 unit="Hz"
+                axisMode={activeAxisMode}
               />
             </SectionCard>
             <SectionCard
@@ -273,9 +366,16 @@ export default function StationDetail() {
               downloadData={spectral.map(d => ({ timestamp: d.recorded_at, dominant_frequency_hz: d.dominant_frequency }))}
             >
               <TimeSeriesChart
-                data={spectral.map(d => ({ recorded_at: d.recorded_at, value: d.dominant_frequency }))}
+                data={spectral.map(d => ({
+                  recorded_at: d.recorded_at,
+                  value: d.dominant_frequency,
+                  value_min: d.dominant_frequency_min,
+                  value_max: d.dominant_frequency_max,
+                  source_count: d.source_count,
+                }))}
                 metricLabel="Frec. dominante"
                 unit="Hz"
+                axisMode={activeAxisMode}
               />
             </SectionCard>
           </div>
