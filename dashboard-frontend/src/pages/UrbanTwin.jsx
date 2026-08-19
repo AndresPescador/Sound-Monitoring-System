@@ -22,12 +22,12 @@ function relativeTime(value) {
   }
 }
 
-function MetricCard({ label, value, detail }) {
+function SideMetric({ label, value, detail }) {
   return (
-    <div className="rounded-lg border border-border bg-bg p-3">
-      <p className="text-xs font-display font-medium uppercase tracking-wide text-text-muted">{label}</p>
-      <p className="mt-1 font-display text-xl font-bold text-text">{value}</p>
-      {detail && <p className="mt-1 text-xs text-text-light">{detail}</p>}
+    <div className="border-b border-slate-200 py-3 last:border-b-0">
+      <p className="text-[10px] font-display font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      <p className="mt-1 font-display text-lg font-bold tabular-nums text-slate-800">{value}</p>
+      {detail && <p className="mt-0.5 text-xs text-slate-500">{detail}</p>}
     </div>
   )
 }
@@ -37,8 +37,8 @@ export default function UrbanTwin() {
   const [selectedStationCode, setSelectedStationCode] = useState(null)
   const [selectedSummary, setSelectedSummary] = useState(null)
   const [timeseries, setTimeseries] = useState([])
-  const [selectedHex, setSelectedHex] = useState(null)
-  const [hexRadius, setHexRadius] = useState(75)
+  const [selectedColumn, setSelectedColumn] = useState(null)
+  const [columnRadius, setColumnRadius] = useState(35)
   const [updatedAt, setUpdatedAt] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -50,7 +50,7 @@ export default function UrbanTwin() {
       setSelectedStationCode(current => (
         current && response.data.some(s => s.station_code === current)
           ? current
-          : response.data.find(s => s.current_leq_dbfs != null)?.station_code ?? null
+          : null
       ))
       setUpdatedAt(new Date())
       setError(null)
@@ -124,119 +124,97 @@ export default function UrbanTwin() {
   if (loading) return <LoadingSpinner label="Cargando gemelo urbano 3D..." />
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-mono text-primary">MVP · DECK.GL / WEBGL</p>
-          <h1 className="text-2xl font-display font-bold text-text">Gemelo acústico urbano 3D</h1>
-          <p className="mt-1 max-w-3xl text-sm text-text-muted">
-            Agregación espacial de las últimas lecturas disponibles. El color usa Leq energético; la altura es una representación provisional de intensidad, no de picos.
-          </p>
+    <div className="relative h-[100dvh] min-h-[620px] overflow-hidden bg-slate-950">
+      <NoiseTwinMap
+        stations={stations}
+        selectedStationCode={selectedStationCode}
+        onSelectStation={setSelectedStationCode}
+        columnRadius={columnRadius}
+        onSelectColumn={setSelectedColumn}
+      />
+
+      <header className="absolute left-4 top-4 z-10 max-w-[calc(100%-2rem)] rounded-lg border border-white/30 bg-slate-950/85 px-4 py-3 text-white shadow-xl backdrop-blur-sm sm:left-6 sm:top-6">
+        <div className="flex items-start gap-3">
+          <Link to="/" className="grid h-8 w-8 shrink-0 place-items-center rounded bg-primary text-sm font-bold hover:bg-primary-dark" aria-label="Volver al panel principal">←</Link>
+          <div>
+            <p className="text-[10px] font-mono font-semibold tracking-[0.16em] text-cyan-300">DECK.GL / MAPLIBRE</p>
+            <h1 className="mt-0.5 font-display text-lg font-bold">Gemelo acústico urbano</h1>
+            <p className="mt-0.5 text-xs text-slate-300">Bogotá D.C. · Leq energético en tiempo casi real</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-display font-medium text-text-muted" htmlFor="hex-radius">Radio</label>
-          <select
-            id="hex-radius"
-            value={hexRadius}
-            onChange={event => setHexRadius(Number(event.target.value))}
-            className="rounded border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value={50}>50 m</option>
-            <option value={75}>75 m</option>
-            <option value={100}>100 m</option>
-          </select>
-          <button
-            onClick={refreshStations}
-            className="rounded bg-primary px-3 py-1.5 text-sm font-display font-medium text-white transition-colors hover:bg-primary-dark"
-          >
-            Actualizar
-          </button>
-        </div>
-      </div>
+      </header>
 
-      {error && <p className="rounded border border-noise-high/30 bg-red-50 px-3 py-2 text-sm text-noise-high">{error}</p>}
+      {error && <p className="absolute bottom-5 left-4 z-10 max-w-sm rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-lg sm:left-6">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Leq ciudad" value={cityLeq?.toFixed(1) ?? '—'} detail="dBFS · promedio energético" />
-        <MetricCard label="Con lectura" value={`${observedStations.length}/${stations.length}`} detail="estaciones con Leq actual" />
-        <MetricCard label="Sin dato reciente" value={staleStations} detail="más de 3 minutos" />
-        <MetricCard label="Snapshot" value={updatedAt ? relativeTime(updatedAt.toISOString()) : '—'} detail="polling cada 60 segundos" />
-      </div>
-
-      <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-bg shadow-sm xl:grid-cols-[minmax(0,1fr)_360px]">
-        <NoiseTwinMap
-          stations={stations}
-          selectedStationCode={selectedStationCode}
-          onSelectStation={setSelectedStationCode}
-          hexRadius={hexRadius}
-          onSelectHex={setSelectedHex}
-        />
-
-        <aside className="max-h-[540px] overflow-y-auto border-t border-border bg-surface p-4 xl:border-l xl:border-t-0">
+      <aside className="absolute bottom-0 right-0 top-0 z-20 flex w-full max-w-[400px] flex-col border-l border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md sm:w-[380px]">
+        <div className="border-b border-slate-200 px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-display font-semibold uppercase tracking-wide text-text-muted">Analítica de estación</p>
-              <h2 className="mt-1 text-lg font-display font-bold text-text">{selectedStation?.name ?? 'Selecciona una estación'}</h2>
-              <p className="text-sm text-text-muted">{selectedStation?.locality ?? 'Haz clic en un punto del mapa o en la lista.'}</p>
+              <p className="text-[10px] font-display font-semibold uppercase tracking-[0.15em] text-primary">Resumen acústico</p>
+              <h2 className="mt-1 font-display text-xl font-bold text-slate-800">Estado de la ciudad</h2>
+            </div>
+            <button onClick={refreshStations} className="rounded border border-slate-300 px-2.5 py-1.5 text-xs font-display font-semibold text-slate-700 transition-colors hover:border-primary hover:text-primary">Actualizar</button>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-x-5">
+            <SideMetric label="Leq ciudad" value={cityLeq?.toFixed(1) ?? '—'} detail="dBFS · promedio energético" />
+            <SideMetric label="Lecturas activas" value={`${observedStations.length}/${stations.length}`} detail={updatedAt ? relativeTime(updatedAt.toISOString()) : 'sin snapshot'} />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-5">
+          <section className="border-b border-slate-200 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-display font-semibold uppercase tracking-[0.12em] text-slate-500">Estación seleccionada</p>
+                <h3 className="mt-1 truncate font-display text-lg font-bold text-slate-800">{selectedStation?.name ?? 'Selecciona una estación'}</h3>
+                <p className="truncate text-sm text-slate-500">{selectedStation?.locality ?? 'Haz clic en una columna o punto del mapa.'}</p>
+              </div>
+              {selectedStation && <Link className="shrink-0 text-xs font-display font-semibold text-primary hover:text-primary-dark" to={`/stations/${selectedStation.station_code}`}>Detalle →</Link>}
             </div>
             {selectedStation && (
-              <Link className="text-xs font-display font-medium text-primary hover:text-primary-dark" to={`/stations/${selectedStation.station_code}`}>
-                Ver detalle →
-              </Link>
+              <div className="mt-3 grid grid-cols-2 gap-3 rounded-md bg-slate-50 px-3">
+                <SideMetric label="Leq actual" value={selectedStation.current_leq_dbfs?.toFixed(1) ?? '—'} detail="dBFS" />
+                <SideMetric label="Conexión" value={relativeTime(selectedStation.last_seen_at)} detail={selectedStation.is_active ? 'estación activa' : 'estación inactiva'} />
+              </div>
             )}
-          </div>
-
-          {selectedStation && (
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <MetricCard label="Leq actual" value={selectedStation.current_leq_dbfs?.toFixed(1) ?? '—'} detail="dBFS" />
-              <MetricCard label="Última conexión" value={relativeTime(selectedStation.last_seen_at)} detail={selectedStation.is_active ? 'activa' : 'inactiva'} />
-            </div>
-          )}
-
-          {selectedHex && (
-            <div className="mt-4 rounded-lg border border-primary/20 bg-blue-50 p-3">
-              <p className="text-xs font-display font-semibold uppercase tracking-wide text-primary">Hexágono seleccionado</p>
-              <p className="mt-1 text-sm text-text">
-                {selectedHex.count} estación{selectedHex.count === 1 ? '' : 'es'} · Leq energético {selectedHex.leqDbfs?.toFixed(1) ?? '—'} dBFS
-              </p>
-            </div>
-          )}
-
-          <section className="mt-5">
-            <h3 className="text-sm font-display font-semibold text-text">Leq — últimas 24 horas</h3>
-            <div className="mt-2 h-[220px] rounded-lg border border-border bg-bg p-1">
-              <TimeSeriesChart data={timeseries} metricLabel="Leq" unit="dBFS" />
-            </div>
           </section>
 
-          <section className="mt-5">
-            <h3 className="text-sm font-display font-semibold text-text">Estaciones</h3>
+          <section className="border-b border-slate-200 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-display font-semibold uppercase tracking-[0.12em] text-slate-500">Visualización espacial</p>
+                <h3 className="mt-1 font-display text-base font-bold text-slate-800">Columnas acústicas 3D</h3>
+              </div>
+              <select id="column-radius" value={columnRadius} onChange={event => setColumnRadius(Number(event.target.value))} className="rounded border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary" aria-label="Ancho de columnas">
+                <option value={25}>Ancho 25 m</option>
+                <option value={35}>Ancho 35 m</option>
+                <option value={45}>Ancho 45 m</option>
+              </select>
+            </div>
+            {selectedColumn ? (
+              <p className="mt-3 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-slate-700"><span className="font-semibold text-cyan-800">Columna seleccionada:</span> Leq {selectedColumn.leqDbfs?.toFixed(1) ?? '—'} dBFS · altura relativa {selectedColumn.elevationValue?.toFixed(0) ?? '—'} m</p>
+            ) : <p className="mt-3 text-xs leading-relaxed text-slate-500">Cada columna se centra en su estación. La altura compara la intensidad de Leq relativa a -60 dBFS.</p>}
+          </section>
+
+          <section className="border-b border-slate-200 py-4">
+            <h3 className="font-display text-base font-bold text-slate-800">Leq — últimas 24 horas</h3>
+            <div className="mt-2 h-[190px] rounded-md border border-slate-200 bg-white p-1"><TimeSeriesChart data={timeseries} metricLabel="Leq" unit="dBFS" /></div>
+          </section>
+
+          <section className="py-4">
+            <div className="flex items-center justify-between"><h3 className="font-display text-base font-bold text-slate-800">Estaciones</h3><span className="text-xs text-slate-500">{staleStations} sin dato reciente</span></div>
             <div className="mt-2 space-y-1">
               {stations.map(station => (
-                <button
-                  key={station.station_code}
-                  onClick={() => setSelectedStationCode(station.station_code)}
-                  className={`flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition-colors ${
-                    station.station_code === selectedStationCode
-                      ? 'bg-primary text-white'
-                      : 'bg-bg text-text hover:bg-slate-100'
-                  }`}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-display font-medium">{station.name}</span>
-                    <span className={`block truncate text-xs ${station.station_code === selectedStationCode ? 'text-blue-100' : 'text-text-muted'}`}>{station.locality}</span>
-                  </span>
+                <button key={station.station_code} onClick={() => setSelectedStationCode(station.station_code)} className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition-colors ${station.station_code === selectedStationCode ? 'bg-primary text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
+                  <span className="min-w-0"><span className="block truncate font-display font-semibold">{station.name}</span><span className={`block truncate text-xs ${station.station_code === selectedStationCode ? 'text-blue-100' : 'text-slate-500'}`}>{station.locality}</span></span>
                   <span className="ml-2 font-mono text-xs">{station.current_leq_dbfs?.toFixed(1) ?? '—'}</span>
                 </button>
               ))}
             </div>
           </section>
-        </aside>
-      </div>
-
-      <p className="text-xs text-text-light">
-        Nota metodológica: los valores actuales son dBFS, no dB(A) calibrados. Los eventos de pico aún no se registran en el modelo de datos; por ello no se presentan como una altura de incidencia.
-      </p>
+        </div>
+        <p className="border-t border-slate-200 px-5 py-2 text-[10px] leading-relaxed text-slate-400">Valores actuales en dBFS; altura como intensidad media provisional.</p>
+      </aside>
     </div>
   )
 }

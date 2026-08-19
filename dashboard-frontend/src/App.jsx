@@ -28,12 +28,14 @@ export default function App() {
             <Route path="/stations/:code" element={<StationDetail />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/data" element={<OpenData />} />
-            <Route path="/urban-3d" element={
-              <Suspense fallback={<p className="py-16 text-center text-sm text-text-muted">Cargando visor 3D…</p>}>
-                <UrbanTwin />
-              </Suspense>
-            } />
           </Route>
+
+          {/* El visor ocupa toda la pantalla; no hereda navbar ni footer. */}
+          <Route path="/urban-3d" element={
+            <Suspense fallback={<p className="grid h-screen place-items-center bg-slate-950 text-sm text-white">Cargando visor 3D…</p>}>
+              <UrbanTwin />
+            </Suspense>
+          } />
 
           {/* ── Panel admin (SIN Layout, usa AdminLayout dentro) ────────── */}
           <Route path="/admin/login" element={<AdminLogin />} />
