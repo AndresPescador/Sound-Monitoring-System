@@ -373,7 +373,7 @@
           }]
         },
         {
-          "name": "GET /compare/measurements — Grid común y puntos exactos",
+          "name": "GET /compare/measurements — Grid común",
           "request": {
             "method": "GET",
             "url": {
@@ -387,7 +387,7 @@
                 { "key": "stations", "value": "{{station_code}}" }
               ]
             },
-            "description": "Devuelve data con buckets temporales comunes para todas las estaciones y raw_data con timestamps exactos para ScatterChart."
+            "description": "Devuelve data con buckets temporales comunes para todas las estaciones. Los puntos exactos se solicitan en /compare/measurements/raw."
           },
           "event": [{
             "listen": "test",
@@ -399,7 +399,39 @@
                 "pm.test('Tiene series array', () => pm.expect(body.series).to.be.an('array'));",
                 "if (body.series.length > 0) {",
                 "    pm.expect(body.series[0]).to.have.property('data');",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "GET /compare/measurements/raw — Puntos exactos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/compare/measurements/raw?from={{from_test}}&to={{to_test}}&metric=leq_dbfs&stations={{station_code}}&raw_limit=3000",
+              "host": ["{{base_url}}"],
+              "path": ["compare", "measurements", "raw"],
+              "query": [
+                { "key": "from", "value": "{{from_test}}" },
+                { "key": "to", "value": "{{to_test}}" },
+                { "key": "metric", "value": "leq_dbfs" },
+                { "key": "stations", "value": "{{station_code}}" },
+                { "key": "raw_limit", "value": "3000" }
+              ]
+            },
+            "description": "Devuelve puntos exactos distribuidos temporalmente para el ScatterChart, con límite por estación."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Compare raw OK (200)', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.test('Tiene series array', () => pm.expect(body.series).to.be.an('array'));",
+                "if (body.series.length > 0) {",
                 "    pm.expect(body.series[0]).to.have.property('raw_data');",
+                "    pm.expect(body.series[0]).to.have.property('raw_returned_count');",
                 "}"
               ]
             }

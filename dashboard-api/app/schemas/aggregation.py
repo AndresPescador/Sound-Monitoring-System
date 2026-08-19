@@ -63,26 +63,49 @@ class CompareResponse(BaseModel):
 
 
 class CompareMeasurementSeriesItem(BaseModel):
-    """Serie común y puntos exactos de una estación en una comparación."""
+    """Serie común de una estación en una comparación."""
     station_code: str
     locality: str
     data: list[dict]
-    raw_data: list[dict]
+    raw_data: list[dict] = []
     total_count: int
-    raw_returned_count: int
-    raw_has_more: bool
+    raw_returned_count: int = 0
+    raw_has_more: bool = False
+    raw_sampled: bool = False
 
 
 class CompareMeasurementsResponse(BaseModel):
-    """Comparación de mediciones con grid temporal común y detalle exacto."""
+    """Comparación de mediciones con grid temporal común."""
     metric: str
     from_: datetime
     to: datetime
     resolution_seconds: int
     bucket_count: int
     total_count: int
-    raw_limit: int
+    raw_limit: int = 0
+    raw_loaded: bool = False
     series: list[CompareMeasurementSeriesItem]
+
+
+class CompareRawMeasurementSeriesItem(BaseModel):
+    """Puntos exactos de una estación cargados bajo demanda."""
+    station_code: str
+    locality: str
+    raw_data: list[dict]
+    total_count: int
+    raw_returned_count: int
+    raw_has_more: bool
+    raw_sampled: bool = False
+
+
+class CompareRawMeasurementsResponse(BaseModel):
+    """Detalle crudo de una comparación, separado del grid agregado."""
+    metric: str
+    from_: datetime
+    to: datetime
+    total_count: int
+    raw_limit: int
+    series: list[CompareRawMeasurementSeriesItem]
 
 
 class SystemStats(BaseModel):

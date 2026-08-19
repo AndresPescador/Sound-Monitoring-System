@@ -1,19 +1,22 @@
 import client from './client'
 
-export const getMeasurements = (code, params) =>
-  client.get(`/stations/${code}/measurements`, { params })
+export const getMeasurements = (code, params, config = {}) =>
+  client.get(`/stations/${code}/measurements`, { params, ...config })
 
-export const getCompareMeasurements = (params) =>
-  client.get('/compare/measurements', { params })
+export const getCompareMeasurements = (params, config = {}) =>
+  client.get('/compare/measurements', { params, ...config })
 
-export const getRawMeasurements = (code, params) =>
-  client.get(`/stations/${code}/measurements/raw`, { params })
+export const getCompareMeasurementsRaw = (params, config = {}) =>
+  client.get('/compare/measurements/raw', { params, ...config })
 
-export const getBinaural = (code, params) =>
-  client.get(`/stations/${code}/binaural`, { params })
+export const getRawMeasurements = (code, params, config = {}) =>
+  client.get(`/stations/${code}/measurements/raw`, { params, ...config })
 
-export const getSpectral = (code, params) =>
-  client.get(`/stations/${code}/spectral`, { params })
+export const getBinaural = (code, params, config = {}) =>
+  client.get(`/stations/${code}/binaural`, { params, ...config })
+
+export const getSpectral = (code, params, config = {}) =>
+  client.get(`/stations/${code}/spectral`, { params, ...config })
 
 export const getAllRawMeasurements = async (code, params, onPage) => {
   const all = []

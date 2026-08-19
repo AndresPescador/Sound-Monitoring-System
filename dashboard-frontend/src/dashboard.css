@@ -1180,6 +1180,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dashboard-chart-transition { transition: none; }
+  .dashboard-chart-skeleton__shimmer { animation: none; transform: none; opacity: 0.24; }
 }
 
 .dashboard-footer {
@@ -1212,6 +1213,96 @@
 .dashboard-loading__mark i:nth-child(2) { height: 1.8rem; animation-delay: 120ms; }
 .dashboard-loading__mark i:nth-child(3) { height: 1.3rem; animation-delay: 240ms; }
 .dashboard-loading__label { font-size: 0.85rem; }
+
+.dashboard-chart-skeleton {
+  display: grid;
+  min-height: var(--chart-skeleton-height);
+  gap: 0.75rem;
+  align-content: start;
+  padding: 0.35rem 0 0.2rem;
+  color: var(--dashboard-muted);
+}
+
+.dashboard-chart-skeleton__plot {
+  position: relative;
+  height: var(--chart-skeleton-height);
+  min-height: 180px;
+  overflow: hidden;
+  border-bottom: 1px solid color-mix(in srgb, var(--dashboard-muted) 48%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--dashboard-muted) 48%, transparent);
+  border-radius: 8px 8px 0 0;
+  background-image:
+    linear-gradient(to bottom, transparent 24.5%, color-mix(in srgb, var(--dashboard-line) 70%, transparent) 25%, transparent 25.6%, transparent 49.5%, color-mix(in srgb, var(--dashboard-line) 70%, transparent) 50%, transparent 50.6%, transparent 74.5%, color-mix(in srgb, var(--dashboard-line) 70%, transparent) 75%, transparent 75.6%),
+    linear-gradient(to right, transparent 24.5%, color-mix(in srgb, var(--dashboard-line) 54%, transparent) 25%, transparent 25.6%, transparent 49.5%, color-mix(in srgb, var(--dashboard-line) 54%, transparent) 50%, transparent 50.6%, transparent 74.5%, color-mix(in srgb, var(--dashboard-line) 54%, transparent) 75%, transparent 75.6%);
+}
+
+.dashboard-chart-skeleton__axis {
+  position: absolute;
+  display: block;
+  background: color-mix(in srgb, var(--dashboard-muted) 48%, transparent);
+}
+
+.dashboard-chart-skeleton__axis--y { inset: 0 auto 0 0; width: 1px; }
+.dashboard-chart-skeleton__axis--x { inset: auto 0 0; height: 1px; }
+
+.dashboard-chart-skeleton__tick {
+  position: absolute;
+  left: -0.28rem;
+  display: block;
+  width: 0.28rem;
+  height: 1px;
+  background: color-mix(in srgb, var(--dashboard-muted) 48%, transparent);
+}
+
+.dashboard-chart-skeleton__tick--1 { top: 25%; }
+.dashboard-chart-skeleton__tick--2 { top: 50%; }
+.dashboard-chart-skeleton__tick--3 { top: 75%; }
+.dashboard-chart-skeleton__tick--4 { bottom: -0.2rem; left: 25%; width: 1px; height: 0.28rem; }
+
+.dashboard-chart-skeleton__shimmer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: linear-gradient(100deg, transparent 18%, rgb(255 255 255 / 0.58) 45%, transparent 72%);
+  animation: dashboard-skeleton-shimmer 1500ms ease-in-out infinite;
+  transform: translateX(-100%);
+}
+
+.dashboard-chart-skeleton__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  padding-left: 0.15rem;
+}
+
+.dashboard-chart-skeleton__legend span {
+  display: block;
+  width: 5.8rem;
+  height: 0.65rem;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--dashboard-line) 82%, var(--dashboard-paper));
+}
+
+.dashboard-chart-skeleton__label {
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.dashboard-chart-inline-state {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  align-content: center;
+  gap: 0.65rem;
+  color: var(--dashboard-muted);
+  text-align: center;
+}
+
+.dashboard-chart-inline-state p { margin: 0; font-size: 0.82rem; }
+
+@keyframes dashboard-skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
 
 .leaflet-container { font-family: "Source Sans 3", sans-serif; }
 .leaflet-control-zoom a { color: var(--dashboard-ink); }

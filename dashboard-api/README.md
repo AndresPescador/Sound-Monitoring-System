@@ -39,7 +39,8 @@ dashboard-api/
 | `GET` | `/stations/{code}/binaural` | Gráfica ILD y correlación interaural |
 | `GET` | `/stations/{code}/spectral` | Gráficas de centroide y frecuencia dominante |
 | `GET` | `/compare` | Gráfica de líneas múltiples entre estaciones |
-| `GET` | `/compare/measurements` | Comparación con buckets temporales comunes y puntos exactos para ScatterChart |
+| `GET` | `/compare/measurements` | Comparación con buckets temporales comunes (carga inicial) |
+| `GET` | `/compare/measurements/raw` | Puntos exactos para ScatterChart, cargados bajo demanda |
 | `GET` | `/system/stats` | Panel de resumen (cards) |
 | `GET` | `/health` | Health check |
 
@@ -54,9 +55,9 @@ dashboard-api/
 | `limit` | int | 1500 | Máximo de puntos visuales en `/measurements`, `/binaural` y `/spectral`; si se supera, el backend agrupa el rango completo en ventanas estadísticas |
 | `metric` | string | `leq_dbfs` | Métrica a graficar (en `/measurements`) |
 | `cursor` | datetime ISO | — | Cursor temporal para paginar `/measurements/raw` |
-| `stations` | string | todas activas | Códigos separados por coma (en `/compare/measurements`) |
+| `stations` | string | todas activas | Códigos separados por coma (en `/compare/measurements` y `/compare/measurements/raw`) |
 | `max_points` | int | 1500 | Máximo de buckets comunes (en `/compare/measurements`) |
-| `raw_limit` | int | 10000 | Máximo de puntos exactos por estación para ScatterChart |
+| `raw_limit` | int | 10000 | Máximo de puntos exactos por estación (en `/compare/measurements/raw`) |
 
 ---
 
@@ -74,7 +75,9 @@ Las respuestas de series visuales incluyen `total_count`, `returned_count`, `is_
 
 `/stations/{code}/measurements/raw` devuelve mediciones exactas por páginas. Usa `limit` (máximo 5000) y el `next_cursor` de la respuesta para solicitar la página siguiente. La descarga completa debe recorrer las páginas hasta que `has_more` sea `false`.
 
-`/compare/measurements` devuelve dos representaciones por estación: `data`, con los mismos buckets temporales para todas las estaciones y sus estadísticas (`value`, `value_min`, `value_max`, `source_count`), y `raw_data`, con los timestamps originales para el ScatterChart. `raw_has_more` indica si `raw_limit` no alcanzó a devolver todos los puntos exactos.
+`/compare/measurements` devuelve únicamente `data`, con los mismos buckets temporales para todas las estaciones y sus estadísticas (`value`, `value_min`, `value_max`, `source_count`). Esto permite que la gráfica de líneas aparezca sin esperar al ScatterChart.
+
+`/compare/measurements/raw` devuelve `raw_data` con timestamps originales para el ScatterChart. Cuando el rango supera `raw_limit`, el backend selecciona puntos exactos distribuidos temporalmente mediante `NTILE`, no valores interpolados. `raw_has_more` indica que existen más mediciones y `raw_sampled` que la respuesta es una muestra representativa. El frontend puede solicitar el límite máximo explícitamente.
 
 Las agregaciones horarias incluyen también promedios espectrales y binaurales para permitir vistas históricas sin transportar todas las mediciones crudas.
 

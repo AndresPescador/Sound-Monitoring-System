@@ -1,3 +1,3 @@
 import client from './client'
 
-export const getCompare = (params) => client.get('/compare', { params })
+export const getCompare = (params, config = {}) => client.get('/compare', { params, ...config })
