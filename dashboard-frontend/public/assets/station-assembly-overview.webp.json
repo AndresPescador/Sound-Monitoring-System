@@ -1,0 +1,7 @@
+{
+  "asset": "station-assembly-overview.webp",
+  "source": "/home/andrespescador/Imágenes/Sound-2.png",
+  "mode": "built-in imagegen precise-object-edit",
+  "purpose": "Restauración documental de la vista cenital del montaje completo",
+  "constraints": "Preservar equipo, cableado, disposición y espacio; sin añadir, retirar o relabelar hardware"
+}

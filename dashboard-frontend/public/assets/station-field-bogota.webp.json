@@ -1,0 +1,7 @@
+{
+  "asset": "station-field-bogota.webp",
+  "source": "/home/andrespescador/Imágenes/Sound-3.png",
+  "mode": "built-in imagegen precise-object-edit",
+  "purpose": "Restauración documental para mostrar el despliegue real de la estación en Bogotá",
+  "constraints": "Preservar estación, cableado, panel solar, cubierta y contexto urbano; sin añadir ni rediseñar componentes"
+}

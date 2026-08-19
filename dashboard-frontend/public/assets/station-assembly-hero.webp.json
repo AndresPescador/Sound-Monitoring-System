@@ -1,0 +1,7 @@
+{
+  "asset": "station-assembly-hero.webp",
+  "source": "/home/andrespescador/Imágenes/Sound-1.png",
+  "mode": "built-in imagegen precise-object-edit",
+  "purpose": "Restauración documental del montaje real para la portada de la landing",
+  "constraints": "Preservar hardware, cableado, disposición, mesa y ventanas; sin añadir, retirar o rediseñar componentes"
+}
