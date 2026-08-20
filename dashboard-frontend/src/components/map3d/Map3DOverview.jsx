@@ -53,7 +53,6 @@ export default function Map3DOverview() {
       <div className="map3d-overview__footer">
         <p><strong>Lectura del mapa:</strong> la altura de cada columna representa intensidad relativa de Leq, no metros acústicos reales.</p>
         <div className="map3d-overview__links">
-          <Link to={ROUTES.map3DCompare}>Comparar localidades y estaciones</Link>
           <Link to={ROUTES.map3DData}>Abrir datos abiertos</Link>
           {stations[0] && <button type="button" onClick={() => selectStation(stations[0].station_code)}>Abrir una estación</button>}
         </div>

@@ -2,7 +2,6 @@ import { useMap3DContext } from '../../context/Map3DContext'
 
 const PANEL_LABELS = {
   station: { title: 'Análisis de estación', description: 'Explora una métrica a la vez y conserva el mapa visible.' },
-  compare: { title: 'Comparar estaciones', description: 'Contrasta ubicaciones sin abandonar el contexto urbano.' },
   data: { title: 'Datos abiertos', description: 'Consulta y descarga las mediciones disponibles.' },
 }
 

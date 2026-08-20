@@ -17,7 +17,6 @@ import { ROUTES, map2DStationPath } from './routes'
 const UrbanTwin = lazy(() => import('./pages/UrbanTwin'))
 const Compare = lazy(() => import('./pages/Compare'))
 const OpenData = lazy(() => import('./pages/OpenData'))
-const Map3DCompareRoute = lazy(() => import('./components/map3d/Map3DCompareRoute'))
 const Map3DDataRoute = lazy(() => import('./components/map3d/Map3DDataRoute'))
 
 function RouteLoading({ label = 'Cargando vista...' }) {
@@ -55,7 +54,8 @@ export default function App() {
             <Route index element={null} />
             {/* La ruta conserva la estación enfocada en el mapa, pero el detalle completo vive en la experiencia 2D. */}
             <Route path="stations/:code" element={null} />
-            <Route path="compare" element={<Suspense fallback={<RouteLoading label="Cargando comparación..." />}><Map3DCompareRoute /></Suspense>} />
+            {/* Comparar pertenece a la experiencia 2D; los enlaces 3D antiguos vuelven al mapa. */}
+            <Route path="compare" element={<Navigate to={ROUTES.map3D} replace />} />
             <Route path="data" element={<Suspense fallback={<RouteLoading label="Cargando datos abiertos..." />}><Map3DDataRoute /></Suspense>} />
           </Route>
 

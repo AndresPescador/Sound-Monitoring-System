@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { subHours, format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { getStations }    from '../api/stations'
@@ -65,7 +65,71 @@ const AGG_COLS = [
 ]
 
 // ── Componente de tabla ───────────────────────────────────────────────────────
-function DataTable({ columns, rows, loading, totalCount }) {
+function DataTable({ columns, rows, loading, totalCount, footer = null }) {
+  const regionRef = useRef(null)
+  const tableWrapRef = useRef(null)
+  const horizontalScrollRef = useRef(null)
+  const horizontalScrollContentRef = useRef(null)
+
+  useEffect(() => {
+    const tableWrap = tableWrapRef.current
+    const horizontalScrollContent = horizontalScrollContentRef.current
+    if (!tableWrap || !horizontalScrollContent) return undefined
+
+    const syncScrollbarWidth = () => {
+      horizontalScrollContent.style.width = `${tableWrap.scrollWidth}px`
+      if (horizontalScrollRef.current) {
+        horizontalScrollRef.current.scrollLeft = tableWrap.scrollLeft
+      }
+    }
+
+    syncScrollbarWidth()
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(syncScrollbarWidth)
+      : null
+    observer?.observe(tableWrap)
+    window.addEventListener('resize', syncScrollbarWidth)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', syncScrollbarWidth)
+    }
+  }, [columns.length, rows.length])
+
+  const findScrollContainer = (element) => {
+    let current = element?.parentElement
+    while (current && current !== document.body) {
+      const styles = window.getComputedStyle(current)
+      if (/(auto|scroll)/.test(styles.overflowY) && current.scrollHeight > current.clientHeight) {
+        return current
+      }
+      current = current.parentElement
+    }
+    return document.scrollingElement || document.documentElement
+  }
+
+  const scrollToDataPosition = (position) => {
+    const region = regionRef.current
+    if (!region || typeof window === 'undefined') return
+    const container = findScrollContainer(region)
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const containerRect = container.getBoundingClientRect()
+    const regionRect = region.getBoundingClientRect()
+    const offset = position === 'start'
+      ? regionRect.top - containerRect.top - 8
+      : regionRect.bottom - containerRect.bottom + 8
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight)
+    const targetTop = Math.min(maxScrollTop, Math.max(0, container.scrollTop + offset))
+    container.scrollTo({ top: targetTop, behavior: reducedMotion ? 'auto' : 'smooth' })
+  }
+
+  const syncTableHorizontalScroll = (source) => {
+    const tableWrap = tableWrapRef.current
+    const horizontalScroll = horizontalScrollRef.current
+    if (!tableWrap || !horizontalScroll) return
+    if (source === 'table') horizontalScroll.scrollLeft = tableWrap.scrollLeft
+    if (source === 'mirror') tableWrap.scrollLeft = horizontalScroll.scrollLeft
+  }
+
   if (loading) return <LoadingSpinner />
   if (!rows.length) return (
     <p className="dashboard-empty-state">
@@ -74,37 +138,61 @@ function DataTable({ columns, rows, loading, totalCount }) {
   )
 
   return (
-    <div className="dashboard-data-table-wrap">
-      <table className="dashboard-data-table">
-        <thead>
-          <tr className="bg-surface border-b border-border">
-            {columns.map(c => (
-              <th key={c.key}>
-                {c.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i}>
+    <div ref={regionRef} className="dashboard-data-table-region">
+      <div className="dashboard-data-table__toolbar" role="group" aria-label="Navegación rápida de registros">
+        <span>Registros visibles</span>
+        <div className="dashboard-data-table__quick-nav">
+          <button type="button" className="dashboard-data-jump-button" onClick={() => scrollToDataPosition('start')}>
+            Ir al inicio
+          </button>
+          <button type="button" className="dashboard-data-jump-button" onClick={() => scrollToDataPosition('end')}>
+            Ir al final
+          </button>
+        </div>
+      </div>
+      <div ref={tableWrapRef} className="dashboard-data-table-wrap" onScroll={() => syncTableHorizontalScroll('table')}>
+        <table className="dashboard-data-table">
+          <thead>
+            <tr className="bg-surface border-b border-border">
               {columns.map(c => (
-                <td key={c.key}>
-                  {c.key.endsWith('_at') || c.key === 'hour_start'
-                    ? fmtDate(row[c.key])
-                    : typeof row[c.key] === 'number'
-                      ? row[c.key].toFixed(4)
-                      : row[c.key] ?? 'Sin dato'}
-                </td>
+                <th key={c.key}>
+                  {c.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="dashboard-data-table__count">
-        {rows.length.toLocaleString('es-CO')} registros cargados
-        {totalCount > rows.length ? ` de ${totalCount.toLocaleString('es-CO')}` : ''}
-      </p>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i}>
+                {columns.map(c => (
+                  <td key={c.key}>
+                    {c.key.endsWith('_at') || c.key === 'hour_start'
+                      ? fmtDate(row[c.key])
+                      : typeof row[c.key] === 'number'
+                        ? row[c.key].toFixed(4)
+                        : row[c.key] ?? 'Sin dato'}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="dashboard-data-table__count">
+          {rows.length.toLocaleString('es-CO')} registros cargados
+          {totalCount > rows.length ? ` de ${totalCount.toLocaleString('es-CO')}` : ''}
+        </p>
+      </div>
+      {footer}
+      <div
+        ref={horizontalScrollRef}
+        className="dashboard-data-horizontal-scrollbar"
+        role="region"
+        aria-label="Desplazamiento horizontal de la tabla"
+        tabIndex={0}
+        onScroll={() => syncTableHorizontalScroll('mirror')}
+      >
+        <div ref={horizontalScrollContentRef} aria-hidden="true" />
+      </div>
     </div>
   )
 }
@@ -200,6 +288,16 @@ export default function OpenData({ onStationChange } = {}) {
   const activeRows = tab === 'raw' ? rawData : hourlyData
   const activeCols = tab === 'raw' ? RAW_COLS : AGG_COLS
   const activeTotal = tab === 'raw' ? (rawMeta?.total_count ?? rawData.length) : hourlyData.length
+  const loadMoreControl = tab === 'raw' && rawMeta?.has_more ? (
+    <button
+      type="button"
+      onClick={handleLoadMore}
+      disabled={loadingMore}
+      className="dashboard-load-more-button"
+    >
+      {loadingMore ? 'Cargando más registros...' : `Cargar más (${rawData.length.toLocaleString('es-CO')} de ${rawMeta.total_count.toLocaleString('es-CO')})`}
+    </button>
+  ) : null
 
   return (
     <div className="dashboard-page dashboard-open-data-page">
@@ -278,18 +376,13 @@ export default function OpenData({ onStationChange } = {}) {
         <strong>Sobre estos datos.</strong> El rango seleccionado se consulta en UTC y los niveles acústicos están expresados en dBFS. El Leq usa ponderación A según IEC 61672. La tabla se carga por páginas; la descarga solicita todas las mediciones exactas del rango.
       </div>
 
-      <DataTable columns={activeCols} rows={activeRows} loading={loading} totalCount={activeTotal} />
-
-      {tab === 'raw' && rawMeta?.has_more && (
-        <button
-          type="button"
-          onClick={handleLoadMore}
-          disabled={loadingMore}
-          className="dashboard-load-more-button"
-        >
-          {loadingMore ? 'Cargando más registros...' : `Cargar más (${rawData.length.toLocaleString('es-CO')} de ${rawMeta.total_count.toLocaleString('es-CO')})`}
-        </button>
-      )}
+      <DataTable
+        columns={activeCols}
+        rows={activeRows}
+        loading={loading}
+        totalCount={activeTotal}
+        footer={loadMoreControl}
+      />
 
     </div>
   )

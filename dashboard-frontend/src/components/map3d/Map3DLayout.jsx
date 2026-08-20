@@ -8,7 +8,6 @@ import Map3DTemporalRail from './Map3DTemporalRail'
 import Map3DAnalysisPanel from './Map3DAnalysisPanel'
 
 function getMode(pathname) {
-  if (pathname.includes('/compare')) return 'compare'
   if (pathname.includes('/data')) return 'data'
   if (pathname.includes('/stations/')) return 'station'
   return 'overview'
@@ -18,7 +17,6 @@ function Map3DNav() {
   const location = useLocation()
   const links = [
     { to: ROUTES.map3D, label: 'Explorar', end: true },
-    { to: ROUTES.map3DCompare, label: 'Comparar' },
     { to: ROUTES.map3DData, label: 'Datos' },
   ]
 
@@ -160,7 +158,7 @@ export default function Map3DLayout() {
 
   useEffect(() => {
     setStationScreenPosition(null)
-    setAnalysisOpen(mode === 'compare' || mode === 'data')
+    setAnalysisOpen(mode === 'data')
     setStationCardVisible(mode === 'station')
   }, [mode, location.pathname])
 
