@@ -113,15 +113,37 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
     const region = regionRef.current
     if (!region || typeof window === 'undefined') return
     const container = findScrollContainer(region)
+    const toolbar = region.querySelector('.dashboard-data-table__toolbar')
+    const toolbarOffset = toolbar
+      ? Number.parseFloat(window.getComputedStyle(toolbar).top) || 0
+      : 0
+    const isDocumentScroll = container === document.documentElement || container === document.body
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const containerRect = container.getBoundingClientRect()
     const regionRect = region.getBoundingClientRect()
-    const offset = position === 'start'
-      ? regionRect.top - containerRect.top - 8
-      : regionRect.bottom - containerRect.bottom + 8
-    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight)
-    const targetTop = Math.min(maxScrollTop, Math.max(0, container.scrollTop + offset))
-    container.scrollTo({ top: targetTop, behavior: reducedMotion ? 'auto' : 'smooth' })
+    const currentScrollTop = isDocumentScroll ? window.scrollY : container.scrollTop
+    const viewportTop = isDocumentScroll
+      ? toolbarOffset + 8
+      : containerRect.top + toolbarOffset + 8
+    const viewportBottom = isDocumentScroll
+      ? window.innerHeight - 8
+      : containerRect.bottom - 8
+    const targetTop = position === 'start'
+      ? currentScrollTop + regionRect.top - viewportTop
+      : currentScrollTop + regionRect.bottom - viewportBottom
+    const scrollHeight = isDocumentScroll
+      ? Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0)
+      : container.scrollHeight
+    const viewportHeight = isDocumentScroll ? window.innerHeight : container.clientHeight
+    const maxScrollTop = Math.max(0, scrollHeight - viewportHeight)
+    const clampedTop = Math.min(maxScrollTop, Math.max(0, targetTop))
+    const scrollOptions = { top: clampedTop, behavior: reducedMotion ? 'auto' : 'smooth' }
+
+    if (isDocumentScroll) {
+      window.scrollTo(scrollOptions)
+    } else {
+      container.scrollTo(scrollOptions)
+    }
   }
 
   const syncTableHorizontalScroll = (source) => {
