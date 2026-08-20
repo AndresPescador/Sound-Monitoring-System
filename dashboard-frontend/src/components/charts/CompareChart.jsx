@@ -7,8 +7,7 @@ import { es } from 'date-fns/locale'
 import ChartCursor from './ChartCursor'
 import { ACTIVE_DOT, compactEmptyTimeBuckets, getChartDataWindow, getTimeAxis } from './timeAxis'
 import useChartAxisTransition from '../../hooks/useChartAxisTransition'
-
-const COLORS = ['#1d4ed8', '#153781', '#4774bd', '#6f94cf', '#8aa8d4', '#365b96', '#10223f']
+import { getCompareSeriesStyles } from './compareSeriesColors'
 
 function CompareTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
@@ -66,6 +65,7 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora', ax
     ? compactEmptyTimeBuckets(focusedData, valueKeys)
     : focusedData
   const timeAxis = getTimeAxis(visibleData)
+  const seriesStyles = getCompareSeriesStyles(series.map(s => s.station_code ?? s.locality))
 
   return (
     <div className={`dashboard-chart-transition dashboard-chart-transition--${phase}`}>
@@ -88,22 +88,27 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora', ax
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
         />
         <Legend wrapperStyle={{ fontFamily: 'DM Sans', fontSize: 12 }} />
-        {series.map((s, i) => (
-          <Line
-            key={s.station_code}
-            type="monotone"
-            dataKey={s.station_code}
-            // displayName existe en sección 2 (estaciones individuales).
-            // En sección 1 (localidades) no existe y se usa locality como antes.
-            name={s.displayName ?? s.locality ?? s.station_code}
-            stroke={COLORS[i % COLORS.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={ACTIVE_DOT}
-            connectNulls={false}
-            isAnimationActive={false}
-          />
-          ))}
+        {series.map(s => {
+          const seriesKey = String(s.station_code ?? s.locality ?? '')
+          const style = seriesStyles.get(seriesKey)
+          return (
+            <Line
+              key={s.station_code}
+              type="monotone"
+              dataKey={s.station_code}
+              // displayName existe en sección 2 (estaciones individuales).
+              // En sección 1 (localidades) no existe y se usa locality como antes.
+              name={s.displayName ?? s.locality ?? s.station_code}
+              stroke={style.color}
+              strokeDasharray={style.strokeDasharray}
+              strokeWidth={2}
+              dot={false}
+              activeDot={ACTIVE_DOT}
+              connectNulls={false}
+              isAnimationActive={false}
+            />
+          )
+        })}
         </LineChart>
       </ResponsiveContainer>
     </div>

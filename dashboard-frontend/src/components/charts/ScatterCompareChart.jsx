@@ -11,8 +11,7 @@ import {
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import useChartAxisTransition from '../../hooks/useChartAxisTransition'
-
-const COLORS = ['#1d4ed8', '#153781', '#4774bd', '#6f94cf', '#8aa8d4', '#365b96', '#10223f']
+import { getCompareSeriesStyles } from './compareSeriesColors'
 
 function formatTimestamp(value) {
   try {
@@ -96,8 +95,9 @@ export default function ScatterCompareChart({
   range = null,
 }) {
   const { renderedAxisMode, phase } = useChartAxisTransition(axisMode)
+  const seriesStyles = getCompareSeriesStyles(series.map(station => station.station_code ?? station.locality))
   const pointSeries = series
-    .map((station, index) => ({
+    .map(station => ({
       ...station,
       data: (station.rawData ?? [])
         .filter(point => point.recorded_at && point.value != null && Number.isFinite(Number(point.value)))
@@ -110,7 +110,7 @@ export default function ScatterCompareChart({
           valueLabel: metricLabel,
         }))
         .filter(point => Number.isFinite(point.x)),
-      color: COLORS[index % COLORS.length],
+      style: seriesStyles.get(String(station.station_code ?? station.locality ?? '')),
     }))
     .filter(station => station.data.length > 0)
 
@@ -163,8 +163,9 @@ export default function ScatterCompareChart({
             key={station.station_code}
             name={station.displayName ?? station.locality ?? station.station_code}
             data={chartPoints.filter(point => point.station_code === station.station_code)}
-            fill={station.color}
+            fill={station.style.color}
             fillOpacity={0.68}
+            shape={station.style.markerShape}
             line={false}
             isAnimationActive={false}
           />
