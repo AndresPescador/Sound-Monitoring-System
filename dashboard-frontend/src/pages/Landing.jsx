@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import BogotaMapGateway from '../components/landing/BogotaMapGateway'
+import ThemeToggle from '../components/shared/ThemeToggle'
 import { ROUTES } from '../routes'
 import './landing.css'
 
@@ -73,7 +74,10 @@ export default function Landing() {
           <Link to={ROUTES.map2DData}>Datos abiertos</Link>
         </nav>
 
-        <a href="#explorar" className="landing-nav-cta">Explorar mapas</a>
+        <div className="landing-nav-actions">
+          <ThemeToggle />
+          <a href="#explorar" className="landing-nav-cta">Explorar mapas</a>
+        </div>
       </header>
 
       <main>

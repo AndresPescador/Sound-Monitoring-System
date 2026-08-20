@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
+import ThemeToggle from '../../components/shared/ThemeToggle'
 
 export default function AdminLogin() {
   const { login }          = useAdminAuth()
@@ -28,8 +29,12 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center px-4">
+    <div className="admin-login min-h-screen bg-surface flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
+
+        <div className="flex justify-end mb-4">
+          <ThemeToggle />
+        </div>
 
         <div className="text-center mb-8">
           <h1 className="text-2xl font-display font-semibold text-text">

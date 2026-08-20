@@ -2,9 +2,15 @@ import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
 import { map2DStationPath } from '../../routes'
+import { useTheme } from '../../context/ThemeContext'
 
 // Bogotá center
 const BOGOTA = [4.7110, -74.0721]
+const TILE_URLS = {
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+}
+const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 
 const NOISE_COLOR = {
   low:    '#16a34a',
@@ -82,6 +88,7 @@ function StationMarker({ station, isHovered, isSelected, onSelect, navigate }) {
 
 export default function StationMap({ stations = [], hoveredStationCode, selectedStationCode, onSelect }) {
   const navigate = useNavigate()
+  const { isDark } = useTheme()
   const selectedStation = stations.find(s => s.station_code === selectedStationCode)
 
   return (
@@ -92,8 +99,16 @@ export default function StationMap({ stations = [], hoveredStationCode, selected
       scrollWheelZoom={true}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution={TILE_ATTRIBUTION}
+        url={TILE_URLS.light}
+        opacity={isDark ? 0 : 1}
+        zIndex={1}
+      />
+      <TileLayer
+        attribution={TILE_ATTRIBUTION}
+        url={TILE_URLS.dark}
+        opacity={isDark ? 1 : 0}
+        zIndex={2}
       />
       <MapSelectionController station={selectedStation} />
 

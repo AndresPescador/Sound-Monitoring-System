@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
+import ThemeToggle from '../shared/ThemeToggle'
 
 const navItems = [
   { to: '/admin/stations', label: 'Estaciones' },
@@ -16,14 +17,17 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex">
+    <div className="admin-layout min-h-screen bg-surface flex">
 
       {/* Sidebar */}
       <aside className="w-56 bg-bg border-r border-border flex flex-col shrink-0">
         <div className="px-5 py-5 border-b border-border">
-          <p className="text-xs text-text-light uppercase tracking-wide font-medium mb-0.5">
-            Panel Admin
-          </p>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <p className="text-xs text-text-light uppercase tracking-wide font-medium mb-0.5">
+              Panel Admin
+            </p>
+            <ThemeToggle className="shrink-0" />
+          </div>
           <p className="text-sm font-medium text-text truncate">{user?.username}</p>
           {user?.superAdmin && (
             <span className="inline-block mt-1 text-xs bg-primary/10 text-primary

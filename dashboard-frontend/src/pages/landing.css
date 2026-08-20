@@ -119,7 +119,6 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 }
 
 .landing-nav-cta {
-  justify-self: end;
   border-bottom: 1px solid currentColor;
   color: var(--landing-blue);
   font-family: "DM Sans", sans-serif;
@@ -130,6 +129,25 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 }
 
 .landing-nav-cta:hover {
+  color: var(--landing-blue-dark);
+}
+
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 0.8rem;
+}
+
+.landing-nav-actions .theme-toggle {
+  border-color: var(--landing-line);
+  background: color-mix(in srgb, var(--landing-paper) 86%, transparent);
+  color: var(--landing-muted);
+}
+
+.landing-nav-actions .theme-toggle:hover {
+  border-color: var(--landing-blue);
+  background: var(--landing-sky);
   color: var(--landing-blue-dark);
 }
 
@@ -1457,6 +1475,10 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   .landing-nav-cta {
     font-size: 0.78rem;
   }
+
+  .landing-nav-actions { gap: 0.55rem; }
+  .landing-nav-actions .theme-toggle { padding-inline: 0.6rem; }
+  .landing-nav-actions .theme-toggle > span:last-child { display: none; }
 
   .landing-hero {
     grid-template-columns: 1fr;

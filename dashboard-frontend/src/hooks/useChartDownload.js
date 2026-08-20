@@ -58,6 +58,16 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     const PADDING_X = 12
     const FONT_SIZE = 13
 
+    const computedTheme = getComputedStyle(document.documentElement)
+    const themeColor = (name, fallback) => {
+      const value = computedTheme.getPropertyValue(name).trim()
+      return value ? `rgb(${value})` : fallback
+    }
+    const themePaper = themeColor('--theme-paper-rgb', '#ffffff')
+    const themeInk = themeColor('--theme-ink-rgb', '#1e293b')
+    const themeLine = themeColor('--theme-line-rgb', '#e2e8f0')
+    const themeMuted = themeColor('--theme-muted-rgb', '#64748b')
+
     const ns     = 'http://www.w3.org/2000/svg'
     const newSvg = document.createElementNS(ns, 'svg')
     newSvg.setAttribute('xmlns',   'http://www.w3.org/2000/svg')
@@ -65,11 +75,11 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     newSvg.setAttribute('height',  String(origH + TITLE_H))
     newSvg.setAttribute('viewBox', `0 0 ${origW} ${origH + TITLE_H}`)
 
-    // Fondo blanco
+    // Fondo alineado con el tema activo.
     const bg = document.createElementNS(ns, 'rect')
     bg.setAttribute('width',  '100%')
     bg.setAttribute('height', '100%')
-    bg.setAttribute('fill',   '#ffffff')
+    bg.setAttribute('fill',   themePaper)
     newSvg.appendChild(bg)
 
     // Título — lee el ref para tener el valor actual
@@ -79,7 +89,7 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     text.setAttribute('font-family', 'DM Sans, system-ui, sans-serif')
     text.setAttribute('font-size',   String(FONT_SIZE))
     text.setAttribute('font-weight', '600')
-    text.setAttribute('fill',        '#1e293b')
+    text.setAttribute('fill',        themeInk)
     text.textContent = svgTitleRef.current || title
     newSvg.appendChild(text)
 
@@ -89,7 +99,7 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     line.setAttribute('y1',           String(TITLE_H - 1))
     line.setAttribute('x2',           String(origW))
     line.setAttribute('y2',           String(TITLE_H - 1))
-    line.setAttribute('stroke',       '#e2e8f0')
+    line.setAttribute('stroke',       themeLine)
     line.setAttribute('stroke-width', '1')
     newSvg.appendChild(line)
 
@@ -166,7 +176,7 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
         lbl.setAttribute('y',           String(legendY + LEGEND_H / 2 + LEGEND_FONT / 2 - 1))
         lbl.setAttribute('font-family', 'DM Sans, system-ui, sans-serif')
         lbl.setAttribute('font-size',   String(LEGEND_FONT))
-        lbl.setAttribute('fill',        '#64748b')
+        lbl.setAttribute('fill',        themeMuted)
         lbl.textContent = item.label
         newSvg.appendChild(lbl)
 

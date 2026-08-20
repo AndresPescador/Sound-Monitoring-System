@@ -5,6 +5,7 @@ import { ColumnLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers'
 import Map from 'react-map-gl/maplibre'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { useTheme } from '../../context/ThemeContext'
 
 const BOGOTA_VIEW = {
   // Encuadre inicial cenital, similar a un mapa base convencional.
@@ -31,11 +32,16 @@ const BOGOTA_BOUNDARY_LAYER_ID = 'bogota-administrative-boundary-line'
 // para evitar que las restricciones CORS del portal afecten al visor.
 const BOGOTA_BOUNDARY_URL = '/bogota-municipio.geojson'
 
-// CARTO Positron es público y mantiene la apariencia clara si no se configura
-// MapTiler. Para una cartografía de producción, defina VITE_MAPTILER_KEY.
-const MAP_STYLE = import.meta.env.VITE_MAPTILER_KEY
-  ? `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
-  : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+// Ambos estilos mantienen la misma geometría y permiten cambiar la cartografía
+// sin aplicar filtros que también alterarían los colores semánticos de ruido.
+const MAP_STYLES = {
+  light: import.meta.env.VITE_MAPTILER_KEY
+    ? `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
+    : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  dark: import.meta.env.VITE_MAPTILER_KEY
+    ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
+    : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+}
 
 function getNoiseColor(leq) {
   if (leq < -30) return [22, 163, 74, 225]
@@ -87,10 +93,12 @@ function addBuildingExtrusions(map) {
 function addBogotaBoundary(map) {
   if (map.getLayer(BOGOTA_BOUNDARY_LAYER_ID)) return
 
-  map.addSource(BOGOTA_BOUNDARY_SOURCE_ID, {
-    type: 'geojson',
-    data: BOGOTA_BOUNDARY_URL,
-  })
+  if (!map.getSource(BOGOTA_BOUNDARY_SOURCE_ID)) {
+    map.addSource(BOGOTA_BOUNDARY_SOURCE_ID, {
+      type: 'geojson',
+      data: BOGOTA_BOUNDARY_URL,
+    })
+  }
   map.addLayer({
     id: BOGOTA_BOUNDARY_LAYER_ID,
     type: 'line',
@@ -118,6 +126,7 @@ function NoiseTwinMap({
   onStationScreenPosition,
   columnRadius = 35,
 }) {
+  const { isDark } = useTheme()
   const [cameraTarget, setCameraTarget] = useState(null)
   const mapRef = useRef(null)
 
@@ -281,6 +290,13 @@ function NoiseTwinMap({
     setCameraTarget({ ...BOGOTA_3D_VIEW, transitionDuration: 900, transitionInterpolator: STATION_FLY_TO })
   }
 
+  const handleMapStyleData = useCallback(event => {
+    const map = event.target
+    if (!map.isStyleLoaded()) return
+    addBuildingExtrusions(map)
+    addBogotaBoundary(map)
+  }, [])
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-900" onContextMenu={event => event.preventDefault()}>
       <DeckGL
@@ -310,7 +326,7 @@ function NoiseTwinMap({
         <Map
           ref={mapRef}
           mapLib={maplibregl}
-          mapStyle={MAP_STYLE}
+          mapStyle={isDark ? MAP_STYLES.dark : MAP_STYLES.light}
           reuseMaps
           dragRotate
           maxPitch={85}
@@ -319,6 +335,7 @@ function NoiseTwinMap({
             addBogotaBoundary(event.target)
             window.requestAnimationFrame(reportSelectedPosition)
           }}
+          onStyleData={handleMapStyleData}
           onMoveEnd={() => window.requestAnimationFrame(reportSelectedPosition)}
         />
       </DeckGL>

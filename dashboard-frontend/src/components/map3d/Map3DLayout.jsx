@@ -6,6 +6,7 @@ import { map2DStationPath, ROUTES } from '../../routes'
 import Map3DStationCard from './Map3DStationCard'
 import Map3DTemporalRail from './Map3DTemporalRail'
 import Map3DAnalysisPanel from './Map3DAnalysisPanel'
+import ThemeToggle from '../shared/ThemeToggle'
 
 function getMode(pathname) {
   if (pathname.includes('/data')) return 'data'
@@ -46,7 +47,10 @@ function Map3DNav() {
         ))}
       </nav>
 
-      <Link to={ROUTES.map2D} className="map3d-topbar__switch">Cambiar a 2D</Link>
+      <div className="map3d-topbar__actions">
+        <ThemeToggle />
+        <Link to={ROUTES.map2D} className="map3d-topbar__switch">Cambiar a 2D</Link>
+      </div>
     </header>
   )
 }

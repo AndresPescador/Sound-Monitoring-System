@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom'
 import { ROUTES } from '../../routes'
+import ThemeToggle from '../shared/ThemeToggle'
 
 const links = [
   { to: ROUTES.map2D, label: 'Mapa', end: true },
@@ -36,7 +37,10 @@ export default function Map2DNavbar() {
           ))}
         </nav>
 
-        <Link to={ROUTES.map3D} className="dashboard-nav__mode-switch">Cambiar a mapa 3D</Link>
+        <div className="dashboard-nav__actions">
+          <ThemeToggle />
+          <Link to={ROUTES.map3D} className="dashboard-nav__mode-switch">Cambiar a mapa 3D</Link>
+        </div>
       </div>
     </header>
   )
