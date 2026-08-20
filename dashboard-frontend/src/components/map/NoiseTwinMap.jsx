@@ -32,8 +32,9 @@ const BOGOTA_BOUNDARY_LAYER_ID = 'bogota-administrative-boundary-line'
 // para evitar que las restricciones CORS del portal afecten al visor.
 const BOGOTA_BOUNDARY_URL = '/bogota-municipio.geojson'
 
-// Ambos estilos mantienen la misma geometría y permiten cambiar la cartografía
-// sin aplicar filtros que también alterarían los colores semánticos de ruido.
+// Ambos estilos mantienen la misma cartografía de referencia. El modo claro
+// conserva su fondo original; los iconos POI se colorean por separado después
+// de cargar el estilo.
 const MAP_STYLES = {
   light: import.meta.env.VITE_MAPTILER_KEY
     ? `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
@@ -41,6 +42,26 @@ const MAP_STYLES = {
   dark: import.meta.env.VITE_MAPTILER_KEY
     ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
     : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+}
+
+const LIGHT_POI_ICON_COLOR_EXPRESSION = [
+  'match',
+  ['coalesce', ['get', 'class'], ['get', 'subclass'], ['get', 'type'], ''],
+  ['park', 'garden', 'recreation', 'nature_reserve', 'protected_area'], '#16a34a',
+  ['hospital', 'clinic', 'doctors', 'pharmacy', 'dentist'], '#dc2626',
+  ['school', 'college', 'university', 'kindergarten'], '#7c3aed',
+  ['restaurant', 'cafe', 'bar', 'fast_food'], '#c2410c',
+  ['bus', 'railway', 'station', 'transit', 'aerodrome'], '#0284c7',
+  ['shop', 'supermarket', 'mall', 'commercial', 'marketplace'], '#d97706',
+  '#2563eb',
+]
+
+const POI_ICON_LAYER_PATTERN = /(poi|point|place|amenity|transit|station|hospital|school|shop|restaurant|park)/i
+
+function setPaintPropertyIfChanged(map, layerId, property, value) {
+  const current = map.getPaintProperty(layerId, property)
+  if (JSON.stringify(current) === JSON.stringify(value)) return
+  map.setPaintProperty(layerId, property, value)
 }
 
 function getNoiseColor(leq) {
@@ -52,6 +73,31 @@ function getNoiseColor(leq) {
 function getStationColor(leq, highlighted = true) {
   if (!highlighted) return [100, 116, 139, 80]
   return Number.isFinite(leq) ? getNoiseColor(leq) : [100, 116, 139, 210]
+}
+
+/**
+ * Recolorea únicamente iconos de puntos de interés en el estilo claro.
+ * El mapa base, las etiquetas, las carreteras y los edificios permanecen
+ * bajo el control del estilo original.
+ */
+function applyLightPoiIconColors(map, enabled) {
+  if (!enabled) return
+
+  const iconLayers = (map.getStyle()?.layers ?? []).filter(layer => {
+    const layerKey = `${layer.id} ${layer['source-layer'] ?? ''}`
+    return layer.type === 'symbol' && layer.layout?.['icon-image'] && POI_ICON_LAYER_PATTERN.test(layerKey)
+  })
+
+  iconLayers.forEach(layer => {
+    try {
+      setPaintPropertyIfChanged(map, layer.id, 'icon-color', LIGHT_POI_ICON_COLOR_EXPRESSION)
+      setPaintPropertyIfChanged(map, layer.id, 'icon-halo-color', '#ffffff')
+      setPaintPropertyIfChanged(map, layer.id, 'icon-halo-width', 1)
+      setPaintPropertyIfChanged(map, layer.id, 'icon-halo-blur', 0)
+    } catch {
+      // Algunos sprites no son SDF y no aceptan icon-color; se conservan intactos.
+    }
+  })
 }
 
 /** Agrega edificios 3D cuando el estilo vectorial expone source-layer "building". */
@@ -295,7 +341,8 @@ function NoiseTwinMap({
     if (!map.isStyleLoaded()) return
     addBuildingExtrusions(map)
     addBogotaBoundary(map)
-  }, [])
+    applyLightPoiIconColors(map, !isDark)
+  }, [isDark])
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-900" onContextMenu={event => event.preventDefault()}>
@@ -333,6 +380,7 @@ function NoiseTwinMap({
           onLoad={event => {
             addBuildingExtrusions(event.target)
             addBogotaBoundary(event.target)
+            applyLightPoiIconColors(event.target, !isDark)
             window.requestAnimationFrame(reportSelectedPosition)
           }}
           onStyleData={handleMapStyleData}
