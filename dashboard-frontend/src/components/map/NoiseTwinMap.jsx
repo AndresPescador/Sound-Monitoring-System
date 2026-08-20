@@ -26,6 +26,10 @@ const STATION_FLY_TO = new FlyToInterpolator({ speed: 1.7 })
 
 const BUILDINGS_LAYER_ID = 'urban-buildings-3d'
 const BUILDING_HEIGHT_MULTIPLIER = 1.6
+const BUILDING_EXTRUSION_COLORS = {
+  light: '#18345e',
+  dark: '#365f9f',
+}
 const BOGOTA_BOUNDARY_SOURCE_ID = 'bogota-administrative-boundary'
 const BOGOTA_BOUNDARY_LAYER_ID = 'bogota-administrative-boundary-line'
 // Límite municipal oficial IDECA (CC BY 4.0), descargado como recurso estático
@@ -100,9 +104,21 @@ function applyLightPoiIconColors(map, enabled) {
   })
 }
 
-/** Agrega edificios 3D cuando el estilo vectorial expone source-layer "building". */
-function addBuildingExtrusions(map) {
-  if (map.getLayer(BUILDINGS_LAYER_ID)) return
+/**
+ * Agrega edificios 3D y reaplica su color después de cada cambio de estilo.
+ * MapLibre puede conservar una capa personalizada durante la transición,
+ * por lo que no basta con salir temprano si la capa ya existe.
+ */
+function syncBuildingExtrusions(map, isDark) {
+  if (map.getLayer(BUILDINGS_LAYER_ID)) {
+    setPaintPropertyIfChanged(
+      map,
+      BUILDINGS_LAYER_ID,
+      'fill-extrusion-color',
+      BUILDING_EXTRUSION_COLORS[isDark ? 'dark' : 'light'],
+    )
+    return
+  }
 
   const styleLayers = map.getStyle()?.layers ?? []
   const buildings = styleLayers.find(layer => (
@@ -127,8 +143,7 @@ function addBuildingExtrusions(map) {
     // Se muestran desde la vista urbana general para conservar la lectura 3D.
     minzoom: 11,
     paint: {
-      // Tonos cálidos inspirados en visores de planeación urbana.
-      'fill-extrusion-color': '#18345e',
+      'fill-extrusion-color': BUILDING_EXTRUSION_COLORS[isDark ? 'dark' : 'light'],
       'fill-extrusion-height': height,
       'fill-extrusion-base': 0,
       'fill-extrusion-opacity': 0.88,
@@ -350,8 +365,24 @@ function NoiseTwinMap({
 
   const handleMapStyleData = useCallback(event => {
     const map = event.target
+    const syncStyleLayers = () => {
+      // style.load garantiza que ya existe la definición de capas y fuentes,
+      // aunque todavía se estén descargando teselas del mapa.
+      syncBuildingExtrusions(map, isDark)
+      addBogotaBoundary(map)
+      applyLightPoiIconColors(map, !isDark)
+    }
+
+    // styledata puede emitirse antes de que existan las fuentes y capas del
+    // nuevo estilo. style.load ocurre antes que idle y evita esperar al mapa.
+    if (map.isStyleLoaded()) syncStyleLayers()
+    else map.once('style.load', syncStyleLayers)
+  }, [isDark])
+
+  const handleMapIdle = useCallback(event => {
+    const map = event.target
     if (!map.isStyleLoaded()) return
-    addBuildingExtrusions(map)
+    syncBuildingExtrusions(map, isDark)
     addBogotaBoundary(map)
     applyLightPoiIconColors(map, !isDark)
   }, [isDark])
@@ -390,12 +421,13 @@ function NoiseTwinMap({
           dragRotate
           maxPitch={85}
           onLoad={event => {
-            addBuildingExtrusions(event.target)
+            syncBuildingExtrusions(event.target, isDark)
             addBogotaBoundary(event.target)
             applyLightPoiIconColors(event.target, !isDark)
             window.requestAnimationFrame(reportSelectedPosition)
           }}
           onStyleData={handleMapStyleData}
+          onIdle={handleMapIdle}
           onMoveEnd={() => window.requestAnimationFrame(reportSelectedPosition)}
         />
       </DeckGL>
