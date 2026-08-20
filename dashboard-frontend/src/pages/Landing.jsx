@@ -77,7 +77,7 @@ export default function Landing() {
       </header>
 
       <main>
-        <section className="landing-hero" aria-labelledby="landing-title">
+        <section className="landing-hero" data-loop aria-labelledby="landing-title">
           <div className="landing-hero-signal" aria-hidden="true" />
           <div className="landing-hero-copy">
             <h1 id="landing-title">Bogotá suena.<br />La medimos.</h1>
@@ -98,6 +98,7 @@ export default function Landing() {
                 loading="eager"
                 fetchpriority="high"
               />
+              <div className="landing-hero-scan" aria-hidden="true" />
               <div className="landing-hero-scope" aria-hidden="true">
                 <div><span>Canal L</span><span>Canal R</span></div>
                 <div className="landing-hero-scope-bars">
@@ -117,10 +118,12 @@ export default function Landing() {
           </div>
         </div>
 
-        <section className="landing-map-section" id="explorar" aria-labelledby="map-title">
-          <div className="landing-section-heading" data-reveal="copy">
-            <h2 id="map-title">Dos formas de leer la misma ciudad</h2>
-            <p>Consulta el estado actual en el mapa 2D o explora la intensidad acústica sobre el tejido urbano en 3D.</p>
+        <section className="landing-map-section" aria-labelledby="map-title">
+          <div className="landing-section-heading" id="explorar" data-reveal="copy">
+            <div className="landing-map-heading-copy">
+              <h2 id="map-title">Dos formas de leer la misma ciudad</h2>
+              <p>Consulta el estado actual en el mapa 2D o explora la intensidad acústica sobre el tejido urbano en 3D.</p>
+            </div>
           </div>
           <div className="landing-map-stage" data-reveal="visual"><BogotaMapGateway /></div>
         </section>
@@ -181,7 +184,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-system" id="sistema" data-loop aria-labelledby="system-title">
+        <section className="landing-system" id="sistema" aria-labelledby="system-title">
           <div className="landing-system-header">
             <div className="landing-section-heading landing-section-heading--light" data-reveal="copy">
               <h2 id="system-title">De la calle al dato abierto</h2>
