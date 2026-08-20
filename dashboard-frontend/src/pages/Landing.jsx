@@ -80,11 +80,11 @@ export default function Landing() {
         </div>
       </header>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section className="landing-hero" data-loop aria-labelledby="landing-title">
           <div className="landing-hero-signal" aria-hidden="true" />
           <div className="landing-hero-copy">
-            <h1 id="landing-title">Bogotá suena.<br />La medimos.</h1>
+            <h1 id="landing-title" tabIndex={-1}>Bogotá suena.<br />La medimos.</h1>
             <p className="landing-hero-lead">Una red de estaciones convierte el paisaje sonoro de la ciudad en datos abiertos, espaciales y comparables.</p>
             <div className="landing-hero-actions">
               <a href="#explorar" className="landing-button landing-button--primary">Explorar mapas</a>
@@ -313,7 +313,7 @@ export default function Landing() {
         <nav aria-label="Enlaces finales">
           <Link to={ROUTES.map2D}>Mapa 2D</Link>
           <Link to={ROUTES.map3D}>Mapa 3D</Link>
-          <Link to={ROUTES.map2DData}>Datos 2D</Link>
+          <Link to={ROUTES.map2DData}>Datos Abiertos</Link>
         </nav>
       </footer>
     </div>

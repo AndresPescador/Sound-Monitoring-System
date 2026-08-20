@@ -39,7 +39,7 @@ export default function Home() {
     <div className="dashboard-page dashboard-home">
       <header className="dashboard-page-header">
         <div>
-          <h1>Mapa 2D</h1>
+          <h1 tabIndex={-1}>Mapa 2D</h1>
           <p>Estado actual de la red de estaciones y lectura rápida del ruido ambiental en Bogotá D.C.</p>
         </div>
         <div className="dashboard-page-header__actions">

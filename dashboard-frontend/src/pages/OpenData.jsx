@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { subHours, format, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { getStations }    from '../api/stations'
+import { getStationSummary, getStations }    from '../api/stations'
 import { getRawMeasurements, getAllRawMeasurements } from '../api/measurements'
 import { getHourly }       from '../api/aggregations'
 import DateRangePicker     from '../components/shared/DateRangePicker'
 import LoadingSpinner      from '../components/shared/LoadingSpinner'
+import { buildPresetRange, DEFAULT_RANGE_HOURS, formatDateTime, hasRecentData } from '../components/shared/dateRangeUtils'
+import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/shared/RangeAvailabilityNotice'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmtDate = (iso) => {
@@ -198,10 +200,11 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function OpenData({ onStationChange } = {}) {
+export default function OpenData({ onStationChange, embedded3D = false } = {}) {
   const RAW_PAGE_SIZE = 1000
   const [stations,   setStations]   = useState([])
   const [station,    setStation]    = useState('')
+  const [summary,    setSummary]    = useState(null)
   const [tab,        setTab]        = useState('raw')   // 'raw' | 'hourly'
   const [rawData,    setRawData]    = useState([])
   const [rawMeta,    setRawMeta]    = useState(null)
@@ -209,10 +212,9 @@ export default function OpenData({ onStationChange } = {}) {
   const [loading,    setLoading]    = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [range,      setRange]      = useState({
-    from: subHours(new Date(), 24).toISOString(),
-    to:   new Date().toISOString(),
-  })
+  const [range,      setRange]      = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
+  const [rangePreset, setRangePreset] = useState('24h')
+  const [rangeState, setRangeState] = useState({ initialized: false, historical: false, anchorTimestamp: null })
 
   useEffect(() => {
     getStations().then(r => {
@@ -221,15 +223,46 @@ export default function OpenData({ onStationChange } = {}) {
         setStation(r.data[0].station_code)
         onStationChange?.(r.data[0].station_code)
       }
+      if (!r.data.length) setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
     })
   }, [onStationChange])
+
+  useEffect(() => {
+    if (!station) return undefined
+    let active = true
+    setSummary(null)
+    setRangeState({ initialized: false, historical: false, anchorTimestamp: null })
+    setRangePreset('24h')
+    setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
+
+    getStationSummary(station)
+      .then(response => {
+        if (!active) return
+        const nextSummary = response.data
+        const latestTimestamp = nextSummary.latest_recorded_at
+        const historical = latestTimestamp && !hasRecentData(latestTimestamp, DEFAULT_RANGE_HOURS)
+        setSummary(nextSummary)
+        setRange(historical ? buildPresetRange(DEFAULT_RANGE_HOURS, latestTimestamp) : buildPresetRange(DEFAULT_RANGE_HOURS))
+        setRangeState({
+          initialized: true,
+          historical: Boolean(historical),
+          anchorTimestamp: historical ? latestTimestamp : null,
+        })
+      })
+      .catch(() => {
+        if (!active) return
+        setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
+      })
+
+    return () => { active = false }
+  }, [station])
 
   useEffect(() => {
     if (station) onStationChange?.(station)
   }, [onStationChange, station])
 
   useEffect(() => {
-    if (!station) return
+    if (!station || !rangeState.initialized) return
     setLoading(true)
     setRawData([])
     setRawMeta(null)
@@ -245,7 +278,7 @@ export default function OpenData({ onStationChange } = {}) {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [station, range])
+  }, [station, range, rangeState.initialized])
 
   const handleLoadMore = async () => {
     if (!rawMeta?.has_more || loadingMore) return
@@ -299,11 +332,22 @@ export default function OpenData({ onStationChange } = {}) {
     </button>
   ) : null
 
+  const handleRangeChange = (nextRange, metadata) => {
+    setRange(nextRange)
+    setRangePreset(metadata?.type === 'preset' ? metadata.label : '')
+    setRangeState(current => ({
+      ...current,
+      initialized: true,
+      historical: metadata?.type === 'preset' && current.historical,
+      anchorTimestamp: metadata?.type === 'preset' && current.historical ? current.anchorTimestamp : null,
+    }))
+  }
+
   return (
     <div className="dashboard-page dashboard-open-data-page">
       <header className="dashboard-open-data-intro">
         <div>
-          <h1>Portal de datos abiertos</h1>
+            {embedded3D ? <h2>Portal de datos abiertos</h2> : <h1 tabIndex={-1}>Portal de datos abiertos</h1>}
           <p>
             Datos acústicos del Sistema de Monitoreo Binaural de Bogotá D.C.
             Consulta y descarga mediciones en formato CSV para análisis externos.
@@ -334,9 +378,39 @@ export default function OpenData({ onStationChange } = {}) {
 
         <div className="dashboard-field">
           <label>Rango de tiempo</label>
-          <DateRangePicker onChange={setRange} />
+          <DateRangePicker
+            value={range}
+            preset={rangePreset}
+            anchorTimestamp={rangeState.anchorTimestamp}
+            isHistoricalRange={rangeState.historical}
+            onChange={handleRangeChange}
+          />
         </div>
       </div>
+
+      {rangeState.historical && (
+        <HistoricalRangeNotice
+          range={range}
+          latestTimestamp={summary?.latest_recorded_at}
+          onReturnToCurrent={() => {
+            setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
+            setRangePreset('24h')
+            setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
+          }}
+        />
+      )}
+
+      {summary?.latest_recorded_at && (
+        <p className="dashboard-open-data-last-update">
+          Última medición disponible: {formatDateTime(summary.latest_recorded_at)}
+        </p>
+      )}
+
+      {rangeState.initialized && summary?.total_measurements === 0 && (
+        <NoMeasurementsNotice>
+          Esta estación todavía no tiene mediciones registradas para descargar.
+        </NoMeasurementsNotice>
+      )}
 
       {/* Tabs + botón descarga */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -376,13 +450,15 @@ export default function OpenData({ onStationChange } = {}) {
         <strong>Sobre estos datos.</strong> El rango seleccionado se consulta en UTC y los niveles acústicos están expresados en dBFS. El Leq usa ponderación A según IEC 61672. La tabla se carga por páginas; la descarga solicita todas las mediciones exactas del rango.
       </div>
 
-      <DataTable
-        columns={activeCols}
-        rows={activeRows}
-        loading={loading}
-        totalCount={activeTotal}
-        footer={loadMoreControl}
-      />
+      {stations.length > 0
+        ? <DataTable
+            columns={activeCols}
+            rows={activeRows}
+            loading={loading}
+            totalCount={activeTotal}
+            footer={loadMoreControl}
+          />
+        : <NoMeasurementsNotice>No hay estaciones disponibles para consultar.</NoMeasurementsNotice>}
 
     </div>
   )

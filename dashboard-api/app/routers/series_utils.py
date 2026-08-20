@@ -12,7 +12,7 @@ MIN_BUCKET_SECONDS = 60
 
 
 def resolve_range(from_: datetime | None, to: datetime | None) -> tuple[datetime, datetime]:
-    """Normaliza un intervalo de consulta y evita rangos invertidos."""
+    """Normaliza un intervalo inclusivo ``[from, to]`` y evita rangos invertidos."""
     now = datetime.now(timezone.utc)
     resolved_to = to or now
     resolved_from = from_ or (resolved_to - timedelta(hours=24))
@@ -113,7 +113,7 @@ async def fetch_adaptive_metric(
                     ),
                     date_bin(
                         {interval},
-                        CAST(:to AS timestamptz) - INTERVAL '1 microsecond',
+                        CAST(:to AS timestamptz),
                         TIMESTAMPTZ '1970-01-01 00:00:00+00'
                     ),
                     {interval}
@@ -201,7 +201,7 @@ async def fetch_adaptive_columns(
                     ),
                     date_bin(
                         {interval},
-                        CAST(:to AS timestamptz) - INTERVAL '1 microsecond',
+                        CAST(:to AS timestamptz),
                         TIMESTAMPTZ '1970-01-01 00:00:00+00'
                     ),
                     {interval}

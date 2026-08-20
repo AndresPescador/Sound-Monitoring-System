@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { NavLink, Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NoiseTwinMap from '../map/NoiseTwinMap'
 import { useMap3DContext } from '../../context/Map3DContext'
-import { map2DStationPath, ROUTES } from '../../routes'
+import { map2DStationPath, ROUTES, stationPageTitle } from '../../routes'
 import Map3DStationCard from './Map3DStationCard'
 import Map3DTemporalRail from './Map3DTemporalRail'
 import Map3DAnalysisPanel from './Map3DAnalysisPanel'
@@ -32,19 +32,21 @@ function Map3DNav() {
       </Link>
 
       <nav className="map3d-topbar__nav" aria-label="Herramientas de la experiencia 3D">
-        {links.map(link => (
-          <NavLink
+        {links.map(link => {
+          const isActive = link.to === ROUTES.map3D
+            ? location.pathname === ROUTES.map3D || location.pathname.startsWith(`${ROUTES.map3D}/stations/`)
+            : location.pathname === link.to
+          return (
+          <Link
             key={link.to}
             to={link.to}
-            end={link.end}
-            className={({ isActive }) => {
-              const isExploreRoute = link.to === ROUTES.map3D && location.pathname.includes('/stations/')
-              return `map3d-topbar__link ${isActive || isExploreRoute ? 'is-active' : ''}`
-            }}
+            className={`map3d-topbar__link ${isActive ? 'is-active' : ''}`}
+            aria-current={isActive ? 'page' : undefined}
           >
             {link.label}
-          </NavLink>
-        ))}
+          </Link>
+          )
+        })}
       </nav>
 
       <div className="map3d-topbar__actions">
@@ -176,36 +178,45 @@ export default function Map3DLayout() {
     navigate(ROUTES.map3D)
   }
 
+  const pageTitle = mode === 'station'
+    ? `${stationPageTitle(selectedStation?.name ?? selectedStationCode ?? 'seleccionada')} en el mapa 3D`
+    : mode === 'data'
+      ? 'Datos abiertos en el mapa 3D'
+      : 'Mapa acústico 3D'
+
   return (
     <div className={`map3d-shell map3d-shell--${mode}`}>
-      <NoiseTwinMap
-        stations={stations}
-        selectedStationCode={selectedStationCode}
-        highlightedStationCodes={highlightedStationCodes}
-        hoveredStationCode={hoveredStationCode}
-        onSelectStation={selectStation}
-        onStationScreenPosition={setStationScreenPosition}
-      />
-      <Map3DStationPicker />
-      <Map3DNav />
-      <p className="sr-only" aria-live="polite">
-        {selectedStation ? `Estación seleccionada: ${selectedStation.name}. La tarjeta contextual y el rail temporal están disponibles.` : 'Sin estación seleccionada. El rail muestra el estado general de la red.'}
-      </p>
-      <Map3DMapStatus />
-
-      {mode === 'station' && !analysisOpen && stationCardVisible && (
-        <Map3DStationCard
-          position={stationScreenPosition}
-          onOpenAnalysis={openAnalysis}
-          onHideCard={() => setStationCardVisible(false)}
+      <main id="main-content" className="map3d-main" tabIndex={-1}>
+        <h1 className="sr-only" tabIndex={-1}>{pageTitle}</h1>
+        <NoiseTwinMap
+          stations={stations}
+          selectedStationCode={selectedStationCode}
+          highlightedStationCodes={highlightedStationCodes}
+          hoveredStationCode={hoveredStationCode}
+          onSelectStation={selectStation}
+          onStationScreenPosition={setStationScreenPosition}
         />
-      )}
+        <Map3DStationPicker />
+        <Map3DNav />
+        <p className="sr-only" aria-live="polite">
+          {selectedStation ? `Estación seleccionada: ${selectedStation.name}. La tarjeta contextual y el rail temporal están disponibles.` : 'Sin estación seleccionada. El rail muestra el estado general de la red.'}
+        </p>
+        <Map3DMapStatus />
 
-      <Map3DTemporalRail mode={mode} />
+        {mode === 'station' && !analysisOpen && stationCardVisible && (
+          <Map3DStationCard
+            position={stationScreenPosition}
+            onOpenAnalysis={openAnalysis}
+            onHideCard={() => setStationCardVisible(false)}
+          />
+        )}
 
-      <Map3DAnalysisPanel mode={mode} open={analysisOpen} onClose={closeAnalysis}>
-        <Outlet />
-      </Map3DAnalysisPanel>
+        <Map3DTemporalRail mode={mode} />
+
+        <Map3DAnalysisPanel mode={mode} open={analysisOpen} onClose={closeAnalysis}>
+          <Outlet />
+        </Map3DAnalysisPanel>
+      </main>
     </div>
   )
 }

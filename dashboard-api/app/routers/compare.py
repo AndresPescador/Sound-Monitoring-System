@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -66,11 +66,9 @@ async def compare_stations(
             detail=f"Métrica '{metric}' no válida. Opciones: {sorted(ALLOWED_COMPARE_METRICS)}"
         )
 
-    now = datetime.now(timezone.utc)
-    if to is None:
-        to = now
-    if from_ is None:
-        from_ = now - timedelta(hours=24)
+    # ``to`` es inclusivo en todos los endpoints públicos de series. El mismo
+    # normalizador se usa para los endpoints de mediciones y datos crudos.
+    from_, to = resolve_range(from_, to)
 
     # Filtrar por estaciones específicas o traer todas las activas
     station_filter = ""
@@ -215,7 +213,7 @@ async def compare_measurements(
                     ),
                     date_bin(
                         {interval},
-                        CAST(:to AS timestamptz) - INTERVAL '1 microsecond',
+                        CAST(:to AS timestamptz),
                         TIMESTAMPTZ '1970-01-01 00:00:00+00'
                     ),
                     {interval}

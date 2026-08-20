@@ -18,7 +18,9 @@ import ResolutionNotice from '../components/shared/ResolutionNotice'
 import { AUTO_FOCUS_THRESHOLD, getCoverageRatio } from '../components/charts/timeAxis'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
 import { useChartDownload } from '../hooks/useChartDownload'
-import { ROUTES, map2DStationPath } from '../routes'
+import { ROUTES, map2DStationPath, stationPageTitle } from '../routes'
+import { buildPresetRange, DEFAULT_RANGE_HOURS, formatDateTime, hasRecentData } from '../components/shared/dateRangeUtils'
+import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/shared/RangeAvailabilityNotice'
 
 // ─── SectionCard con soporte de descarga ──────────────────────────────────────
 // cardRef    : ref del div raíz (para html2canvas y querySelector svg)
@@ -69,10 +71,10 @@ const SectionCard = ({ title, info, downloadData, fileLabel, svgTitle, stationCo
   return (
     <section ref={cardRef} className="dashboard-section-card">
       <div className="dashboard-section-card__heading">
-        <h3>
+        <h2>
           {title}
           {info && <ChartInfo text={info} />}
-        </h3>
+        </h2>
         <ChartDownloadMenu
           onPNG={handlePNG}
           onSVG={downloadSVG}
@@ -112,6 +114,8 @@ export default function StationDetail() {
     from: subHours(new Date(), 24).toISOString(),
     to:   new Date().toISOString(),
   })
+  const [rangePreset, setRangePreset] = useState('24h')
+  const [rangeState, setRangeState] = useState({ initialized: false, historical: false, anchorTimestamp: null })
   const [profileDate, setProfileDate] = useState(() => bogotaDate(new Date().toISOString()))
   const binauralSectionRef = useRef(null)
   const spectralSectionRef = useRef(null)
@@ -125,9 +129,26 @@ export default function StationDetail() {
 
   // Cargar resumen de la estación actual
   useEffect(() => {
+    setSummary(null)
+    setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
+    setRangePreset('24h')
+    setRangeState({ initialized: false, historical: false, anchorTimestamp: null })
     getStationSummary(code)
-      .then(r => setSummary(r.data))
-      .catch(() => {})
+      .then(r => {
+        const nextSummary = r.data
+        const latestTimestamp = nextSummary.latest_recorded_at
+        const historical = latestTimestamp && !hasRecentData(latestTimestamp, DEFAULT_RANGE_HOURS)
+        setSummary(nextSummary)
+        setRange(historical ? buildPresetRange(DEFAULT_RANGE_HOURS, latestTimestamp) : buildPresetRange(DEFAULT_RANGE_HOURS))
+        setRangeState({
+          initialized: true,
+          historical: Boolean(historical),
+          anchorTimestamp: historical ? latestTimestamp : null,
+        })
+      })
+      .catch(() => {
+        setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
+      })
   }, [code])
 
   // El perfil diario es una fecha concreta dentro del rango seleccionado.
@@ -142,6 +163,7 @@ export default function StationDetail() {
   // Carga prioritaria: la primera gráfica visible. Las secciones inferiores
   // esperan a entrar en el viewport para no bloquear la primera lectura.
   useEffect(() => {
+    if (!rangeState.initialized) return undefined
     const controller = new AbortController()
     setLoadingHourly(true)
     const params = { from: range.from, to: range.to }
@@ -156,7 +178,7 @@ export default function StationDetail() {
         if (!controller.signal.aborted) setLoadingHourly(false)
       })
     return () => controller.abort()
-  }, [code, range])
+  }, [code, range, rangeState.initialized])
 
   useEffect(() => {
     setLoadBinaural(false)
@@ -195,7 +217,7 @@ export default function StationDetail() {
   }, [code, range.from, range.to])
 
   useEffect(() => {
-    if (!loadBinaural) return undefined
+    if (!loadBinaural || !rangeState.initialized) return undefined
     const controller = new AbortController()
     setLoadingBinaural(true)
     getBinaural(code, { from: range.from, to: range.to }, { signal: controller.signal })
@@ -211,10 +233,10 @@ export default function StationDetail() {
         if (!controller.signal.aborted) setLoadingBinaural(false)
       })
     return () => controller.abort()
-  }, [code, range.from, range.to, loadBinaural])
+  }, [code, range.from, range.to, loadBinaural, rangeState.initialized])
 
   useEffect(() => {
-    if (!loadSpectral) return undefined
+    if (!loadSpectral || !rangeState.initialized) return undefined
     const controller = new AbortController()
     setLoadingSpectral(true)
     getSpectral(code, { from: range.from, to: range.to }, { signal: controller.signal })
@@ -230,9 +252,10 @@ export default function StationDetail() {
         if (!controller.signal.aborted) setLoadingSpectral(false)
       })
     return () => controller.abort()
-  }, [code, range.from, range.to, loadSpectral])
+  }, [code, range.from, range.to, loadSpectral, rangeState.initialized])
 
   useEffect(() => {
+    if (!rangeState.initialized) return undefined
     let active = true
     setLoadingDaily(true)
     getDailyProfile(code, { date: profileDate })
@@ -240,10 +263,11 @@ export default function StationDetail() {
       .catch(() => { if (active) setDaily([]) })
       .finally(() => { if (active) setLoadingDaily(false) })
     return () => { active = false }
-  }, [code, profileDate])
+  }, [code, profileDate, rangeState.initialized])
 
   // Carga independiente — solo serie temporal
   useEffect(() => {
+    if (!rangeState.initialized) return undefined
     const controller = new AbortController()
     setLoadingMetric(true)
     getMeasurements(code, { from: range.from, to: range.to, metric }, { signal: controller.signal })
@@ -259,7 +283,11 @@ export default function StationDetail() {
         if (!controller.signal.aborted) setLoadingMetric(false)
       })
     return () => controller.abort()
-  }, [code, range, metric])
+  }, [code, range, metric, rangeState.initialized])
+
+  useEffect(() => {
+    if (summary?.name) document.title = `${stationPageTitle(summary.name)} | Monitoreo Acústico`
+  }, [summary?.name])
 
   const handleStationChange = (newCode) => {
     navigate(map2DStationPath(newCode))
@@ -281,7 +309,7 @@ export default function StationDetail() {
           <p className="dashboard-breadcrumb">
             <Link to={ROUTES.map2D}>Mapa 2D</Link> / <span>{code}</span>
           </p>
-          <h1>{summary?.name ?? code}</h1>
+          <h1 tabIndex={-1}>{summary?.name ?? code}</h1>
           <p className="dashboard-station-header__meta">{summary?.locality} · {summary?.is_active ? 'Activa' : 'Inactiva'}</p>
         </div>
 
@@ -296,6 +324,12 @@ export default function StationDetail() {
             <div className="dashboard-inline-stat">
               <p className="dashboard-inline-stat__label">Total mediciones</p>
               <p className="dashboard-inline-stat__value">{summary.total_measurements?.toLocaleString('es-CO')}</p>
+            </div>
+            <div className="dashboard-inline-stat">
+              <p className="dashboard-inline-stat__label">Última medición</p>
+              <p className="dashboard-inline-stat__value dashboard-inline-stat__value--date">
+                {formatDateTime(summary.latest_recorded_at)}
+              </p>
             </div>
           </div>
         )}
@@ -319,8 +353,41 @@ export default function StationDetail() {
             </select>
           </div>
         )}
-        <DateRangePicker onChange={setRange} />
+        <DateRangePicker
+          value={range}
+          preset={rangePreset}
+          anchorTimestamp={rangeState.anchorTimestamp}
+          isHistoricalRange={rangeState.historical}
+          onChange={(nextRange, metadata) => {
+            setRange(nextRange)
+            setRangePreset(metadata?.type === 'preset' ? metadata.label : '')
+            setRangeState(current => ({
+              ...current,
+              initialized: true,
+              historical: metadata?.type === 'preset' && current.historical,
+              anchorTimestamp: metadata?.type === 'preset' && current.historical ? current.anchorTimestamp : null,
+            }))
+          }}
+        />
       </div>
+
+      {rangeState.historical && (
+        <HistoricalRangeNotice
+          range={range}
+          latestTimestamp={summary?.latest_recorded_at}
+          onReturnToCurrent={() => {
+            setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
+            setRangePreset('24h')
+            setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
+          }}
+        />
+      )}
+
+      {rangeState.initialized && summary?.total_measurements === 0 && (
+        <NoMeasurementsNotice>
+          Esta estación todavía no tiene mediciones registradas. Cuando llegue el primer fragmento, aparecerá aquí.
+        </NoMeasurementsNotice>
+      )}
 
       <div className="dashboard-chart-axis-toolbar">
         <ChartAxisModeControl

@@ -76,7 +76,7 @@ export default function Map3DStationCard({ position, onOpenAnalysis, onHideCard 
 
       <footer className="map3d-station-card__actions">
         <button type="button" className="map3d-primary-button" onClick={onOpenAnalysis}>
-          Ver análisis completo
+          Abrir análisis detallado en 2D
         </button>
         <button type="button" className="map3d-card-link" onClick={onHideCard}>
           Ocultar tarjeta

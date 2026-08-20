@@ -6,7 +6,7 @@ export default function Map2DLayout() {
   return (
     <div className="dashboard-shell">
       <Map2DNavbar />
-      <main className="dashboard-main">
+      <main id="main-content" className="dashboard-main" tabIndex={-1}>
         <Outlet />
       </main>
       <footer className="dashboard-footer">

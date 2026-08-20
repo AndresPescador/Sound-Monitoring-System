@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ROUTES } from '../../routes'
 import ThemeToggle from '../shared/ThemeToggle'
 
@@ -9,6 +9,11 @@ const links = [
 ]
 
 export default function Map2DNavbar() {
+  const { pathname } = useLocation()
+  const isActive = to => to === ROUTES.map2D
+    ? pathname === ROUTES.map2D || pathname.startsWith(`${ROUTES.map2D}/stations/`)
+    : pathname === to
+
   return (
     <header className="dashboard-nav">
       <div className="dashboard-nav__inner">
@@ -23,17 +28,15 @@ export default function Map2DNavbar() {
         </Link>
 
         <nav className="dashboard-nav__links" aria-label="Herramientas del mapa 2D">
-          {links.map(({ to, label, end }) => (
-            <NavLink
+          {links.map(({ to, label }) => (
+            <Link
               key={to}
               to={to}
-              className={({ isActive }) => (
-                `dashboard-nav__link ${isActive ? 'dashboard-nav__link--active' : ''}`
-              )}
-              end={end}
+              className={`dashboard-nav__link ${isActive(to) ? 'dashboard-nav__link--active' : ''}`}
+              aria-current={isActive(to) ? 'page' : undefined}
             >
               {label}
-            </NavLink>
+            </Link>
           ))}
         </nav>
 

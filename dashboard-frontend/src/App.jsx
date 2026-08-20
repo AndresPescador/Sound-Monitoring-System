@@ -12,6 +12,8 @@ import AdminUsers from './pages/admin/AdminUsers'
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import PrivateAdminRoute from './components/admin/PrivateAdminRoute'
 import { ROUTES, map2DStationPath } from './routes'
+import SkipLink from './components/shared/SkipLink'
+import RouteNavigationManager from './components/shared/RouteNavigationManager'
 
 // Deck.gl es pesado: se descarga solo cuando el usuario abre el mapa 3D.
 const UrbanTwin = lazy(() => import('./pages/UrbanTwin'))
@@ -32,6 +34,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <AdminAuthProvider>
+        <SkipLink />
+        <RouteNavigationManager />
         <Routes>
 
           {/* Landing pública de introducción */}

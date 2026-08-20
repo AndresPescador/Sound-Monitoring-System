@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import { subHours }       from 'date-fns'
 import { getCompare }      from '../api/compare'
-import { getStations }     from '../api/stations'
+import { getStationSummary, getStations }     from '../api/stations'
 import { getCompareMeasurements, getCompareMeasurementsRaw } from '../api/measurements'
 import CompareChart       from '../components/charts/CompareChart'
 import ScatterCompareChart from '../components/charts/ScatterCompareChart'
@@ -14,6 +13,8 @@ import ResolutionNotice   from '../components/shared/ResolutionNotice'
 import { AUTO_FOCUS_THRESHOLD, getCoverageRatio } from '../components/charts/timeAxis'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
 import { useChartDownload } from '../hooks/useChartDownload'
+import { buildPresetRange, DEFAULT_RANGE_HOURS, getLatestTimestamp, getStationLatestTimestamp, hasRecentData } from '../components/shared/dateRangeUtils'
+import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/shared/RangeAvailabilityNotice'
 
 // ─── Métricas disponibles en /compare ────────────────────────────────────────
 const COMPARE_METRICS = [
@@ -45,6 +46,30 @@ const RAW_METRICS = [
 
 const EXACT_PREVIEW_LIMIT = 3000
 const EXACT_MAX_LIMIT = 10000
+const PRESET_HOURS = Object.freeze({
+  '6h': 6,
+  '24h': 24,
+  '7d': 7 * 24,
+  '30d': 30 * 24,
+})
+
+function getAutomaticRange(hours, latestTimestamp) {
+  const historical = Boolean(latestTimestamp && !hasRecentData(latestTimestamp, hours))
+  return {
+    range: buildPresetRange(hours, historical ? latestTimestamp : undefined),
+    historical,
+    anchorTimestamp: historical ? latestTimestamp : null,
+  }
+}
+
+function formatCount(count, singular, plural) {
+  const value = Number(count ?? 0)
+  return `${value.toLocaleString('es-CO')} ${value === 1 ? singular : plural}`
+}
+
+function formatStationCount(count) {
+  return formatCount(count, 'estación', 'estaciones')
+}
 
 // ─── Subcomponente: selector de tags con scroll ───────────────────────────────
 function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKey, getLabel, getSubLabel }) {
@@ -61,21 +86,25 @@ function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKe
         {items.map(item => {
           const key = getKey(item)
           const active = selected.has(key)
+          const label = getLabel(item)
+          const subLabel = getSubLabel?.(item)
           return (
             <button
               key={key}
               type="button"
               onClick={() => onToggle(key)}
+              aria-pressed={active}
+              aria-label={subLabel ? `${label}, ${subLabel}` : label}
               className={`dashboard-tag ${
                 active
                   ? 'dashboard-tag--active'
                   : ''
               }`}
             >
-              <span className="dashboard-tag__label">{getLabel(item)}</span>
-              {getSubLabel && (
+              <span className="dashboard-tag__label">{label}</span>
+              {subLabel && (
                 <span className="dashboard-tag__sub">
-                  {getSubLabel(item)}
+                  {subLabel}
                 </span>
               )}
             </button>
@@ -120,10 +149,14 @@ function SectionCard({ title, subtitle, downloadData, fileLabel, svgTitle, child
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Compare({ onStationSelectionChange } = {}) {
   const [allStations, setAllStations] = useState([])
+  const [latestByStation, setLatestByStation] = useState({})
+  const [latestTimestampsReady, setLatestTimestampsReady] = useState(false)
 
   // ── Sección 1: comparación por localidades ──
   const [localityMetric,     setLocalityMetric]     = useState('leq_hour')
-  const [localityRange,      setLocalityRange]      = useState({ from: subHours(new Date(), 24).toISOString(), to: new Date().toISOString() })
+  const [localityRange,      setLocalityRange]      = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
+  const [localityPreset,     setLocalityPreset]     = useState('24h')
+  const [localityRangeState, setLocalityRangeState] = useState({ historical: false, anchorTimestamp: null })
   const [localitySeries,     setLocalitySeries]     = useState([])
   const [loadingLocality,    setLoadingLocality]    = useState(true)
   const [selectedLocalities, setSelectedLocalities] = useState(new Set())
@@ -131,7 +164,9 @@ export default function Compare({ onStationSelectionChange } = {}) {
 
   // ── Sección 2: comparación por estaciones ──
   const [stationMetric,    setStationMetric]    = useState('leq_dbfs')
-  const [stationRange,     setStationRange]     = useState({ from: subHours(new Date(), 24).toISOString(), to: new Date().toISOString() })
+  const [stationRange,     setStationRange]     = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
+  const [stationPreset,    setStationPreset]    = useState('24h')
+  const [stationRangeState, setStationRangeState] = useState({ historical: false, anchorTimestamp: null })
   const [stationSeries,    setStationSeries]    = useState([])
   const [loadingStation,   setLoadingStation]   = useState(true)
   const [selectedStations, setSelectedStations] = useState(new Set())
@@ -168,14 +203,68 @@ export default function Compare({ onStationSelectionChange } = {}) {
 
   // ── Cargar estaciones ──
   useEffect(() => {
+    let active = true
     getStations()
       .then(r => {
+        if (!active) return
         setAllStations(r.data)
         setSelectedLocalities(new Set(r.data.map(s => s.locality)))
         setSelectedStations(new Set(r.data.map(s => s.station_code)))
+
+        const fallbackLatest = Object.fromEntries(r.data.map(station => [station.station_code, getStationLatestTimestamp(station)]))
+        setLatestByStation(fallbackLatest)
+        if (!r.data.length) {
+          setLatestTimestampsReady(true)
+          return
+        }
+
+        return Promise.all(r.data.map(async station => {
+          try {
+            const response = await getStationSummary(station.station_code)
+            return [station.station_code, response.data.latest_recorded_at]
+          } catch {
+            return [station.station_code, fallbackLatest[station.station_code]]
+          }
+        })).then(entries => {
+          if (!active) return
+          setLatestByStation(current => ({ ...current, ...Object.fromEntries(entries) }))
+          setLatestTimestampsReady(true)
+        })
       })
       .catch(() => {})
+    return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    if (!latestTimestampsReady || !allStations.length) return
+
+    const nextLocalityLatest = getLatestTimestamp(
+      allStations
+        .filter(station => selectedLocalities.has(station.locality))
+        .map(station => latestByStation[station.station_code] ?? getStationLatestTimestamp(station)),
+    )
+    const nextStationLatest = getLatestTimestamp(
+      allStations
+        .filter(station => selectedStations.has(station.station_code))
+        .map(station => latestByStation[station.station_code] ?? getStationLatestTimestamp(station)),
+    )
+
+    // Los presets siguen el último dato de la selección actual. Un rango
+    // personalizado se conserva intacto aunque cambie la selección.
+    if (localityPreset) {
+      const hours = PRESET_HOURS[localityPreset] ?? DEFAULT_RANGE_HOURS
+      const next = getAutomaticRange(hours, nextLocalityLatest)
+      setLocalityRange(next.range)
+      setLocalityRangeState({ historical: next.historical, anchorTimestamp: next.anchorTimestamp })
+    }
+
+    if (stationPreset) {
+      const hours = PRESET_HOURS[stationPreset] ?? DEFAULT_RANGE_HOURS
+      const next = getAutomaticRange(hours, nextStationLatest)
+      setStationRange(next.range)
+      setStationRangeState({ historical: next.historical, anchorTimestamp: next.anchorTimestamp })
+    }
+  }, [latestTimestampsReady, allStations, latestByStation, selectedLocalities, selectedStations, localityPreset, stationPreset])
 
   useEffect(() => {
     onStationSelectionChange?.([...selectedStations])
@@ -183,13 +272,18 @@ export default function Compare({ onStationSelectionChange } = {}) {
 
   // ── Fetch sección 1: localidades ──
   useEffect(() => {
-    if (allStations.length === 0) return
+    if (allStations.length === 0 || !latestTimestampsReady) return
     setLoadingLocality(true)
     const allLocCodes = localities.flatMap(l => l.codes)
     const filtered = selectedLocalities.size === localities.length
       ? allLocCodes
       : localities.filter(l => selectedLocalities.has(l.locality)).flatMap(l => l.codes)
-    const stationsParam = filtered.length > 0 ? filtered.join(',') : null
+    if (filtered.length === 0) {
+      setLocalitySeries([])
+      setLoadingLocality(false)
+      return
+    }
+    const stationsParam = selectedLocalities.size === localities.length ? null : filtered.join(',')
     const controller = new AbortController()
     getCompare({ metric: localityMetric, from: localityRange.from, to: localityRange.to, ...(stationsParam ? { stations: stationsParam } : {}) }, { signal: controller.signal })
       .then(r => {
@@ -202,11 +296,11 @@ export default function Compare({ onStationSelectionChange } = {}) {
         if (!controller.signal.aborted) setLoadingLocality(false)
       })
     return () => controller.abort()
-  }, [localityMetric, localityRange, selectedLocalities, allStations])
+  }, [localityMetric, localityRange, selectedLocalities, allStations, latestTimestampsReady, localities])
 
   // ── Fetch sección 2: grid común + detalle exacto para ScatterChart ──
   useEffect(() => {
-    if (allStations.length === 0) return
+    if (allStations.length === 0 || !latestTimestampsReady) return
     setLoadingStation(true)
     setShouldLoadExactPoints(false)
     setExactPointLimit(EXACT_PREVIEW_LIMIT)
@@ -273,7 +367,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
         if (!controller.signal.aborted) setLoadingStation(false)
       })
     return () => controller.abort()
-  }, [stationMetric, stationRange, selectedStations, allStations])
+  }, [stationMetric, stationRange, selectedStations, allStations, latestTimestampsReady])
 
   useEffect(() => {
     const element = exactScatterRef.current
@@ -358,6 +452,35 @@ export default function Compare({ onStationSelectionChange } = {}) {
   const selectAllStations   = () => setSelectedStations(new Set(allStations.map(s => s.station_code)))
   const clearAllStations    = () => setSelectedStations(new Set())
 
+  const localityLatestTimestamp = getLatestTimestamp(
+    allStations
+      .filter(station => selectedLocalities.has(station.locality))
+      .map(station => latestByStation[station.station_code] ?? getStationLatestTimestamp(station)),
+  )
+  const stationLatestTimestamp = getLatestTimestamp(
+    allStations
+      .filter(station => selectedStations.has(station.station_code))
+      .map(station => latestByStation[station.station_code] ?? getStationLatestTimestamp(station)),
+  )
+
+  const handleLocalityRangeChange = (nextRange, metadata) => {
+    setLocalityRange(nextRange)
+    setLocalityPreset(metadata?.type === 'preset' ? metadata.label : '')
+    setLocalityRangeState(current => ({
+      historical: metadata?.type === 'preset' && current.historical,
+      anchorTimestamp: metadata?.type === 'preset' && current.historical ? current.anchorTimestamp : null,
+    }))
+  }
+
+  const handleStationRangeChange = (nextRange, metadata) => {
+    setStationRange(nextRange)
+    setStationPreset(metadata?.type === 'preset' ? metadata.label : '')
+    setStationRangeState(current => ({
+      historical: metadata?.type === 'preset' && current.historical,
+      anchorTimestamp: metadata?.type === 'preset' && current.historical ? current.anchorTimestamp : null,
+    }))
+  }
+
   const localityCoverage = getCoverageRatio([
     { data: localitySeries.flatMap(s => s.data), timeKey: 'hour_start', valueKeys: ['value'] },
   ], localityRange)
@@ -377,7 +500,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
     <div className="dashboard-page dashboard-compare-page">
       <header className="dashboard-page-header">
         <div>
-          <h1>Comparar estaciones</h1>
+          <h1 tabIndex={-1}>Comparar estaciones</h1>
           <p>Contrasta localidades y estaciones individuales para reconocer cambios, picos y diferencias espaciales.</p>
         </div>
       </header>
@@ -390,7 +513,13 @@ export default function Compare({ onStationSelectionChange } = {}) {
         downloadData={localityCSV}
       >
         <div className="dashboard-controls">
-          <DateRangePicker onChange={setLocalityRange} />
+          <DateRangePicker
+            value={localityRange}
+            preset={localityPreset}
+            anchorTimestamp={localityRangeState.anchorTimestamp}
+            isHistoricalRange={localityRangeState.historical}
+            onChange={handleLocalityRangeChange}
+          />
           <div className="dashboard-field">
             <label htmlFor="locality-metric">Métrica</label>
             <select value={localityMetric} onChange={e => setLocalityMetric(e.target.value)}
@@ -400,6 +529,18 @@ export default function Compare({ onStationSelectionChange } = {}) {
           </div>
         </div>
 
+        {localityRangeState.historical && (
+          <HistoricalRangeNotice
+            range={localityRange}
+            latestTimestamp={localityLatestTimestamp}
+            onReturnToCurrent={() => {
+              setLocalityRange(buildPresetRange(DEFAULT_RANGE_HOURS))
+              setLocalityPreset('24h')
+              setLocalityRangeState({ historical: false, anchorTimestamp: null })
+            }}
+          />
+        )}
+
         {localities.length > 0 && (
           <div className="dashboard-tag-group">
             <div className="dashboard-tag-group__heading"><p>Localidades</p></div>
@@ -407,7 +548,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
               items={localities} selected={selectedLocalities}
               onToggle={toggleLocality} onSelectAll={selectAllLocalities} onClearAll={clearAllLocalities}
               getKey={l => l.locality} getLabel={l => l.locality}
-              getSubLabel={l => `${l.codes.length} estación${l.codes.length !== 1 ? 'es' : ''}`}
+              getSubLabel={l => formatStationCount(l.codes.length)}
             />
           </div>
         )}
@@ -431,7 +572,9 @@ export default function Compare({ onStationSelectionChange } = {}) {
           {loadingLocality
             ? <ChartSkeleton height={280} label="Cargando comparación por localidad..." />
             : localitySeries.length === 0
-              ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y localidades seleccionadas</p>
+              ? localityLatestTimestamp
+                ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y localidades seleccionadas</p>
+                : <NoMeasurementsNotice>No hay mediciones registradas para las localidades seleccionadas.</NoMeasurementsNotice>
               : <CompareChart
                   series={localitySeries}
                   metricLabel={COMPARE_METRICS.find(m => m.value === localityMetric)?.label}
@@ -461,7 +604,13 @@ export default function Compare({ onStationSelectionChange } = {}) {
         downloadData={stationCSV}
       >
         <div className="dashboard-controls">
-          <DateRangePicker onChange={setStationRange} />
+          <DateRangePicker
+            value={stationRange}
+            preset={stationPreset}
+            anchorTimestamp={stationRangeState.anchorTimestamp}
+            isHistoricalRange={stationRangeState.historical}
+            onChange={handleStationRangeChange}
+          />
           <div className="dashboard-field">
             <label htmlFor="station-metric">Métrica</label>
             <select value={stationMetric} onChange={e => setStationMetric(e.target.value)}
@@ -470,6 +619,18 @@ export default function Compare({ onStationSelectionChange } = {}) {
             </select>
           </div>
         </div>
+
+        {stationRangeState.historical && (
+          <HistoricalRangeNotice
+            range={stationRange}
+            latestTimestamp={stationLatestTimestamp}
+            onReturnToCurrent={() => {
+              setStationRange(buildPresetRange(DEFAULT_RANGE_HOURS))
+              setStationPreset('24h')
+              setStationRangeState({ historical: false, anchorTimestamp: null })
+            }}
+          />
+        )}
 
         {allStations.length > 0 && (
           <div className="dashboard-tag-group">
@@ -502,7 +663,9 @@ export default function Compare({ onStationSelectionChange } = {}) {
           {loadingStation
             ? <ChartSkeleton height={280} label="Cargando comparación por estación..." />
             : stationSeries.length === 0
-              ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y estaciones seleccionadas</p>
+              ? stationLatestTimestamp
+                ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y estaciones seleccionadas</p>
+                : <NoMeasurementsNotice>No hay mediciones registradas para las estaciones seleccionadas.</NoMeasurementsNotice>
               : <CompareChart
                   series={stationSeries}
                   metricLabel={RAW_METRICS.find(m => m.value === stationMetric)?.label}
@@ -556,7 +719,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
                 )}
                 {hasMoreExactPoints
                   ? <p className="dashboard-resolution-note dashboard-resolution-note--aggregated">
-                      Vista exacta representativa: {stationSeries.reduce((sum, item) => sum + (item.meta?.raw_returned_count ?? 0), 0).toLocaleString('es-CO')} puntos mostrados de {stationSeries.reduce((sum, item) => sum + (item.meta?.total_count ?? 0), 0).toLocaleString('es-CO')} mediciones. Cada punto conserva su timestamp original.
+                      Vista exacta representativa: {formatCount(stationSeries.reduce((sum, item) => sum + (item.meta?.raw_returned_count ?? 0), 0), 'punto', 'puntos')} mostrados de {formatCount(stationSeries.reduce((sum, item) => sum + (item.meta?.total_count ?? 0), 0), 'medición', 'mediciones')}. Cada punto conserva su timestamp original.
                     </p>
                   : <p className="text-xs text-text-light mt-1">Vista de precisión · cada punto mantiene su timestamp original; la escala visual sigue el ajuste temporal seleccionado</p>
                 }
@@ -573,8 +736,8 @@ export default function Compare({ onStationSelectionChange } = {}) {
                 <p className="dashboard-result__name">{s.locality}</p>
                 <p className="dashboard-result__meta">
                   {s.meta?.is_aggregated
-                    ? `${s.data.length.toLocaleString('es-CO')} ventanas · ${s.meta.total_count.toLocaleString('es-CO')} mediciones`
-                    : `${s.data.length.toLocaleString('es-CO')} puntos`}
+                    ? `${formatCount(s.data.length, 'ventana', 'ventanas')} · ${formatCount(s.meta.total_count, 'medición', 'mediciones')}`
+                    : formatCount(s.data.length, 'punto', 'puntos')}
                 </p>
               </div>
             ))}

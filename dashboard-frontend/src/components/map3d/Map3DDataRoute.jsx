@@ -8,7 +8,7 @@ export default function Map3DDataRoute() {
   const handleStationChange = useCallback((code) => focusStation(code), [focusStation])
   return (
     <Suspense fallback={<div className="map3d-dock-loading">Cargando portal de datos…</div>}>
-      <OpenData onStationChange={handleStationChange} />
+      <OpenData onStationChange={handleStationChange} embedded3D />
     </Suspense>
   )
 }

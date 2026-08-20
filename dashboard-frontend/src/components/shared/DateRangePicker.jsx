@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { subHours, subDays, format } from 'date-fns'
+import { useEffect, useState } from 'react'
+import { buildPresetRange, toDatetimeLocalValue } from './dateRangeUtils'
 
 const PRESETS = [
   { label: '6h',   hours: 6 },
@@ -13,20 +13,37 @@ const PRESETS = [
  * Devuelve { from, to } como strings ISO al callback onChange.
  * El preset activo se resalta; "Personalizado" habilita inputs nativos.
  */
-export default function DateRangePicker({ onChange, className = '' }) {
-  const [active, setActive]   = useState('24h')
+export default function DateRangePicker({
+  onChange,
+  value,
+  preset = '24h',
+  anchorTimestamp = null,
+  isHistoricalRange = false,
+  className = '',
+}) {
+  const [active, setActive]   = useState(preset)
   const [custom, setCustom]   = useState(false)
   const [fromVal, setFromVal] = useState('')
   const [toVal, setToVal]     = useState('')
   const [error, setError]     = useState('')
 
+  useEffect(() => {
+    if (!custom) setActive(preset)
+  }, [custom, preset])
+
+  useEffect(() => {
+    if (!custom && value) {
+      setFromVal(toDatetimeLocalValue(value.from))
+      setToVal(toDatetimeLocalValue(value.to))
+    }
+  }, [custom, value])
+
   const applyPreset = (preset) => {
     setActive(preset.label)
     setCustom(false)
     setError('')
-    const to   = new Date()
-    const from = subHours(to, preset.hours)
-    onChange({ from: from.toISOString(), to: to.toISOString() })
+    const range = buildPresetRange(preset.hours, isHistoricalRange ? anchorTimestamp : new Date())
+    onChange(range, { type: 'preset', label: preset.label, hours: preset.hours })
   }
 
   const applyCustom = () => {
@@ -45,16 +62,17 @@ export default function DateRangePicker({ onChange, className = '' }) {
       return
     }
     setError('')
-    onChange({ from: from.toISOString(), to: to.toISOString() })
+    onChange({ from: from.toISOString(), to: to.toISOString() }, { type: 'custom' })
   }
 
   return (
-    <div className={`dashboard-range-picker ${className}`}>
+    <div className={`dashboard-range-picker ${className}`} role="group" aria-label="Rango de tiempo">
       {PRESETS.map(p => (
         <button
           key={p.label}
           type="button"
           onClick={() => applyPreset(p)}
+          aria-pressed={active === p.label && !custom}
           className={`dashboard-range-picker__button ${
             active === p.label && !custom
               ? 'dashboard-range-picker__button--active'
@@ -67,7 +85,14 @@ export default function DateRangePicker({ onChange, className = '' }) {
 
       <button
         type="button"
-        onClick={() => { setCustom(true); setActive(''); setError('') }}
+        onClick={() => {
+          setCustom(true)
+          setActive('')
+          setError('')
+          setFromVal(toDatetimeLocalValue(value?.from))
+          setToVal(toDatetimeLocalValue(value?.to))
+        }}
+        aria-pressed={custom}
         className={`dashboard-range-picker__button ${
           custom
             ? 'dashboard-range-picker__button--active'

@@ -19,3 +19,8 @@ export const map3DStationPath = (stationCode) => (
 export const map3DComparePath = () => ROUTES.map3DCompare
 
 export const map3DDataPath = () => ROUTES.map3DData
+
+export const stationPageTitle = (name) => {
+  const normalizedName = String(name ?? 'seleccionada').replace(/^Estación\s+/i, '')
+  return `Estación ${normalizedName}`
+}

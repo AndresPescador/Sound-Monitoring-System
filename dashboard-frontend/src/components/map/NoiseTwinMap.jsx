@@ -174,6 +174,7 @@ function NoiseTwinMap({
 }) {
   const { isDark } = useTheme()
   const [cameraTarget, setCameraTarget] = useState(null)
+  const [legendOpen, setLegendOpen] = useState(false)
   const mapRef = useRef(null)
 
   const observedStations = useMemo(() => (
@@ -399,14 +400,25 @@ function NoiseTwinMap({
         />
       </DeckGL>
 
-      <div className="map3d-noise-legend" aria-label="Leyenda de nivel acústico relativo">
-        <span className="map3d-noise-legend__title">Nivel relativo · Leq</span>
-        <div className="map3d-noise-legend__items">
-          <span><i className="map3d-level-dot is-low" aria-hidden="true" />Bajo</span>
-          <span><i className="map3d-level-dot is-medium" aria-hidden="true" />Medio</span>
-          <span><i className="map3d-level-dot is-high" aria-hidden="true" />Alto</span>
+      <div className={`map3d-noise-legend ${legendOpen ? 'is-open' : ''}`}>
+        <button
+          type="button"
+          className="map3d-noise-legend__toggle"
+          aria-expanded={legendOpen}
+          aria-controls="map3d-noise-legend-content"
+          onClick={() => setLegendOpen(current => !current)}
+        >
+          <span className="map3d-noise-legend__title">Leyenda Leq</span>
+          <span aria-hidden="true">{legendOpen ? '−' : '+'}</span>
+        </button>
+        <div id="map3d-noise-legend-content" className="map3d-noise-legend__content">
+          <div className="map3d-noise-legend__items">
+            <span><i className="map3d-level-dot is-low" aria-hidden="true" />Bajo</span>
+            <span><i className="map3d-level-dot is-medium" aria-hidden="true" />Medio</span>
+            <span><i className="map3d-level-dot is-high" aria-hidden="true" />Alto</span>
+          </div>
+          <small>La altura compara intensidad; no representa metros reales.</small>
         </div>
-        <small>La altura compara intensidad; no representa metros reales.</small>
       </div>
 
       <div className="map3d-map-controls">

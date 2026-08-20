@@ -24,6 +24,12 @@
   isolation: isolate;
 }
 
+.map3d-main {
+  position: relative;
+  height: 100%;
+  min-height: inherit;
+}
+
 .map3d-shell ::selection { background: var(--map3d-blue); color: var(--map3d-paper); }
 .map3d-shell :focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
 .map3d-shell button, .map3d-shell a, .map3d-shell input, .map3d-shell select { touch-action: manipulation; }
@@ -88,6 +94,8 @@
 .map3d-shell .map3d-map-controls button:hover { border-color: var(--map3d-blue); color: var(--map3d-blue); }
 
 .map3d-noise-legend { position: absolute; z-index: 30; right: 16px; bottom: 58px; display: grid; gap: 7px; max-width: 260px; padding: 11px 13px; border: 1px solid rgba(203, 217, 237, 0.92); border-radius: 12px; background: rgba(248, 251, 255, 0.94); box-shadow: 0 12px 28px rgba(5, 15, 35, 0.16); color: var(--map3d-ink); }
+.map3d-noise-legend__toggle { display: none; }
+.map3d-noise-legend__content { display: grid; gap: 7px; }
 .map3d-noise-legend__title { font: 700 0.7rem/1.1 "DM Sans", sans-serif; }
 .map3d-noise-legend__items { display: flex; flex-wrap: wrap; gap: 9px 13px; }
 .map3d-noise-legend__items span { display: inline-flex; align-items: center; gap: 6px; color: var(--map3d-muted); font: 600 0.7rem/1 "Source Sans 3", sans-serif; }
@@ -950,8 +958,34 @@
     width: auto;
   }
   .map3d-noise-legend {
-    display: none;
+    right: 8px;
+    bottom: calc(var(--map3d-rail-height) + 12px + 68px);
+    left: auto;
+    display: block;
+    width: min(224px, calc(100% - 16px));
+    max-width: none;
+    padding: 0;
+    background: rgba(248, 251, 255, 0.97);
   }
+  .map3d-noise-legend__toggle {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--map3d-ink);
+    text-align: left;
+    font: 700 0.72rem/1 "DM Sans", sans-serif;
+    cursor: pointer;
+  }
+  .map3d-noise-legend__toggle:hover { background: var(--map3d-field); }
+  .map3d-noise-legend__content { display: none; padding: 0 12px 10px; }
+  .map3d-noise-legend.is-open .map3d-noise-legend__content { display: grid; }
+  .map3d-noise-legend__items { gap: 7px 10px; }
   .map3d-rail--overview,
   .map3d-rail--compare,
   .map3d-rail--data {

@@ -8,14 +8,17 @@ function formatResolution(seconds) {
   return `ventanas de ${Math.round(hours / 24)} días`
 }
 
+function formatCount(value, singular, plural) {
+  const count = Number(value ?? 0)
+  return `${numberFormatter.format(count)} ${count === 1 ? singular : plural}`
+}
+
 export function formatSeriesMeta(meta) {
   if (!meta) return ''
-  const total = numberFormatter.format(meta.total_count ?? meta.returned_count ?? 0)
-  const returned = numberFormatter.format(meta.returned_count ?? meta.count ?? 0)
   if (meta.is_aggregated) {
-    return `Vista resumida en ${formatResolution(meta.resolution_seconds)}: ${returned} ventanas representan ${total} mediciones del rango completo.`
+    return `Vista resumida en ${formatResolution(meta.resolution_seconds)}: ${formatCount(meta.returned_count ?? meta.count, 'ventana', 'ventanas')} representan ${formatCount(meta.total_count ?? meta.returned_count, 'medición', 'mediciones')} del rango completo.`
   }
-  return `Rango completo: ${returned} mediciones.`
+  return `Rango completo: ${formatCount(meta.returned_count ?? meta.count, 'medición', 'mediciones')}.`
 }
 
 export default function ResolutionNotice({ meta, className = '' }) {

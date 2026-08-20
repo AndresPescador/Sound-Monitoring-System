@@ -20,6 +20,27 @@
   color: var(--dashboard-ink);
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--dashboard-blue, #1d4ed8);
+  color: var(--dashboard-paper, #f8fbff);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-180%);
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 .dashboard-shell ::selection {
   background: var(--dashboard-blue);
   color: var(--dashboard-paper);
@@ -184,6 +205,41 @@
   margin: 1.5rem 0;
   color: var(--dashboard-muted);
   font-size: 0.88rem;
+}
+
+.dashboard-range-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 12px;
+  background: var(--dashboard-sky);
+}
+
+.dashboard-range-notice strong {
+  color: var(--dashboard-ink);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.dashboard-range-notice p {
+  margin: 0.2rem 0 0;
+  color: var(--dashboard-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.dashboard-range-notice--empty {
+  display: block;
+  background: var(--dashboard-paper);
+}
+
+.dashboard-range-notice .dashboard-text-button {
+  min-height: 44px;
+  flex: 0 0 auto;
 }
 
 .dashboard-page-header {
@@ -706,6 +762,13 @@
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+.dashboard-open-data-last-update {
+  margin: -0.8rem 0 0;
+  color: var(--dashboard-muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.68rem;
 }
 
 .dashboard-text-button:hover { color: var(--dashboard-blue-dark); }
@@ -1405,6 +1468,7 @@
   .dashboard-range-picker__custom > span { display: none; }
   .dashboard-result-grid { grid-template-columns: 1fr 1fr; }
   .dashboard-inline-stat { min-width: 8rem; }
+  .dashboard-range-notice { align-items: stretch; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
