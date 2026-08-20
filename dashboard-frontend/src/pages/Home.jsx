@@ -13,6 +13,7 @@ import { ROUTES } from '../routes'
 export default function Home() {
   const [stats,    setStats]    = useState(null)
   const [stations, setStations] = useState([])
+  const [stationQuery, setStationQuery] = useState('')
   const [hoveredStationCode, setHoveredStationCode] = useState(null)
   const [selectedStationCode, setSelectedStationCode] = useState(null)
   const [loading,  setLoading]  = useState(true)
@@ -34,36 +35,39 @@ export default function Home() {
   const lastSeen = stats?.last_measurement_received_at
     ? format(parseISO(stats.last_measurement_received_at), "d MMM yyyy HH:mm", { locale: es })
     : null
+  const normalizedQuery = stationQuery.trim().toLocaleLowerCase('es')
+  const filteredStations = normalizedQuery
+    ? stations.filter(station => (
+      `${station.name} ${station.locality} ${station.station_code}`.toLocaleLowerCase('es').includes(normalizedQuery)
+    ))
+    : stations
 
   return (
     <div className="dashboard-page dashboard-home">
-      <header className="dashboard-page-header">
-        <div>
-          <h1 tabIndex={-1}>Mapa 2D</h1>
-          <p>Estado actual de la red de estaciones y lectura rápida del ruido ambiental en Bogotá D.C.</p>
+      <header className="dashboard-home-header">
+        <div className="dashboard-home-header__intro">
+          <h1 tabIndex={-1}>Mapa acústico 2D</h1>
+          <p>Explora la red binaural de Bogotá y abre cada estación para consultar su lectura actual.</p>
         </div>
+
+        <div className="dashboard-stat-grid" aria-label="Resumen de la red acústica">
+          <StatCard
+            label="Red activa"
+            value={`${stats?.active_stations ?? 0} de ${stats?.total_stations ?? 0}`}
+            sub="estaciones operativas"
+            accent
+          />
+          <StatCard label="Mediciones" value={stats?.total_measurements?.toLocaleString('es-CO')} sub="registros acumulados" />
+          <StatCard label="Última medición" value={lastSeen ?? 'Sin registro'} sub="fecha y hora" />
+        </div>
+
         <div className="dashboard-page-header__actions">
-          <a href="#estaciones" className="dashboard-button dashboard-button--secondary">Ver estaciones</a>
           <Link to={ROUTES.map2DCompare} className="dashboard-button dashboard-button--primary">Comparar datos</Link>
         </div>
       </header>
 
-      <div className="dashboard-stat-grid">
-        <StatCard label="Estaciones activas" value={stats?.active_stations}   accent />
-        <StatCard label="Total estaciones"   value={stats?.total_stations} />
-        <StatCard label="Mediciones totales" value={stats?.total_measurements?.toLocaleString('es-CO')} />
-        <StatCard label="Última medición"    value={lastSeen ?? 'Sin registro'} sub="fecha y hora" />
-      </div>
-
       <section className="dashboard-map-layout" aria-labelledby="map-heading">
         <div className="dashboard-map-panel">
-          <div className="dashboard-panel-heading">
-            <div>
-              <h2 id="map-heading">Lecturas por estación</h2>
-              <p>Haz clic en una fila o en un punto para acercarte y consultar el detalle acústico.</p>
-            </div>
-            <span className="dashboard-panel-status">Actualización reciente</span>
-          </div>
           <div className="dashboard-map-canvas">
             <StationMap
               stations={stations}
@@ -94,18 +98,31 @@ export default function Home() {
                 <p>Red de escucha binaural</p>
               </div>
             </div>
-            <span>{stations.length} registradas</span>
+            <span>{normalizedQuery ? `${filteredStations.length} de ${stations.length}` : `${stations.length} registradas`}</span>
           </div>
-          <div className="dashboard-station-list">
-          {stations.map(s => (
-            <StationCard
-              key={s.station_code}
-              station={s}
-              onHover={setHoveredStationCode}
-              onSelect={setSelectedStationCode}
+          <label className="dashboard-station-search">
+            <span>Buscar una estación</span>
+            <input
+              type="search"
+              value={stationQuery}
+              onChange={event => setStationQuery(event.target.value)}
+              placeholder="Nombre, localidad o código"
             />
-          ))}
-          {!stations.length && <p className="dashboard-empty-state">No hay estaciones registradas.</p>}
+          </label>
+          <div className="dashboard-station-list">
+            {filteredStations.map(s => (
+              <StationCard
+                key={s.station_code}
+                station={s}
+                selected={s.station_code === selectedStationCode}
+                onHover={setHoveredStationCode}
+                onSelect={setSelectedStationCode}
+              />
+            ))}
+            {!stations.length && <p className="dashboard-empty-state">No hay estaciones registradas.</p>}
+            {stations.length > 0 && !filteredStations.length && (
+              <p className="dashboard-empty-state">No hay estaciones que coincidan con la búsqueda.</p>
+            )}
           </div>
         </aside>
       </section>

@@ -9,7 +9,7 @@ const NOISE_STYLES = {
   high:     { tone: 'high',   label: 'Alto'     },
 }
 
-export default function StationCard({ station, onHover, onSelect }) {
+export default function StationCard({ station, selected = false, onHover, onSelect }) {
   const style = NOISE_STYLES[station.noise_level] ?? {
     tone:  'unknown',
     label: 'Sin datos',
@@ -18,7 +18,8 @@ export default function StationCard({ station, onHover, onSelect }) {
   return (
     <Link
       to={map2DStationPath(station.station_code)}
-      className="dashboard-station-row"
+      className={`dashboard-station-row ${selected ? 'is-selected' : ''}`}
+      aria-current={selected ? 'true' : undefined}
       onClick={event => {
         event.preventDefault()
         onSelect?.(station.station_code)

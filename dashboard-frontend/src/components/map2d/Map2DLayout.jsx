@@ -1,12 +1,15 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ROUTES } from '../../routes'
 import Map2DNavbar from './Map2DNavbar'
 
 export default function Map2DLayout() {
+  const { pathname } = useLocation()
+  const isMapHome = pathname === ROUTES.map2D
+
   return (
     <div className="dashboard-shell">
       <Map2DNavbar />
-      <main id="main-content" className="dashboard-main" tabIndex={-1}>
+      <main id="main-content" className={`dashboard-main${isMapHome ? ' dashboard-main--map-home' : ''}`} tabIndex={-1}>
         <Outlet />
       </main>
       <footer className="dashboard-footer">
