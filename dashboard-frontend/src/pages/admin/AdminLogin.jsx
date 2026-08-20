@@ -1,58 +1,67 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import ThemeToggle from '../../components/shared/ThemeToggle'
 
 export default function AdminLogin() {
-  const { login }          = useAdminAuth()
-  const navigate           = useNavigate()
-  const [form, setForm]    = useState({ username: '', password: '' })
-  const [error, setError]  = useState('')
+  const { login } = useAdminAuth()
+  const navigate = useNavigate()
+  const [form, setForm] = useState({ username: '', password: '' })
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e) =>
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  const handleChange = (event) => {
+    setForm(previous => ({ ...previous, [event.target.name]: event.target.value }))
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     setError('')
     setLoading(true)
     try {
       await login(form.username, form.password)
       navigate('/admin/stations', { replace: true })
     } catch (err) {
-      const msg = err.response?.data?.error
-      setError(msg || 'Error al iniciar sesión. Verifica tus credenciales.')
+      const message = err.response?.data?.error
+      setError(message || 'No fue posible iniciar sesión. Verifica el usuario y la contraseña.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="admin-login min-h-screen bg-surface flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-
-        <div className="flex justify-end mb-4">
-          <ThemeToggle />
-        </div>
-
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-display font-semibold text-text">
-            Panel de Administración
-          </h1>
-          <p className="text-text-muted text-sm mt-1">
-            Monitoreo Acústico Binaural · Bogotá D.C.
+    <div className="admin-login">
+      <section className="admin-login__brand-panel" aria-labelledby="admin-access-title">
+        <div className="admin-login__rings" aria-hidden="true"><span /><span /><span /></div>
+        <div className="admin-login__brand-copy">
+          <Link to="/" className="admin-login__brand" aria-label="Volver a la presentación del sistema">
+            <img src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
+            <span>
+              Monitoreo Acústico
+              <small>Bogotá D.C.</small>
+            </span>
+          </Link>
+          <h1 id="admin-access-title">Operación de la red acústica.</h1>
+          <p>
+            Administra estaciones, credenciales y accesos desde la misma identidad
+            cívica del portal de monitoreo.
           </p>
         </div>
+      </section>
 
-        <div className="bg-bg border border-border rounded-xl p-8 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-5">
+      <main className="admin-login__form-panel" id="main-content" tabIndex={-1}>
+        <div className="admin-login__toolbar"><ThemeToggle /></div>
 
-            <div>
-              <label className="block text-sm font-medium text-text mb-1.5">
-                Usuario
-              </label>
+        <div className="admin-login__form-wrap">
+          <h2>Iniciar sesión</h2>
+          <p>Ingresa con una cuenta autorizada para acceder al panel administrativo.</p>
+
+          <form onSubmit={handleSubmit} className="admin-login__form">
+            <div className="admin-field">
+              <label htmlFor="admin-username">Usuario</label>
               <input
+                id="admin-username"
+                className="admin-input"
                 type="text"
                 name="username"
                 value={form.username}
@@ -60,18 +69,14 @@ export default function AdminLogin() {
                 autoComplete="username"
                 required
                 disabled={loading}
-                className="w-full px-3 py-2 border border-border rounded-lg text-text
-                           bg-surface text-sm focus:outline-none focus:ring-2
-                           focus:ring-primary focus:border-transparent
-                           disabled:opacity-50"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-text mb-1.5">
-                Contraseña
-              </label>
+            <div className="admin-field">
+              <label htmlFor="admin-password">Contraseña</label>
               <input
+                id="admin-password"
+                className="admin-input"
                 type="password"
                 name="password"
                 value={form.password}
@@ -79,37 +84,26 @@ export default function AdminLogin() {
                 autoComplete="current-password"
                 required
                 disabled={loading}
-                className="w-full px-3 py-2 border border-border rounded-lg text-text
-                           bg-surface text-sm focus:outline-none focus:ring-2
-                           focus:ring-primary focus:border-transparent
-                           disabled:opacity-50"
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-noise-high bg-red-50 border border-red-200
-                            rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
+            {error && <div className="admin-alert" role="alert">{error}</div>}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-primary text-white rounded-lg
-                         text-sm font-medium hover:bg-primary-dark transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed"
+              className="admin-button admin-button--primary admin-login__submit"
             >
-              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+              {loading ? 'Verificando acceso…' : 'Iniciar sesión'}
             </button>
-
           </form>
         </div>
 
-        <p className="text-center text-xs text-text-light mt-6">
-          Acceso restringido al personal autorizado
-        </p>
-      </div>
+        <footer className="admin-login__footer">
+          <span>Acceso restringido al personal autorizado</span>
+          <Link to="/mapa-2d">Volver al mapa público</Link>
+        </footer>
+      </main>
     </div>
   )
 }

@@ -166,7 +166,7 @@ body {
   --dashboard-white: #252525;
 }
 
-[data-theme='dark'] .admin-layout,
+[data-theme='dark'] .admin-shell,
 [data-theme='dark'] .admin-login {
   /* Los mapas y la landing conservan sus tokens azules originales. */
   --theme-bg-rgb: 23 23 23;
@@ -194,21 +194,21 @@ body {
 }
 
 [data-theme='dark'] .dashboard-shell .text-primary,
-[data-theme='dark'] .admin-layout .text-primary,
+[data-theme='dark'] .admin-shell .text-primary,
 [data-theme='dark'] .admin-login .text-primary {
   color: #c7c7c7;
 }
 
-[data-theme='dark'] .admin-layout .bg-primary,
+[data-theme='dark'] .admin-shell .bg-primary,
 [data-theme='dark'] .admin-login .bg-primary {
   color: #171717;
 }
 
-[data-theme='dark'] .admin-layout .bg-gray-100 {
+[data-theme='dark'] .admin-shell .bg-gray-100 {
   background-color: #252525;
 }
 
-[data-theme='dark'] .admin-layout .text-gray-500 {
+[data-theme='dark'] .admin-shell .text-gray-500 {
   color: #a3a3a3;
 }
 
@@ -408,7 +408,7 @@ body {
   color: rgb(var(--theme-ink-rgb));
 }
 
-[data-theme='dark'] .admin-layout,
+[data-theme='dark'] .admin-shell,
 [data-theme='dark'] .admin-login { color-scheme: dark; }
 
 @media (prefers-reduced-motion: reduce) {

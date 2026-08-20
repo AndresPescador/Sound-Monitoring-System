@@ -1,29 +1,49 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
-import { listAdmins, createAdmin } from '../../api/admin'
+import { createAdmin, listAdmins } from '../../api/admin'
+
+const formatDate = (value, withTime = false) => {
+  if (!value) return null
+  const options = withTime
+    ? { dateStyle: 'medium', timeStyle: 'short' }
+    : { dateStyle: 'medium' }
+  return new Intl.DateTimeFormat('es-CO', options).format(new Date(value))
+}
+
+function AdminListSkeleton() {
+  return (
+    <div className="admin-skeleton-list" role="status" aria-label="Cargando administradores">
+      {[0, 1, 2].map(item => (
+        <div className="admin-skeleton-row" key={item} aria-hidden="true"><span /><span /></div>
+      ))}
+    </div>
+  )
+}
 
 export default function AdminUsers() {
-  const [admins, setAdmins]         = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState('')
-  const [showForm, setShowForm]     = useState(false)
-  const [form, setForm]             = useState({ username: '', password: '', confirmPassword: '' })
-  const [formError, setFormError]   = useState('')
-  const [creating, setCreating]     = useState(false)
+  const [admins, setAdmins] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ username: '', password: '', confirmPassword: '' })
+  const [formError, setFormError] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     listAdmins()
-      .then(res => setAdmins(res.data))
-      .catch(() => setError('No se pudieron cargar los administradores.'))
+      .then(response => setAdmins(response.data))
+      .catch(() => setError('No se pudieron cargar los administradores. Revisa la conexión e inténtalo de nuevo.'))
       .finally(() => setLoading(false))
   }, [])
 
-  const handleChange = (e) =>
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  const handleChange = (event) => {
+    setForm(previous => ({ ...previous, [event.target.name]: event.target.value }))
+  }
 
-  const handleCreate = async (e) => {
-    e.preventDefault()
+  const handleCreate = async (event) => {
+    event.preventDefault()
     setFormError('')
+
     if (form.password !== form.confirmPassword) {
       setFormError('Las contraseñas no coinciden.')
       return
@@ -32,103 +52,152 @@ export default function AdminUsers() {
       setFormError('La contraseña debe tener al menos 12 caracteres.')
       return
     }
+
     setCreating(true)
     try {
-      const res = await createAdmin(form.username, form.password)
-      setAdmins(prev => [...prev, res.data])
+      const response = await createAdmin(form.username, form.password)
+      setAdmins(previous => [...previous, response.data])
       setForm({ username: '', password: '', confirmPassword: '' })
       setShowForm(false)
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Error al crear el administrador.')
+      setFormError(err.response?.data?.error || 'No se pudo crear el administrador.')
     } finally {
       setCreating(false)
     }
   }
 
+  const activeAdmins = admins.filter(admin => admin.active).length
+
   return (
     <AdminLayout>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-display font-semibold text-text">Administradores</h1>
-        <button
-          onClick={() => setShowForm(prev => !prev)}
-          className="px-4 py-2 bg-primary text-white text-sm font-medium
-                     rounded-lg hover:bg-primary-dark transition-colors"
-        >
-          {showForm ? 'Cancelar' : '+ Nuevo admin'}
-        </button>
-      </div>
-
-      {/* Formulario inline de creación */}
-      {showForm && (
-        <div className="mb-6 bg-bg border border-border rounded-xl p-5 max-w-md">
-          <p className="text-sm font-medium text-text mb-4">Crear administrador</p>
-          <form onSubmit={handleCreate} className="space-y-3">
-            {[
-              { name: 'username',        label: 'Usuario',               type: 'text',     autocomplete: 'off' },
-              { name: 'password',        label: 'Contraseña',            type: 'password', autocomplete: 'new-password' },
-              { name: 'confirmPassword', label: 'Confirmar contraseña',  type: 'password', autocomplete: 'new-password' },
-            ].map(({ name, label, type, autocomplete }) => (
-              <div key={name}>
-                <label className="block text-xs font-medium text-text-muted mb-1">{label}</label>
-                <input
-                  type={type} name={name} value={form[name]}
-                  onChange={handleChange} autoComplete={autocomplete}
-                  required disabled={creating}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm
-                             text-text bg-surface focus:outline-none focus:ring-2
-                             focus:ring-primary disabled:opacity-50"
-                />
-              </div>
-            ))}
-            {formError && <p className="text-sm text-noise-high">{formError}</p>}
+      <div className="admin-page">
+        <header className="admin-page-header">
+          <div>
+            <h1 tabIndex={-1}>Administradores</h1>
+            <p>Gestiona las cuentas que pueden operar la red y sus servicios internos.</p>
+          </div>
+          <div className="admin-page-header__actions">
             <button
-              type="submit" disabled={creating}
-              className="w-full py-2 text-sm bg-primary text-white rounded-lg
-                         hover:bg-primary-dark transition-colors disabled:opacity-50"
+              type="button"
+              onClick={() => {
+                setShowForm(previous => !previous)
+                setFormError('')
+              }}
+              className={`admin-button ${showForm ? 'admin-button--secondary' : 'admin-button--primary'}`}
+              aria-expanded={showForm}
+              aria-controls="new-admin-form"
             >
-              {creating ? 'Creando...' : 'Crear administrador'}
+              {showForm ? 'Cancelar' : 'Nuevo administrador'}
             </button>
-          </form>
-        </div>
-      )}
+          </div>
+        </header>
 
-      {error && <p className="text-sm text-noise-high mb-4">{error}</p>}
-
-      {loading ? (
-        <p className="text-text-muted text-sm">Cargando...</p>
-      ) : (
-        <div className="space-y-2">
-          {admins.map(admin => (
-            <div
-              key={admin.id}
-              className="bg-bg border border-border rounded-xl px-5 py-4
-                         flex items-center justify-between"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-text">{admin.username}</span>
-                  {admin.superAdmin && (
-                    <span className="text-xs bg-primary/10 text-primary
-                                     rounded px-1.5 py-0.5 font-medium">
-                      Super Admin
-                    </span>
-                  )}
-                  {!admin.active && (
-                    <span className="text-xs bg-gray-100 text-gray-500
-                                     rounded px-1.5 py-0.5">
-                      Inactivo
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-text-light mt-0.5">
-                  Creado: {new Date(admin.createdAt).toLocaleDateString('es-CO')}
-                  {admin.lastLoginAt && ` · Último login: ${new Date(admin.lastLoginAt).toLocaleString('es-CO')}`}
-                </p>
-              </div>
+        {showForm && (
+          <section className="admin-form-panel" id="new-admin-form" aria-labelledby="new-admin-title">
+            <div className="admin-form-panel__heading">
+              <h2 id="new-admin-title">Crear administrador</h2>
+              <p>La nueva cuenta tendrá acceso operativo. Usa una contraseña única de mínimo 12 caracteres.</p>
             </div>
-          ))}
-        </div>
-      )}
+            <form onSubmit={handleCreate} className="admin-form">
+              <div className="admin-form-grid">
+                <div className="admin-field admin-field--wide">
+                  <label htmlFor="new-admin-username">Usuario</label>
+                  <input
+                    id="new-admin-username"
+                    className="admin-input"
+                    type="text"
+                    name="username"
+                    value={form.username}
+                    onChange={handleChange}
+                    autoComplete="off"
+                    required
+                    disabled={creating}
+                  />
+                </div>
+                <div className="admin-field">
+                  <label htmlFor="new-admin-password">Contraseña</label>
+                  <input
+                    id="new-admin-password"
+                    className="admin-input"
+                    type="password"
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    disabled={creating}
+                  />
+                </div>
+                <div className="admin-field">
+                  <label htmlFor="new-admin-confirm-password">Confirmar contraseña</label>
+                  <input
+                    id="new-admin-confirm-password"
+                    className="admin-input"
+                    type="password"
+                    name="confirmPassword"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    disabled={creating}
+                  />
+                </div>
+              </div>
+
+              {formError && <div className="admin-alert" role="alert">{formError}</div>}
+
+              <div className="admin-form__actions">
+                <button type="submit" disabled={creating} className="admin-button admin-button--primary">
+                  {creating ? 'Creando cuenta…' : 'Crear administrador'}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {error && <div className="admin-alert" role="alert">{error}</div>}
+
+        <section className="admin-panel" aria-labelledby="admin-list-title">
+          <div className="admin-panel__header">
+            <div>
+              <h2 id="admin-list-title">Accesos registrados</h2>
+              <p>{loading ? 'Consultando el directorio…' : `${activeAdmins} cuentas activas`}</p>
+            </div>
+            <span className="admin-panel__count">{loading ? '…' : `${admins.length} cuentas`}</span>
+          </div>
+
+          {loading ? (
+            <AdminListSkeleton />
+          ) : admins.length === 0 ? (
+            <div className="admin-empty">
+              <h2>No hay cuentas adicionales</h2>
+              <p>Crea una cuenta cuando otra persona necesite operar el sistema.</p>
+            </div>
+          ) : (
+            <div className="admin-user-list">
+              {admins.map(admin => (
+                <article className="admin-user-row" key={admin.id}>
+                  <div>
+                    <div className="admin-user-row__topline">
+                      <h3 className="admin-user-row__name">{admin.username}</h3>
+                      {admin.superAdmin && <span className="admin-status admin-status--role">Superadministrador</span>}
+                      <span className={`admin-status admin-status--${admin.active ? 'active' : 'inactive'}`}>
+                        {admin.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                    <p className="admin-user-row__meta">
+                      <span>Creado: {formatDate(admin.createdAt) || 'Sin registro'}</span>
+                      <span>Último acceso: {formatDate(admin.lastLoginAt, true) || 'Aún no ingresa'}</span>
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </AdminLayout>
   )
 }

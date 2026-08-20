@@ -1,59 +1,60 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal } from './ModalComponents'
 
 export function SecretDisplayModal({ data, onClose }) {
-  const [copied, setCopied] = useState(false)
+  const [copyState, setCopyState] = useState('idle')
+  const resetTimer = useRef(null)
+  const secret = data.newSecret || data.secret || ''
+
+  useEffect(() => () => clearTimeout(resetTimer.current), [])
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(data.newSecret)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 3000)
+    try {
+      await navigator.clipboard.writeText(secret)
+      setCopyState('copied')
+      resetTimer.current = setTimeout(() => setCopyState('idle'), 3000)
+    } catch {
+      setCopyState('error')
+    }
   }
 
   return (
-    <Modal title="Secret generado" onClose={null}>  {/* sin X — obliga a leer */}
-      <div className="space-y-4">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-          <p className="text-sm font-medium text-amber-800 mb-1">
-            Este valor no se volverá a mostrar
-          </p>
-          <p className="text-xs text-amber-700">
-            Cópialo ahora y configúralo en la Raspberry Pi antes de cerrar esta ventana.
+    <Modal title="Secret generado" onClose={null}>
+      <div className="admin-secret">
+        <div className="admin-alert admin-alert--warning" role="alert">
+          <span>
+            <strong>Este valor no se volverá a mostrar.</strong><br />
+            Cópialo y configúralo en la Raspberry Pi antes de cerrar esta ventana.
             Si lo pierdes, deberás rotar el secret nuevamente.
-          </p>
+          </span>
         </div>
 
         <div>
-          <p className="text-xs text-text-muted mb-1">Estación</p>
-          <p className="font-mono text-sm text-text">{data.stationCode}</p>
+          <p className="admin-secret__label">Estación</p>
+          <p className="admin-secret__station">{data.stationCode}</p>
         </div>
 
         <div>
-          <p className="text-xs text-text-muted mb-1">Secret</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 font-mono text-sm bg-surface border border-border
-                             rounded-lg px-3 py-2 text-text break-all select-all">
-              {data.newSecret}
-            </code>
-            <button
-              onClick={handleCopy}
-              className="shrink-0 px-3 py-2 text-xs border border-border rounded-lg
-                         text-text-muted hover:text-text transition-colors"
-            >
-              {copied ? '✓ Copiado' : 'Copiar'}
+          <p className="admin-secret__label">Secret</p>
+          <div className="admin-secret__value">
+            <code>{secret}</code>
+            <button type="button" onClick={handleCopy} className="admin-button admin-button--secondary">
+              {copyState === 'copied' ? 'Copiado' : 'Copiar'}
             </button>
           </div>
         </div>
 
-        <p className="text-xs text-text-light">{data.message}</p>
+        {copyState === 'error' && (
+          <div className="admin-alert" role="alert">
+            No se pudo copiar automáticamente. Selecciona el valor y cópialo de forma manual.
+          </div>
+        )}
 
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm bg-primary text-white rounded-lg
-                       hover:bg-primary-dark transition-colors"
-          >
-            Ya lo copié — cerrar
+        {data.message && <p className="admin-secret__message">{data.message}</p>}
+
+        <div className="admin-form__actions">
+          <button type="button" onClick={onClose} className="admin-button admin-button--primary">
+            Ya lo guardé, cerrar
           </button>
         </div>
       </div>

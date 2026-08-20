@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { CreateStationModal } from '../../components/admin/CreateStationModal'
 import { SecretDisplayModal } from '../../components/admin/SecretDisplayModal'
@@ -11,24 +11,41 @@ import {
   rotateStationSecret,
 } from '../../api/admin'
 
-export default function AdminStations() {
-  const [stations, setStations]           = useState([])
-  const [loading, setLoading]             = useState(true)
-  const [error, setError]                 = useState('')
+const formatDateTime = (value) => {
+  if (!value) return null
+  return new Intl.DateTimeFormat('es-CO', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
 
-  // Modales
-  const [showCreate, setShowCreate]       = useState(false)
-  const [secretData, setSecretData]       = useState(null)   // { stationCode, secret, message }
-  const [editStation, setEditStation]     = useState(null)   // station object
-  const [deletingCode, setDeletingCode]   = useState('')
-  const [actionLoading, setActionLoading] = useState('')     // stationCode en proceso
+function StationSkeleton() {
+  return (
+    <div className="admin-skeleton-list" role="status" aria-label="Cargando estaciones">
+      {[0, 1, 2].map(item => (
+        <div className="admin-skeleton-row" key={item} aria-hidden="true"><span /><span /></div>
+      ))}
+    </div>
+  )
+}
+
+export default function AdminStations() {
+  const [stations, setStations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [secretData, setSecretData] = useState(null)
+  const [editStation, setEditStation] = useState(null)
+  const [deletingCode, setDeletingCode] = useState('')
+  const [actionLoading, setActionLoading] = useState('')
 
   const fetchStations = useCallback(async () => {
+    setError('')
     try {
-      const res = await listStationsAdmin()
-      setStations(res.data)
+      const response = await listStationsAdmin()
+      setStations(response.data)
     } catch {
-      setError('No se pudieron cargar las estaciones.')
+      setError('No se pudieron cargar las estaciones. Revisa la conexión e inténtalo de nuevo.')
     } finally {
       setLoading(false)
     }
@@ -36,211 +53,246 @@ export default function AdminStations() {
 
   useEffect(() => { fetchStations() }, [fetchStations])
 
-  // ── Cambiar estado activo/inactivo ─────────────────────────────────────────
+  const totals = useMemo(() => {
+    const active = stations.filter(station => station.active).length
+    return { total: stations.length, active, inactive: stations.length - active }
+  }, [stations])
+
   const handleToggleStatus = async (station) => {
-    const newActive = !station.active
+    const nextActive = !station.active
+    setError('')
     setActionLoading(station.stationCode)
     try {
-      // Actualizar en ambos servicios en paralelo
       await Promise.all([
-        changeStationStatusAuth(station.stationCode, newActive),
-        changeStationStatusProcessing(station.stationCode, newActive),
+        changeStationStatusAuth(station.stationCode, nextActive),
+        changeStationStatusProcessing(station.stationCode, nextActive),
       ])
-      setStations(prev =>
-        prev.map(s =>
-          s.stationCode === station.stationCode ? { ...s, active: newActive } : s
-        )
-      )
+      setStations(previous => previous.map(item => (
+        item.stationCode === station.stationCode ? { ...item, active: nextActive } : item
+      )))
     } catch {
-      setError('Error al cambiar el estado de la estación.')
+      setError('No se pudo cambiar el estado en ambos servicios. Verifica la sincronización de la estación.')
     } finally {
       setActionLoading('')
     }
   }
 
-  // ── Rotar secret ───────────────────────────────────────────────────────────
   const handleRotateSecret = async (stationCode) => {
+    setError('')
     setActionLoading(stationCode)
     try {
-      const res = await rotateStationSecret(stationCode)
-      setSecretData(res.data)
+      const response = await rotateStationSecret(stationCode)
+      setSecretData(response.data)
     } catch {
-      setError('Error al rotar el secret.')
+      setError('No se pudo rotar el secret. Inténtalo nuevamente.')
     } finally {
       setActionLoading('')
     }
   }
 
-  // ── Eliminar estación ──────────────────────────────────────────────────────
   const handleDelete = async (stationCode) => {
+    setError('')
     setActionLoading(stationCode)
     try {
       await deleteStationProcessing(stationCode)
-      setStations(prev => prev.filter(s => s.stationCode !== stationCode))
+      setStations(previous => previous.filter(station => station.stationCode !== stationCode))
       setDeletingCode('')
     } catch {
-      setError('Error al eliminar la estación. Verifica que no tenga datos activos.')
+      setError('No se pudo eliminar la estación del servicio de procesamiento.')
     } finally {
       setActionLoading('')
     }
   }
 
-  // ── Después de crear exitosamente ──────────────────────────────────────────
   const handleCreated = (secret, stationCode) => {
     setShowCreate(false)
-    setSecretData({ stationCode, newSecret: secret,
-      message: 'Estación creada. Configura este secret en la Raspberry Pi. No se volverá a mostrar.' })
+    setSecretData({
+      stationCode,
+      newSecret: secret,
+      message: 'Estación creada. Configura este secret en la Raspberry Pi. No se volverá a mostrar.',
+    })
+    setLoading(true)
     fetchStations()
   }
 
   return (
     <AdminLayout>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-display font-semibold text-text">Estaciones</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-primary text-white text-sm font-medium
-                     rounded-lg hover:bg-primary-dark transition-colors"
-        >
-          + Nueva estación
-        </button>
+      <div className="admin-page">
+        <header className="admin-page-header">
+          <div>
+            <h1 tabIndex={-1}>Estaciones</h1>
+            <p>Coordina el registro, estado operativo y credenciales de la red binaural.</p>
+          </div>
+          <div className="admin-page-header__actions">
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="admin-button admin-button--primary"
+            >
+              Nueva estación
+            </button>
+          </div>
+        </header>
+
+        <dl className="admin-summary" aria-label="Resumen de estaciones">
+          <div className="admin-summary__item admin-summary__item--accent">
+            <dt>Estaciones activas</dt>
+            <dd>{loading ? '—' : totals.active}</dd>
+          </div>
+          <div className="admin-summary__item">
+            <dt>Total registradas</dt>
+            <dd>{loading ? '—' : totals.total}</dd>
+          </div>
+          <div className="admin-summary__item">
+            <dt>Fuera de operación</dt>
+            <dd>{loading ? '—' : totals.inactive}</dd>
+          </div>
+        </dl>
+
+        {error && (
+          <div className="admin-alert" role="alert">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError('')} className="admin-alert__dismiss">
+              Cerrar
+            </button>
+          </div>
+        )}
+
+        <section className="admin-panel" aria-labelledby="station-list-title">
+          <div className="admin-panel__header">
+            <div>
+              <h2 id="station-list-title">Red registrada</h2>
+              <p>Los cambios de estado se coordinan entre Auth y Processing.</p>
+            </div>
+            <span className="admin-panel__count">{loading ? '…' : `${stations.length} estaciones`}</span>
+          </div>
+
+          {loading ? (
+            <StationSkeleton />
+          ) : stations.length === 0 ? (
+            <div className="admin-empty">
+              <h2>La red aún no tiene estaciones</h2>
+              <p>Registra primero las credenciales y luego los datos geográficos desde un único flujo.</p>
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="admin-button admin-button--secondary"
+              >
+                Registrar la primera estación
+              </button>
+            </div>
+          ) : (
+            <div className="admin-station-list">
+              {stations.map(station => {
+                const isBusy = actionLoading === station.stationCode
+                const lastSeen = formatDateTime(station.lastSeenAt)
+                const latitude = Number.isFinite(station.latitude) ? station.latitude.toFixed(4) : '—'
+                const longitude = Number.isFinite(station.longitude) ? station.longitude.toFixed(4) : '—'
+
+                return (
+                  <article className="admin-station-row" key={station.stationCode}>
+                    <div className="admin-station-row__identity">
+                      <div className="admin-station-row__topline">
+                        <h3 className="admin-station-row__name">{station.name}</h3>
+                        <span className={`admin-status admin-status--${station.active ? 'active' : 'inactive'}`}>
+                          {station.active ? 'Activa' : 'Inactiva'}
+                        </span>
+                        <span className="admin-station-row__code">{station.stationCode}</span>
+                      </div>
+                      <p className="admin-station-row__meta">
+                        <span>{station.locality || 'Localidad sin registrar'}</span>
+                        <span className="admin-station-row__coords">{latitude}, {longitude}</span>
+                        <span>{lastSeen ? `Última señal: ${lastSeen}` : 'Sin señal registrada'}</span>
+                      </p>
+                    </div>
+
+                    <div className="admin-station-row__actions" aria-label={`Acciones para ${station.name}`}>
+                      <button
+                        type="button"
+                        onClick={() => setEditStation(station)}
+                        disabled={isBusy}
+                        className="admin-button admin-button--quiet"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(station)}
+                        disabled={isBusy}
+                        className="admin-button admin-button--quiet"
+                      >
+                        {isBusy ? 'Actualizando…' : station.active ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRotateSecret(station.stationCode)}
+                        disabled={isBusy}
+                        className="admin-button admin-button--warning"
+                      >
+                        Rotar secret
+                      </button>
+                      {deletingCode !== station.stationCode && (
+                        <button
+                          type="button"
+                          onClick={() => setDeletingCode(station.stationCode)}
+                          disabled={isBusy}
+                          className="admin-button admin-button--danger"
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+
+                    {deletingCode === station.stationCode && (
+                      <div className="admin-confirmation" role="alert">
+                        <p>
+                          Eliminar <strong>{station.stationCode}</strong> de Processing también elimina sus
+                          mediciones y agregaciones. Esta acción no elimina su registro en Auth.
+                        </p>
+                        <div className="admin-confirmation__actions">
+                          <button
+                            type="button"
+                            onClick={() => setDeletingCode('')}
+                            className="admin-button admin-button--secondary"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(station.stationCode)}
+                            disabled={isBusy}
+                            className="admin-button admin-button--danger-solid"
+                          >
+                            {isBusy ? 'Eliminando…' : 'Sí, eliminar datos'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
       </div>
 
-      {error && (
-        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg
-                        text-sm text-noise-high flex justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError('')} className="ml-4 font-medium">✕</button>
-        </div>
-      )}
-
-      {loading ? (
-        <p className="text-text-muted text-sm">Cargando estaciones...</p>
-      ) : stations.length === 0 ? (
-        <p className="text-text-muted text-sm">No hay estaciones registradas.</p>
-      ) : (
-        <div className="space-y-3">
-          {stations.map(station => (
-            <div
-              key={station.stationCode}
-              className="bg-bg border border-border rounded-xl p-5
-                         flex flex-col sm:flex-row sm:items-center gap-4"
-            >
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-sm font-medium text-text">
-                    {station.stationCode}
-                  </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    station.active
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {station.active ? 'Activa' : 'Inactiva'}
-                  </span>
-                </div>
-                <p className="text-sm text-text mt-0.5 truncate">{station.name}</p>
-                <p className="text-xs text-text-light mt-0.5">
-                  {station.locality} · {station.latitude?.toFixed(4)}, {station.longitude?.toFixed(4)}
-                </p>
-                {station.lastSeenAt && (
-                  <p className="text-xs text-text-light mt-0.5">
-                    Última señal: {new Date(station.lastSeenAt).toLocaleString('es-CO')}
-                  </p>
-                )}
-              </div>
-
-              {/* Acciones */}
-              <div className="flex flex-wrap gap-2 shrink-0">
-                <button
-                  onClick={() => setEditStation(station)}
-                  disabled={actionLoading === station.stationCode}
-                  className="px-3 py-1.5 text-xs border border-border rounded-lg
-                             text-text-muted hover:text-text hover:border-text-muted
-                             transition-colors disabled:opacity-40"
-                >
-                  Editar
-                </button>
-
-                <button
-                  onClick={() => handleToggleStatus(station)}
-                  disabled={actionLoading === station.stationCode}
-                  className="px-3 py-1.5 text-xs border border-border rounded-lg
-                             text-text-muted hover:text-text hover:border-text-muted
-                             transition-colors disabled:opacity-40"
-                >
-                  {actionLoading === station.stationCode
-                    ? '...'
-                    : station.active ? 'Desactivar' : 'Activar'}
-                </button>
-
-                <button
-                  onClick={() => handleRotateSecret(station.stationCode)}
-                  disabled={actionLoading === station.stationCode}
-                  className="px-3 py-1.5 text-xs border border-amber-200 rounded-lg
-                             text-amber-700 hover:bg-amber-50
-                             transition-colors disabled:opacity-40"
-                >
-                  Rotar secret
-                </button>
-
-                {deletingCode === station.stationCode ? (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleDelete(station.stationCode)}
-                      disabled={actionLoading === station.stationCode}
-                      className="px-3 py-1.5 text-xs bg-noise-high text-white
-                                 rounded-lg hover:bg-red-700 transition-colors
-                                 disabled:opacity-40"
-                    >
-                      Confirmar
-                    </button>
-                    <button
-                      onClick={() => setDeletingCode('')}
-                      className="px-3 py-1.5 text-xs border border-border rounded-lg
-                                 text-text-muted hover:text-text transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setDeletingCode(station.stationCode)}
-                    disabled={actionLoading === station.stationCode}
-                    className="px-3 py-1.5 text-xs border border-red-200 rounded-lg
-                               text-noise-high hover:bg-red-50
-                               transition-colors disabled:opacity-40"
-                  >
-                    Eliminar
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Modales */}
       {showCreate && (
-        <CreateStationModal
-          onClose={() => setShowCreate(false)}
-          onCreated={handleCreated}
-        />
+        <CreateStationModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
       )}
 
       {secretData && (
-        <SecretDisplayModal
-          data={secretData}
-          onClose={() => setSecretData(null)}
-        />
+        <SecretDisplayModal data={secretData} onClose={() => setSecretData(null)} />
       )}
 
       {editStation && (
         <EditStationModal
           station={editStation}
           onClose={() => setEditStation(null)}
-          onSaved={() => { setEditStation(null); fetchStations() }}
+          onSaved={() => {
+            setEditStation(null)
+            setLoading(true)
+            fetchStations()
+          }}
         />
       )}
     </AdminLayout>

@@ -4,6 +4,7 @@ import App from './App'
 import './index.css'
 import './dashboard.css'
 import './map3d.css'
+import './admin.css'
 import './theme.css'
 import { ThemeProvider } from './context/ThemeContext'
 

@@ -4,26 +4,27 @@ import { useAdminAuth } from '../../context/AdminAuthContext'
 import { changeAdminPassword } from '../../api/admin'
 
 export default function AdminProfile() {
-  const { user }  = useAdminAuth()
-  const [form, setForm]       = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
-  const [error, setError]     = useState('')
+  const { user } = useAdminAuth()
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [saving, setSaving]   = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const handleChange = (e) =>
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  const handleChange = (event) => {
+    setForm(previous => ({ ...previous, [event.target.name]: event.target.value }))
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     setError('')
     setSuccess(false)
 
     if (form.newPassword !== form.confirmPassword) {
-      setError('El nuevo password y su confirmación no coinciden.')
+      setError('La nueva contraseña y su confirmación no coinciden.')
       return
     }
     if (form.newPassword.length < 12) {
-      setError('El nuevo password debe tener al menos 12 caracteres.')
+      setError('La nueva contraseña debe tener al menos 12 caracteres.')
       return
     }
 
@@ -33,7 +34,7 @@ export default function AdminProfile() {
       setSuccess(true)
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al cambiar el password.')
+      setError(err.response?.data?.error || 'No se pudo actualizar la contraseña.')
     } finally {
       setSaving(false)
     }
@@ -41,69 +42,102 @@ export default function AdminProfile() {
 
   return (
     <AdminLayout>
-      <h1 className="text-xl font-display font-semibold text-text mb-6">Mi perfil</h1>
-
-      <div className="max-w-md space-y-6">
-
-        {/* Info del admin */}
-        <div className="bg-bg border border-border rounded-xl p-5">
-          <p className="text-xs text-text-muted mb-3 uppercase tracking-wide font-medium">
-            Información de cuenta
-          </p>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Usuario</span>
-              <span className="text-text font-medium">{user?.username}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Rol</span>
-              <span className="text-text">{user?.superAdmin ? 'Super Admin' : 'Admin'}</span>
-            </div>
+      <div className="admin-page">
+        <header className="admin-page-header">
+          <div>
+            <h1 tabIndex={-1}>Mi perfil</h1>
+            <p>Consulta tu nivel de acceso y protege las credenciales de la cuenta.</p>
           </div>
-        </div>
+        </header>
 
-        {/* Cambiar password */}
-        <div className="bg-bg border border-border rounded-xl p-5">
-          <p className="text-xs text-text-muted mb-4 uppercase tracking-wide font-medium">
-            Cambiar contraseña
-          </p>
+        <div className="admin-profile-grid">
+          <section className="admin-account-card" aria-labelledby="account-title">
+            <div className="admin-account-card__header">
+              <p id="account-title">Cuenta autenticada</p>
+              <strong>{user?.username}</strong>
+            </div>
+            <dl>
+              <div>
+                <dt>Rol</dt>
+                <dd>{user?.superAdmin ? 'Superadministrador' : 'Administrador'}</dd>
+              </div>
+              <div>
+                <dt>Sesión</dt>
+                <dd>Activa en este navegador</dd>
+              </div>
+            </dl>
+          </section>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {[
-              { name: 'currentPassword', label: 'Contraseña actual',    autocomplete: 'current-password' },
-              { name: 'newPassword',     label: 'Nueva contraseña',     autocomplete: 'new-password' },
-              { name: 'confirmPassword', label: 'Confirmar contraseña', autocomplete: 'new-password' },
-            ].map(({ name, label, autocomplete }) => (
-              <div key={name}>
-                <label className="block text-xs font-medium text-text-muted mb-1.5">
-                  {label}
-                </label>
+          <section className="admin-form-panel" aria-labelledby="password-title">
+            <div className="admin-form-panel__heading">
+              <h2 id="password-title">Cambiar contraseña</h2>
+              <p>Usa al menos 12 caracteres y evita reutilizar credenciales de otros servicios.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="admin-form">
+              <div className="admin-field">
+                <label htmlFor="current-password">Contraseña actual</label>
                 <input
-                  type="password" name={name} value={form[name]}
-                  onChange={handleChange} autoComplete={autocomplete}
+                  id="current-password"
+                  className="admin-input"
+                  type="password"
+                  name="currentPassword"
+                  value={form.currentPassword}
+                  onChange={handleChange}
+                  autoComplete="current-password"
                   required
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm
-                             text-text bg-surface focus:outline-none focus:ring-2
-                             focus:ring-primary disabled:opacity-50"
                   disabled={saving}
                 />
               </div>
-            ))}
 
-            {error   && <p className="text-sm text-noise-high">{error}</p>}
-            {success && <p className="text-sm text-noise-low">Contraseña actualizada correctamente.</p>}
+              <div className="admin-form-grid">
+                <div className="admin-field">
+                  <label htmlFor="new-password">Nueva contraseña</label>
+                  <input
+                    id="new-password"
+                    className="admin-input"
+                    type="password"
+                    name="newPassword"
+                    value={form.newPassword}
+                    onChange={handleChange}
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="admin-field">
+                  <label htmlFor="confirm-password">Confirmar contraseña</label>
+                  <input
+                    id="confirm-password"
+                    className="admin-input"
+                    type="password"
+                    name="confirmPassword"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
 
-            <button
-              type="submit" disabled={saving}
-              className="w-full py-2 px-4 bg-primary text-white text-sm font-medium
-                         rounded-lg hover:bg-primary-dark transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Actualizando...' : 'Actualizar contraseña'}
-            </button>
-          </form>
+              {error && <div className="admin-alert" role="alert">{error}</div>}
+              {success && (
+                <div className="admin-alert admin-alert--success" role="status">
+                  La contraseña se actualizó correctamente.
+                </div>
+              )}
+
+              <div className="admin-form__actions">
+                <button type="submit" disabled={saving} className="admin-button admin-button--primary">
+                  {saving ? 'Actualizando…' : 'Actualizar contraseña'}
+                </button>
+              </div>
+            </form>
+          </section>
         </div>
-
       </div>
     </AdminLayout>
   )
