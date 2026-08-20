@@ -1,25 +1,24 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
-import Map2DLayout from './components/map2d/Map2DLayout'
 import Landing from './pages/Landing'
-import Home from './pages/Home'
-import StationDetail from './pages/StationDetail'
-
-import AdminLogin from './pages/admin/AdminLogin'
-import AdminStations from './pages/admin/AdminStations'
-import AdminProfile from './pages/admin/AdminProfile'
-import AdminUsers from './pages/admin/AdminUsers'
 import { AdminAuthProvider } from './context/AdminAuthContext'
-import PrivateAdminRoute from './components/admin/PrivateAdminRoute'
 import { ROUTES, map2DStationPath } from './routes'
 import SkipLink from './components/shared/SkipLink'
 import RouteNavigationManager from './components/shared/RouteNavigationManager'
 
-// Deck.gl es pesado: se descarga solo cuando el usuario abre el mapa 3D.
+// Cada experiencia y herramienta pesada se descarga solo al visitar su ruta.
+const Map2DLayout = lazy(() => import('./components/map2d/Map2DLayout'))
+const Home = lazy(() => import('./pages/Home'))
+const StationDetail = lazy(() => import('./pages/StationDetail'))
 const UrbanTwin = lazy(() => import('./pages/UrbanTwin'))
 const Compare = lazy(() => import('./pages/Compare'))
 const OpenData = lazy(() => import('./pages/OpenData'))
 const Map3DDataRoute = lazy(() => import('./components/map3d/Map3DDataRoute'))
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
+const AdminStations = lazy(() => import('./pages/admin/AdminStations'))
+const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'))
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
+const PrivateAdminRoute = lazy(() => import('./components/admin/PrivateAdminRoute'))
 
 function RouteLoading({ label = 'Cargando vista...' }) {
   return <div className="map3d-route-loading" role="status" aria-live="polite">{label}</div>
@@ -42,9 +41,9 @@ export default function App() {
           <Route path={ROUTES.landing} element={<Landing />} />
 
           {/* ── Experiencia 2D: todas sus herramientas comparten layout y namespace ── */}
-          <Route path={ROUTES.map2D} element={<Map2DLayout />}>
-            <Route index element={<Home />} />
-            <Route path="stations/:code" element={<StationDetail />} />
+          <Route path={ROUTES.map2D} element={<Suspense fallback={<RouteLoading />}><Map2DLayout /></Suspense>}>
+            <Route index element={<Suspense fallback={<RouteLoading />}><Home /></Suspense>} />
+            <Route path="stations/:code" element={<Suspense fallback={<RouteLoading />}><StationDetail /></Suspense>} />
             <Route path="compare" element={<Suspense fallback={<RouteLoading />}><Compare /></Suspense>} />
             <Route path="data" element={<Suspense fallback={<RouteLoading />}><OpenData /></Suspense>} />
           </Route>
@@ -70,22 +69,22 @@ export default function App() {
           <Route path="/urban-3d" element={<Navigate to={ROUTES.map3D} replace />} />
 
           {/* ── Panel admin (SIN Layout, usa AdminLayout dentro) ────────── */}
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={<Suspense fallback={<RouteLoading />}><AdminLogin /></Suspense>} />
 
           <Route path="/admin" element={
-            <PrivateAdminRoute><Navigate to="/admin/stations" replace /></PrivateAdminRoute>
+            <Suspense fallback={<RouteLoading />}><PrivateAdminRoute><Navigate to="/admin/stations" replace /></PrivateAdminRoute></Suspense>
           } />
 
           <Route path="/admin/stations" element={
-            <PrivateAdminRoute><AdminStations /></PrivateAdminRoute>
+            <Suspense fallback={<RouteLoading />}><PrivateAdminRoute><AdminStations /></PrivateAdminRoute></Suspense>
           } />
 
           <Route path="/admin/profile" element={
-            <PrivateAdminRoute><AdminProfile /></PrivateAdminRoute>
+            <Suspense fallback={<RouteLoading />}><PrivateAdminRoute><AdminProfile /></PrivateAdminRoute></Suspense>
           } />
 
           <Route path="/admin/users" element={
-            <PrivateAdminRoute><AdminUsers /></PrivateAdminRoute>
+            <Suspense fallback={<RouteLoading />}><PrivateAdminRoute><AdminUsers /></PrivateAdminRoute></Suspense>
           } />
 
         </Routes>
