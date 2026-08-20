@@ -333,7 +333,18 @@ function NoiseTwinMap({
   }
 
   const resetTo3dView = () => {
-    setCameraTarget({ ...BOGOTA_3D_VIEW, transitionDuration: 900, transitionInterpolator: STATION_FLY_TO })
+    const map = mapRef.current
+    if (!map) return
+    const center = map.getCenter()
+    setCameraTarget({
+      longitude: center.lng,
+      latitude: center.lat,
+      zoom: map.getZoom(),
+      pitch: BOGOTA_3D_VIEW.pitch,
+      bearing: BOGOTA_3D_VIEW.bearing,
+      transitionDuration: 900,
+      transitionInterpolator: STATION_FLY_TO,
+    })
   }
 
   const handleMapStyleData = useCallback(event => {
