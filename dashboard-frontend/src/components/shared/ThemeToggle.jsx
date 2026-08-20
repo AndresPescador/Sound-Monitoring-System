@@ -31,7 +31,6 @@ export default function ThemeToggle({ className = '' }) {
           </svg>
         )}
       </span>
-      <span>{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
     </button>
   )
 }

@@ -1477,8 +1477,6 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   }
 
   .landing-nav-actions { gap: 0.55rem; }
-  .landing-nav-actions .theme-toggle { padding-inline: 0.6rem; }
-  .landing-nav-actions .theme-toggle > span:last-child { display: none; }
 
   .landing-hero {
     grid-template-columns: 1fr;

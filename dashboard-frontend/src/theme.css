@@ -65,13 +65,13 @@ body {
 
 .theme-toggle {
   display: inline-flex;
-  min-height: 44px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  padding: 0.6rem 0.8rem;
+  padding: 0;
   border: 1px solid rgb(var(--theme-line-rgb));
-  border-radius: 12px;
+  border-radius: 9999px;
   background: rgb(var(--theme-paper-rgb) / 0.86);
   color: rgb(var(--theme-muted-rgb));
   font-family: "DM Sans", sans-serif;
@@ -100,15 +100,141 @@ body {
 
 /* Superficies compartidas del dashboard 2D. */
 [data-theme='dark'] .dashboard-shell {
-  --dashboard-ink: rgb(var(--theme-ink-rgb));
-  --dashboard-muted: rgb(var(--theme-muted-rgb));
-  --dashboard-blue: #60a5fa;
-  --dashboard-blue-dark: #93c5fd;
-  --dashboard-blue-soft: rgb(var(--theme-blue-soft-rgb));
-  --dashboard-sky: rgb(var(--theme-field-rgb));
-  --dashboard-paper: rgb(var(--theme-paper-rgb));
-  --dashboard-line: rgb(var(--theme-line-rgb));
-  --dashboard-white: rgb(var(--theme-paper-rgb));
+  /* Carbón suave: menor contraste sin perder jerarquía. */
+  --theme-bg-rgb: 23 23 23;
+  --theme-surface-rgb: 27 27 27;
+  --theme-paper-rgb: 32 32 32;
+  --theme-field-rgb: 37 37 37;
+  --theme-line-rgb: 64 64 64;
+  --theme-ink-rgb: 229 229 229;
+  --theme-muted-rgb: 163 163 163;
+  --theme-blue-rgb: 143 177 216;
+  --theme-blue-dark-rgb: 177 204 237;
+  --theme-blue-soft-rgb: 37 37 37;
+  --theme-chart-grid-rgb: 64 64 64;
+  --theme-focus-rgb: 199 199 199;
+  --theme-primary-rgb: 199 199 199;
+  --theme-primary-light-rgb: 212 212 212;
+  --theme-primary-dark-rgb: 174 174 174;
+  --theme-text-rgb: 229 229 229;
+  --theme-text-muted-rgb: 163 163 163;
+  --theme-text-light-rgb: 122 122 122;
+  --dashboard-ink: #e5e5e5;
+  --dashboard-muted: #a3a3a3;
+  --dashboard-blue: #c7c7c7;
+  --dashboard-blue-dark: #d9d9d9;
+  --dashboard-blue-soft: #252525;
+  --dashboard-sky: #252525;
+  --dashboard-paper: #181818;
+  --dashboard-line: #404040;
+  --dashboard-white: #252525;
+}
+
+[data-theme='dark'] .admin-layout,
+[data-theme='dark'] .admin-login {
+  /* Los mapas y la landing conservan sus tokens azules originales. */
+  --theme-bg-rgb: 23 23 23;
+  --theme-surface-rgb: 27 27 27;
+  --theme-paper-rgb: 32 32 32;
+  --theme-field-rgb: 37 37 37;
+  --theme-line-rgb: 64 64 64;
+  --theme-ink-rgb: 229 229 229;
+  --theme-muted-rgb: 163 163 163;
+  --theme-blue-rgb: 143 177 216;
+  --theme-blue-dark-rgb: 177 204 237;
+  --theme-blue-soft-rgb: 37 37 37;
+  --theme-chart-grid-rgb: 64 64 64;
+  --theme-focus-rgb: 199 199 199;
+  --theme-primary-rgb: 199 199 199;
+  --theme-primary-light-rgb: 212 212 212;
+  --theme-primary-dark-rgb: 174 174 174;
+  --theme-text-rgb: 229 229 229;
+  --theme-text-muted-rgb: 163 163 163;
+  --theme-text-light-rgb: 122 122 122;
+}
+
+[data-theme='dark'] .dashboard-shell :focus-visible {
+  outline-color: #c7c7c7;
+}
+
+[data-theme='dark'] .dashboard-shell .text-primary,
+[data-theme='dark'] .admin-layout .text-primary,
+[data-theme='dark'] .admin-login .text-primary {
+  color: #c7c7c7;
+}
+
+[data-theme='dark'] .admin-layout .bg-primary,
+[data-theme='dark'] .admin-login .bg-primary {
+  color: #171717;
+}
+
+[data-theme='dark'] .admin-layout .bg-gray-100 {
+  background-color: #252525;
+}
+
+[data-theme='dark'] .admin-layout .text-gray-500 {
+  color: #a3a3a3;
+}
+
+[data-theme='dark'] .dashboard-stat-card--accent .dashboard-stat-card__label,
+[data-theme='dark'] .dashboard-stat-card--accent .dashboard-stat-card__sub,
+[data-theme='dark'] .dashboard-tag--active .dashboard-tag__sub {
+  color: #5c5c5c;
+}
+
+[data-theme='dark'] .dashboard-stat-card--accent .dashboard-stat-card__value {
+  color: #171717;
+}
+
+[data-theme='dark'] .dashboard-tag__sub {
+  color: #a3a3a3;
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-button--primary,
+[data-theme='dark'] .dashboard-shell .dashboard-map-layout,
+[data-theme='dark'] .dashboard-shell .dashboard-chart-tooltip,
+[data-theme='dark'] .dashboard-shell .dashboard-info__tooltip,
+[data-theme='dark'] .dashboard-shell .dashboard-export > div:last-child {
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.22);
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-button--secondary:hover,
+[data-theme='dark'] .dashboard-shell .dashboard-select:hover,
+[data-theme='dark'] .dashboard-shell .dashboard-input:hover {
+  border-color: #707070;
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-select:focus,
+[data-theme='dark'] .dashboard-shell .dashboard-input:focus {
+  box-shadow: 0 0 0 3px rgb(199 199 199 / 0.14);
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-station-list {
+  scrollbar-color: #737373 #252525;
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-open-data-note,
+[data-theme='dark'] .dashboard-shell .dashboard-resolution-note--aggregated {
+  border-color: #4a4a4a;
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-axis-mode-control__option:focus-visible {
+  outline-color: rgb(199 199 199 / 0.22);
+}
+
+/* El color queda reservado para enlaces, estados y datos relevantes. */
+[data-theme='dark'] .dashboard-shell .dashboard-breadcrumb a,
+[data-theme='dark'] .dashboard-shell .dashboard-footer__links a,
+[data-theme='dark'] .dashboard-shell .dashboard-text-button,
+[data-theme='dark'] .dashboard-shell .dashboard-info__button:hover,
+[data-theme='dark'] .dashboard-shell .dashboard-export__item:hover {
+  color: #8fb1d8;
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-breadcrumb a:hover,
+[data-theme='dark'] .dashboard-shell .dashboard-footer__links a:hover,
+[data-theme='dark'] .dashboard-shell .dashboard-text-button:hover {
+  color: #b1cced;
 }
 
 [data-theme='dark'] .dashboard-error,
@@ -138,6 +264,25 @@ body {
 [data-theme='dark'] .leaflet-control-zoom a { color: #93c5fd; }
 [data-theme='dark'] .leaflet-popup-content-wrapper,
 [data-theme='dark'] .leaflet-popup-tip { background: rgb(var(--theme-paper-rgb)); color: rgb(var(--theme-ink-rgb)); }
+
+/* Los controles del mapa conservan el tratamiento azul de la experiencia cartográfica. */
+[data-theme='dark'] .dashboard-shell .dashboard-map-panel .leaflet-control-zoom a,
+[data-theme='dark'] .dashboard-shell .dashboard-map-panel .leaflet-control-attribution {
+  border-color: #334b6e;
+  background: #10223f;
+  color: #aebfd8;
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-map-panel .leaflet-control-attribution a,
+[data-theme='dark'] .dashboard-shell .dashboard-map-panel .leaflet-control-zoom a {
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .dashboard-shell .dashboard-map-panel .leaflet-popup-content-wrapper,
+[data-theme='dark'] .dashboard-shell .dashboard-map-panel .leaflet-popup-tip {
+  background: #10223f;
+  color: #e2e8f0;
+}
 
 /* Gráficas Recharts: sus ejes y tooltip no heredan siempre el color del tema. */
 .recharts-cartesian-axis-tick-value,

@@ -58,7 +58,7 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
       {open && (
         <div className="
           absolute right-0 top-7 z-50
-          bg-white border border-border rounded-lg shadow-md
+          bg-surface text-text border border-border rounded-lg shadow-md
           min-w-[140px] py-1 overflow-hidden
         ">
           {/* PNG */}

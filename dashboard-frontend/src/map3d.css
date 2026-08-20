@@ -196,8 +196,6 @@
   .map3d-topbar__brand strong { font-size: 0.78rem; }
   .map3d-topbar__brand small { font-size: 0.68rem; }
   .map3d-topbar__switch { padding: 8px; font-size: 0.7rem; }
-  .map3d-topbar__actions .theme-toggle { padding-inline: 0.6rem; }
-  .map3d-topbar__actions .theme-toggle > span:last-child { display: none; }
   .map3d-topbar__link { min-height: 42px; padding: 0 12px; }
   .map3d-station-picker { top: 112px; left: 8px; width: calc(100% - 16px); }
   .map3d-shell--compare .map3d-station-picker, .map3d-shell--data .map3d-station-picker { display: none; }

@@ -1390,8 +1390,6 @@
   .dashboard-nav__brand > span:last-child { display: none; }
   .dashboard-nav__mode-switch { font-size: 0.72rem; }
   .dashboard-nav__actions { gap: 0.55rem; }
-  .dashboard-nav__actions .theme-toggle { padding-inline: 0.6rem; }
-  .dashboard-nav__actions .theme-toggle > span:last-child { display: none; }
   .dashboard-main { width: min(100% - 1.25rem, 1440px); padding-top: 1.8rem; }
   .dashboard-page-header h1,
   .dashboard-station-header h1 { font-size: clamp(2rem, 11vw, 3rem); }
