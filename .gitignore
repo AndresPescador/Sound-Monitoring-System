@@ -27,6 +27,8 @@ send_metrics/send_metrics.log
 send_metrics/failed_files.json
 send_metrics/register_station.py
 send_metrics/audio_stats/
+send_metrics/runtime/
+send_metrics/audio_env/
 
 # ── Datos de prueba local ────────────────────────────────────────────────────
 /api-testing/test_data

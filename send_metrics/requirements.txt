@@ -1,2 +1,10 @@
+# Envío y configuración
 httpx>=0.27.0
 python-dotenv>=1.0.1
+
+# Procesamiento de audio
+numpy>=1.24.0
+soundfile>=0.12.1
+scipy>=1.10.0
+librosa>=0.10.0
+watchdog>=4.0.0
