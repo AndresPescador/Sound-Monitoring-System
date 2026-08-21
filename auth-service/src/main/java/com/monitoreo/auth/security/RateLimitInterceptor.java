@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -40,6 +41,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private final int adminLoginLimit;
     private final Clock clock;
 
+    @Autowired
     public RateLimitInterceptor(
             StringRedisTemplate redisTemplate,
             ClientIpResolver clientIpResolver,
