@@ -37,10 +37,10 @@
 .map3d-topbar { position: absolute; z-index: 50; top: 14px; left: 50%; display: grid; grid-template-columns: minmax(180px, 1fr) auto minmax(150px, 1fr); align-items: center; gap: 16px; width: min(100% - 28px, 1400px); min-height: 60px; padding: 8px 10px; border: 1px solid rgba(218, 232, 255, 0.22); border-radius: 16px; background: rgba(10, 28, 58, 0.95); box-shadow: 0 14px 36px rgba(5, 15, 35, 0.24); color: #f8fbff; transform: translateX(-50%); }
 .map3d-topbar__brand, .map3d-topbar__switch { color: inherit; text-decoration: none; }
 .map3d-topbar__brand { display: inline-flex; min-width: 0; align-items: center; gap: 10px; }
-.map3d-topbar__brand strong, .map3d-topbar__brand small { display: block; }
-.map3d-topbar__brand strong { font: 700 0.86rem/1.1 "DM Sans", sans-serif; }
+.map3d-topbar__brand > span, .map3d-topbar__brand small { display: block; }
+.map3d-topbar__brand > span { color: inherit; font: 700 0.82rem/1.05 "DM Sans", sans-serif; }
 .map3d-topbar__brand small { margin-top: 4px; color: #bfd0ea; font: 400 0.74rem/1.1 "Source Sans 3", sans-serif; }
-.map3d-topbar__mark { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #77a8ff; border-radius: 12px; color: #dce9ff; font: 700 0.76rem/1 "JetBrains Mono", monospace; }
+.map3d-topbar__mark { display: block; width: 2.65rem; height: 2.65rem; flex: 0 0 auto; object-fit: contain; }
 .map3d-topbar__nav { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .map3d-topbar__link { display: inline-flex; min-height: 44px; align-items: center; padding: 0 14px; border-radius: 12px; color: #bfd0ea; font: 650 0.78rem/1 "DM Sans", sans-serif; text-decoration: none; transition: background-color 180ms ease, color 180ms ease; }
 .map3d-topbar__link:hover { color: #fff; background: rgba(91, 139, 218, 0.18); }
@@ -200,8 +200,7 @@
 @media (max-width: 767px) {
   .map3d-shell { min-height: 540px; }
   .map3d-topbar { top: 8px; width: calc(100% - 16px); grid-template-columns: minmax(0, 1fr) auto; gap: 6px; border-radius: 12px; }
-  .map3d-topbar__mark { width: 34px; height: 34px; border-radius: 10px; }
-  .map3d-topbar__brand strong { font-size: 0.78rem; }
+  .map3d-topbar__brand > span { font-size: 0.78rem; }
   .map3d-topbar__brand small { font-size: 0.68rem; }
   .map3d-topbar__switch { padding: 8px; font-size: 0.7rem; }
   .map3d-topbar__link { min-height: 42px; padding: 0 12px; }

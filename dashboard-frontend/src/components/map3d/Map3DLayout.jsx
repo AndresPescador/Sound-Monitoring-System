@@ -17,18 +17,20 @@ function getMode(pathname) {
 function Map3DNav() {
   const location = useLocation()
   const links = [
-    { to: ROUTES.map3D, label: 'Explorar', end: true },
-    { to: ROUTES.map3DData, label: 'Datos' },
+    { to: ROUTES.map3D, label: 'Mapa 3D', end: true },
+    { to: ROUTES.map3DData, label: 'Datos abiertos' },
   ]
 
   return (
     <header className="map3d-topbar">
-      <Link to={ROUTES.map3D} className="map3d-topbar__brand" aria-label="Ir al inicio de la experiencia 3D">
-        <span className="map3d-topbar__mark" aria-hidden="true">3D</span>
-        <span>
-          <strong>Mapa acústico</strong>
-          <small>Experiencia tridimensional</small>
-        </span>
+      <Link to={ROUTES.landing} className="map3d-topbar__brand" aria-label="Volver al inicio del Sistema de Monitoreo Acústico">
+        <img
+          className="map3d-topbar__mark"
+          src="/assets/logo-oido-urbano.png"
+          alt=""
+          aria-hidden="true"
+        />
+        <span>Monitoreo Acústico<small>Mapa 3D</small></span>
       </Link>
 
       <nav className="map3d-topbar__nav" aria-label="Herramientas de la experiencia 3D">
@@ -51,7 +53,7 @@ function Map3DNav() {
 
       <div className="map3d-topbar__actions">
         <ThemeToggle />
-        <Link to={ROUTES.map2D} className="map3d-topbar__switch">Cambiar a 2D</Link>
+        <Link to={ROUTES.map2D} className="map3d-topbar__switch">Cambiar a mapa 2D</Link>
       </div>
     </header>
   )
