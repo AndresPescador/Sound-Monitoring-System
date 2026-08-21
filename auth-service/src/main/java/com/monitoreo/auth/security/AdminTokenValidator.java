@@ -1,8 +1,10 @@
 package com.monitoreo.auth.security;
 
 import com.monitoreo.auth.config.JwtConfig;
+import com.monitoreo.auth.entity.AdminUser;
 import com.monitoreo.auth.exception.ForbiddenException;
 import com.monitoreo.auth.exception.InvalidCredentialsException;
+import com.monitoreo.auth.repository.AdminUserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +29,7 @@ import org.springframework.stereotype.Component;
 public class AdminTokenValidator {
 
     private final JwtConfig jwtConfig;
+    private final AdminUserRepository adminUserRepository;
 
     /**
      * Verifica que el request tenga un Bearer token válido con role ADMIN o SUPER_ADMIN.
@@ -72,21 +75,33 @@ public class AdminTokenValidator {
         String token = authHeader.substring(7);
         Claims claims;
         try {
-            claims = jwtConfig.parseToken(token);
+            claims = jwtConfig.parseAdminToken(token);
         } catch (JwtException ex) {
             throw new InvalidCredentialsException("Token inválido o expirado.");
         }
 
-        String role = jwtConfig.extractRole(claims);
-        if (role == null) {
-            // Token de estación — no es un admin
-            throw new InvalidCredentialsException("El token no corresponde a un administrador.");
+        String username = claims.getSubject();
+        if (username == null || username.isBlank()) {
+            throw new InvalidCredentialsException("Token administrativo sin identidad.");
+        }
+        AdminUser admin = adminUserRepository
+                .findByUsernameAndActiveTrue(username)
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "Administrador no encontrado o inactivo."));
+
+        String expectedRole = admin.isSuperAdmin() ? "SUPER_ADMIN" : "ADMIN";
+        String tokenRole = jwtConfig.extractRole(claims);
+        Long tokenVersion = jwtConfig.extractCredentialsVersion(claims);
+        if (!expectedRole.equals(tokenRole)
+                || tokenVersion == null
+                || tokenVersion.longValue() != admin.getCredentialsVersion()) {
+            throw new InvalidCredentialsException("La sesión administrativa fue revocada.");
         }
 
-        if (superAdminRequired && !"SUPER_ADMIN".equals(role)) {
+        if (superAdminRequired && !admin.isSuperAdmin()) {
             throw new ForbiddenException("Esta operación requiere privilegios de super-administrador.");
         }
 
-        return claims.getSubject();
+        return username;
     }
 }

@@ -65,8 +65,13 @@ public class AdminAuthService {
             throw new InvalidCredentialsException("Credenciales inválidas.");
         }
 
-        String jti   = UUID.randomUUID().toString();
-        String token = jwtConfig.generateAdminToken(admin.getUsername(), admin.isSuperAdmin(), jti);
+        String jti = UUID.randomUUID().toString();
+        String token = jwtConfig.generateAdminToken(
+                admin.getUsername(),
+                admin.isSuperAdmin(),
+                jti,
+                admin.getCredentialsVersion()
+        );
 
         admin.setLastLoginAt(OffsetDateTime.now());
         adminUserRepository.save(admin);
@@ -89,22 +94,22 @@ public class AdminAuthService {
     public AdminValidateResponse validateAdminToken(String token) {
         Claims claims;
         try {
-            claims = jwtConfig.parseToken(token);
+            claims = jwtConfig.parseAdminToken(token);
         } catch (JwtException ex) {
             log.warn("Token admin inválido o expirado: {}", ex.getMessage());
             throw new InvalidCredentialsException("Token inválido o expirado.");
         }
 
-        String role = jwtConfig.extractRole(claims);
-        if (role == null) {
-            throw new InvalidCredentialsException("El token no corresponde a un administrador.");
-        }
-
         String username = claims.getSubject();
-        adminUserRepository
+        if (username == null || username.isBlank()) {
+            throw new InvalidCredentialsException("Token administrativo sin identidad.");
+        }
+        AdminUser admin = adminUserRepository
                 .findByUsernameAndActiveTrue(username)
                 .orElseThrow(() -> new InvalidCredentialsException(
                         "Administrador no encontrado o inactivo."));
+
+        String role = validateSessionClaims(claims, admin);
 
         return new AdminValidateResponse(username, role, true);
     }
@@ -133,6 +138,7 @@ public class AdminAuthService {
         }
 
         admin.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        admin.setCredentialsVersion(admin.getCredentialsVersion() + 1L);
         adminUserRepository.save(admin);
 
         auditLogRepository.save(buildAuditLog(
@@ -140,6 +146,19 @@ public class AdminAuthService {
                 "Password cambiado exitosamente", ipAddress
         ));
         log.info("Password cambiado — admin: '{}'", username);
+    }
+
+    private String validateSessionClaims(Claims claims, AdminUser admin) {
+        String expectedRole = admin.isSuperAdmin() ? "SUPER_ADMIN" : "ADMIN";
+        String tokenRole = jwtConfig.extractRole(claims);
+        Long tokenVersion = jwtConfig.extractCredentialsVersion(claims);
+
+        if (!expectedRole.equals(tokenRole)
+                || tokenVersion == null
+                || tokenVersion.longValue() != admin.getCredentialsVersion()) {
+            throw new InvalidCredentialsException("La sesión administrativa fue revocada.");
+        }
+        return tokenRole;
     }
 
     // =========================================================================

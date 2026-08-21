@@ -17,15 +17,16 @@ auth-service/
 │   │   └── JwtConfig.java             # Generación y validación de JWT
 │   ├── controller/
 │   │   ├── AuthController.java        # POST /auth/token  |  POST /auth/validate
-│   │   └── AdminController.java       # POST /admin/stations  |  DELETE /admin/...
+│   │   └── AdminAuthController.java   # Login y operaciones administrativas
 │   ├── dto/                           # Objetos de request y response
 │   ├── entity/
 │   │   ├── RegisteredStation.java     # Tabla registered_stations
-│   │   └── ApiToken.java              # Tabla api_tokens
+│   │   ├── ApiToken.java              # Tabla api_tokens
+│   │   └── AdminUser.java             # Tabla admin_users
 │   ├── repository/                    # Spring Data JPA
 │   ├── service/
 │   │   ├── AuthService.java           # Emisión y validación de tokens
-│   │   └── AdminService.java          # Registro y revocación de estaciones
+│   │   └── AdminAuthService.java      # Sesiones admin y gestión de estaciones
 │   └── exception/                     # Excepciones y manejador global
 └── src/main/resources/
     └── application.properties
@@ -39,9 +40,13 @@ auth-service/
 |---|---|---|---|
 | `POST` | `/auth/token` | Estación solicita JWT con su secret | Pública |
 | `POST` | `/auth/validate` | Ingestion API valida un token | Solo red interna |
-| `POST` | `/admin/stations` | Registrar nueva estación | X-Admin-Key |
-| `DELETE` | `/admin/stations/{code}/token` | Revocar tokens activos | X-Admin-Key |
-| `DELETE` | `/admin/stations/{code}` | Desactivar estación | X-Admin-Key |
+| `POST` | `/admin/login` | Iniciar sesión administrativa | Pública, rate limited |
+| `POST` | `/admin/validate` | Validar JWT administrativo | Solo red interna |
+| `GET` | `/admin/me` | Consultar sesión actual | JWT ADMIN/SUPER_ADMIN |
+| `POST` | `/admin/change-password` | Cambiar password y revocar sesiones | JWT ADMIN/SUPER_ADMIN |
+| `POST` | `/admin/admins` | Crear administrador normal | JWT SUPER_ADMIN |
+| `POST` | `/admin/stations` | Registrar nueva estación | JWT ADMIN/SUPER_ADMIN |
+| `POST` | `/admin/stations/{code}/rotate-secret` | Rotar secret y tokens | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/auth/health` | Health check | Pública |
 
 ---
@@ -59,15 +64,22 @@ cp .env.example .env
 | `DB_URL` | URL JDBC de `station_registry` |
 | `DB_USERNAME` | Usuario de PostgreSQL |
 | `DB_PASSWORD` | Contraseña de PostgreSQL |
-| `JWT_SECRET` | Clave secreta en texto plano (mínimo 32 caracteres) |
+| `STATION_JWT_SECRET` | Clave exclusiva para JWT de estaciones (mínimo 32 bytes) |
+| `ADMIN_JWT_SECRET` | Clave distinta para JWT administrativos (mínimo 32 bytes) |
 | `JWT_EXPIRATION_DAYS` | Días de validez del token (default: 30) |
-| `ADMIN_API_KEY` | Clave para endpoints `/admin/*` |
+| `ADMIN_JWT_EXPIRATION_HOURS` | Horas de validez de sesión admin (default: 8) |
+| `CORS_ALLOWED_ORIGIN` | Origen exacto autorizado para el panel |
 | `PORT` | Puerto del servicio (default: 8081) |
 
-Generar un JWT_SECRET seguro:
+Generar dos claves independientes:
 ```bash
-openssl rand -base64 32
+openssl rand -base64 48
+openssl rand -base64 48
 ```
+
+Auth Service falla al iniciar si las claves son iguales. Para bootstrap y
+rotación del superadministrador consulta
+[`docker/SECURITY_ROTATION.md`](../docker/SECURITY_ROTATION.md).
 
 ---
 
@@ -98,8 +110,8 @@ docker run -p 8081:8081 --env-file .env auth-service
 ## Flujo de registro de una estación
 
 ```
-1. Admin llama POST /admin/stations con { station_code, name, locality, ... }
-   Header: X-Admin-Key: <clave>
+1. Un administrador autenticado llama POST /admin/stations
+   Header: Authorization: Bearer <JWT administrativo>
 
 2. Auth Service genera secret aleatorio, lo hashea con BCrypt
    y guarda solo el hash en registered_stations
@@ -118,7 +130,8 @@ docker run -p 8081:8081 --env-file .env auth-service
 
 2. Auth Service verifica BCrypt(secret) == secret_hash
 
-3. Genera JWT con claims: sub=stationCode, jti=UUID, exp=+30días
+3. Genera JWT con claims: sub=stationCode, jti=UUID, token_type=station,
+   iss=sound-monitoring-auth y exp=+30días
    Guarda el jti en api_tokens
 
 4. Devuelve: { "token": "eyJ..." }
@@ -152,6 +165,6 @@ docker run -p 8081:8081 --env-file .env auth-service
 | `200 OK` | Token válido / operación exitosa |
 | `201 Created` | Estación registrada |
 | `401 Unauthorized` | Secret incorrecto o token inválido/expirado/revocado |
-| `403 Forbidden` | X-Admin-Key ausente o incorrecta |
+| `403 Forbidden` | Rol administrativo insuficiente |
 | `404 Not Found` | station_code no existe |
 | `409 Conflict` | station_code ya registrado |

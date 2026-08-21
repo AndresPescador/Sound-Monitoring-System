@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import ThemeToggle from '../../components/shared/ThemeToggle'
 
 export default function AdminLogin() {
   const { login } = useAdminAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -55,6 +56,12 @@ export default function AdminLogin() {
         <div className="admin-login__form-wrap">
           <h2>Iniciar sesión</h2>
           <p>Ingresa con una cuenta autorizada para acceder al panel administrativo.</p>
+
+          {location.state?.passwordChanged && (
+            <div className="admin-alert admin-alert--success" role="status">
+              Contraseña actualizada. Todas las sesiones anteriores fueron cerradas.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="admin-login__form">
             <div className="admin-field">

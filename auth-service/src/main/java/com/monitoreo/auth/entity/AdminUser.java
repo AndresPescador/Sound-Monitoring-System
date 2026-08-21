@@ -37,6 +37,13 @@ public class AdminUser {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    /**
+     * Se incluye en cada JWT de administrador. Incrementarlo invalida todas las
+     * sesiones emitidas anteriormente, por ejemplo tras cambiar el password.
+     */
+    @Column(name = "credentials_version", nullable = false)
+    private long credentialsVersion = 1L;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 

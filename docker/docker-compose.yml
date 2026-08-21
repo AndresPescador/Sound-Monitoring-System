@@ -51,7 +51,8 @@ services:
       DB_URL:                    jdbc:postgresql://postgres-auth:5432/${POSTGRES_AUTH_DB}
       DB_USERNAME:               ${POSTGRES_AUTH_USER}
       DB_PASSWORD:               ${POSTGRES_AUTH_PASSWORD}
-      JWT_SECRET:                ${JWT_SECRET}
+      STATION_JWT_SECRET:        ${STATION_JWT_SECRET}
+      ADMIN_JWT_SECRET:          ${ADMIN_JWT_SECRET}
       JWT_EXPIRATION_DAYS:       ${JWT_EXPIRATION_DAYS}
       ADMIN_JWT_EXPIRATION_HOURS: ${ADMIN_JWT_EXPIRATION_HOURS}
       CORS_ALLOWED_ORIGIN:       ${CORS_ALLOWED_ORIGIN:-https://soundmonitoring.systems}

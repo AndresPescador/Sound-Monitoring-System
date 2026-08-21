@@ -109,7 +109,7 @@ public class AuthService {
     public ValidateResponse validateToken(ValidateRequest request) {
         Claims claims;
         try {
-            claims = jwtConfig.parseToken(request.getToken());
+            claims = jwtConfig.parseStationToken(request.getToken());
         } catch (JwtException ex) {
             log.warn("Token con firma inválida o expirado: {}", ex.getMessage());
             throw new TokenInvalidException("Token inválido o expirado.");

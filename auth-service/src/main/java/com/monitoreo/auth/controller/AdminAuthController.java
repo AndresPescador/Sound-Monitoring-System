@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controller de administración — reemplaza AdminController (X-Admin-Key).
+ * Controller de administración con JWT y roles.
  *
  * Rutas bajo /auth/admin/* — mapeadas en Nginx Docker interno como:
  *   /admin/auth/* → auth-service /admin/*
@@ -89,7 +89,9 @@ public class AdminAuthController {
         String username = tokenValidator.requireAdmin(request);
         String ip       = tokenValidator.extractIp(request);
         adminAuthService.changePassword(username, body, ip);
-        return ResponseEntity.ok(Map.of("message", "Password actualizado correctamente."));
+        return ResponseEntity.ok(Map.of(
+                "message", "Password actualizado. Inicia sesión nuevamente."
+        ));
     }
 
     // =========================================================================

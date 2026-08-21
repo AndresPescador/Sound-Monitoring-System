@@ -16,7 +16,13 @@ El registro `A` —y `AAAA`, si se utilizará IPv6— debe apuntar a la VPS. En
 NGINX_PORT=8080
 VITE_API_URL=https://soundmonitoring.systems/dashboard
 CORS_ALLOWED_ORIGIN=https://soundmonitoring.systems
+STATION_JWT_SECRET=<valor_aleatorio_independiente>
+ADMIN_JWT_SECRET=<otro_valor_aleatorio>
 ```
+
+Genera las dos claves JWT por separado con `openssl rand -base64 48`. Si la
+instalación ya usó la antigua clave compartida, aplica primero el procedimiento
+de [rotación de seguridad](SECURITY_ROTATION.md).
 
 Iniciar Compose y comprobar el gateway local:
 

@@ -40,7 +40,7 @@ noise-processing-backend/
 | Método | Ruta | Descripción | Protección |
 |---|---|---|---|
 | `POST` | `/processing/measurements` | Recibe y persiste métricas acústicas | Solo red interna |
-| `POST` | `/admin/stations` | Registra estación en noise_analytics | X-Admin-Key |
+| `POST` | `/admin/stations` | Registra estación en noise_analytics | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/health` | Health check | Pública |
 
 ---
@@ -56,7 +56,7 @@ cp .env.example .env
 | `DB_URL` | URL JDBC de `noise_analytics` |
 | `DB_USERNAME` | Usuario de PostgreSQL |
 | `DB_PASSWORD` | Contraseña de PostgreSQL |
-| `ADMIN_API_KEY` | Clave para `/admin/stations` |
+| `AUTH_ADMIN_VALIDATE_URL` | Endpoint interno de Auth para validar JWT admin |
 | `PORT` | Puerto del servicio (default: 8082) |
 
 ---
@@ -93,13 +93,13 @@ El administrador debe registrar cada estación en DOS pasos independientes:
 ```
 Paso 1 — Auth Service:
 POST /admin/stations  →  http://auth-service:8081
-Header: X-Admin-Key: <clave>
+Header: Authorization: Bearer <JWT administrativo>
 Body: { "stationCode": "ST-CHAPINERO-01", "name": "...", "locality": "..." }
 ← Guarda el secret devuelto para configurar la Raspberry Pi
 
 Paso 2 — Noise Processing Backend:
 POST /admin/stations  →  http://noise-processing-backend:8082
-Header: X-Admin-Key: <clave>
+Header: Authorization: Bearer <JWT administrativo>
 Body: { "stationCode": "ST-CHAPINERO-01", "name": "...", "locality": "...",
         "latitude": 4.6486, "longitude": -74.1057 }
 ```
@@ -146,4 +146,5 @@ Después de cada INSERT exitoso se recalcula la agregación de la hora correspon
 | `200 OK` | Fragmento duplicado ignorado |
 | `404 Not Found` | station_code no existe en noise_analytics |
 | `409 Conflict` | Estación ya registrada (admin) |
-| `403 Forbidden` | X-Admin-Key inválida |
+| `401 Unauthorized` | JWT administrativo ausente, inválido o revocado |
+| `403 Forbidden` | Rol administrativo insuficiente |

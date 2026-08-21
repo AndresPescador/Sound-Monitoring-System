@@ -165,14 +165,21 @@ CREATE TABLE IF NOT EXISTS admin_users (
 
     is_active       BOOLEAN     NOT NULL DEFAULT TRUE,
 
+    -- Versión incluida en los JWT admin. Cambiarla revoca sesiones anteriores.
+    credentials_version BIGINT  NOT NULL DEFAULT 1,
+
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_login_at   TIMESTAMPTZ
+    last_login_at   TIMESTAMPTZ,
+
+    CONSTRAINT chk_admin_users_credentials_version
+        CHECK (credentials_version >= 1)
 );
 
 COMMENT ON TABLE  admin_users            IS 'Administradores humanos del sistema. Gestionados exclusivamente por el Auth Service.';
 COMMENT ON COLUMN admin_users.is_super   IS 'TRUE solo para el primer admin creado via script. Permite crear otros admins.';
 COMMENT ON COLUMN admin_users.password_hash IS 'Hash BCrypt cost 12. Nunca se almacena el password en texto plano.';
+COMMENT ON COLUMN admin_users.credentials_version IS 'Versión de credenciales incluida en JWT admin. Incrementarla revoca sesiones previas.';
 
 CREATE INDEX IF NOT EXISTS idx_admin_users_username
     ON admin_users (username);

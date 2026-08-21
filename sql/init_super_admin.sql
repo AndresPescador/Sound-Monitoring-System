@@ -1,39 +1,37 @@
 -- =============================================================================
--- init_super_admin.sql
--- Base de datos: station_registry
--- Descripción: Crea el primer super-administrador del sistema.
+-- Bootstrap interactivo del primer superadministrador.
+-- Ejecutar con psql únicamente cuando admin_users esté vacía.
 --
--- INSTRUCCIONES:
---   1. Generar un hash BCrypt del password deseado con Python:
---
---      python3 -c "
---      import bcrypt, getpass
---      pwd = getpass.getpass('Password: ').encode()
---      print(bcrypt.hashpw(pwd, bcrypt.gensalt(rounds=12)).decode())
---      "
---      (requiere: pip install bcrypt)
---
---   2. Reemplazar los valores entre < > con los valores reales.
---
---   3. Ejecutar UNA SOLA VEZ:
---      psql -U auth_user -d station_registry -f init_super_admin.sql
---
---   4. Verificar:
---      psql -U auth_user -d station_registry \
---        -c "SELECT id, username, is_super, is_active, created_at FROM admin_users;"
---
--- IMPORTANTE:
---   - Este script falla silenciosamente si ya existe un admin con ese username
---     gracias al ON CONFLICT DO NOTHING.
---   - Nunca hay un endpoint público para crear super-admins.
---   - El password en texto plano nunca se almacena ni se loguea.
+-- No ejecutar directamente: sql/manage_super_admin.sh define las variables
+-- psql después de solicitar el password de forma interactiva.
 -- =============================================================================
 
-INSERT INTO admin_users (username, password_hash, is_super, is_active)
-VALUES (
-    'GIIRAdmin',       -- Ej: 'admin'
-    '$2b$12$h7ye09RZ/obqDvBcvi6WBO7G4vHS.7PK/kW7JO5cFJAJEuuIoApyK',    -- Hash generado con el comando Python de arriba
-    TRUE,               -- is_super = TRUE solo para este primer admin
-    TRUE
+\set ON_ERROR_STOP on
+
+BEGIN;
+
+INSERT INTO admin_users (
+    username,
+    password_hash,
+    is_super,
+    is_active,
+    credentials_version
 )
-ON CONFLICT (username) DO NOTHING;
+SELECT
+    :'bootstrap_username',
+    :'bootstrap_password_hash',
+    TRUE,
+    TRUE,
+    1
+WHERE :'bootstrap_username' ~ '^[A-Za-z0-9_-]{3,50}$'
+  AND :'bootstrap_password_hash' ~ '^\$2[aby]\$12\$[./A-Za-z0-9]{53}$'
+  AND NOT EXISTS (SELECT 1 FROM admin_users);
+
+\if :ROW_COUNT
+    COMMIT;
+    \echo 'Superadministrador creado. Elimina el hash del portapapeles.'
+\else
+    ROLLBACK;
+    \echo 'ERROR: datos inválidos o admin_users ya contiene usuarios.'
+    \quit 3
+\endif

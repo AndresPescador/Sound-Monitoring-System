@@ -1,13 +1,14 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 import { changeAdminPassword } from '../../api/admin'
 
 export default function AdminProfile() {
-  const { user } = useAdminAuth()
+  const { user, logout } = useAdminAuth()
+  const navigate = useNavigate()
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const handleChange = (event) => {
@@ -17,7 +18,6 @@ export default function AdminProfile() {
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError('')
-    setSuccess(false)
 
     if (form.newPassword !== form.confirmPassword) {
       setError('La nueva contraseña y su confirmación no coinciden.')
@@ -31,8 +31,11 @@ export default function AdminProfile() {
     setSaving(true)
     try {
       await changeAdminPassword(form.currentPassword, form.newPassword)
-      setSuccess(true)
-      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      logout()
+      navigate('/admin/login', {
+        replace: true,
+        state: { passwordChanged: true },
+      })
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo actualizar la contraseña.')
     } finally {
@@ -124,12 +127,6 @@ export default function AdminProfile() {
               </div>
 
               {error && <div className="admin-alert" role="alert">{error}</div>}
-              {success && (
-                <div className="admin-alert admin-alert--success" role="status">
-                  La contraseña se actualizó correctamente.
-                </div>
-              )}
-
               <div className="admin-form__actions">
                 <button type="submit" disabled={saving} className="admin-button admin-button--primary">
                   {saving ? 'Actualizando…' : 'Actualizar contraseña'}

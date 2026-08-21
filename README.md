@@ -172,8 +172,8 @@ Schema: [schema_noise_analytics.sql](schema_noise_analytics.sql)
 
 | Componente | Tecnologia principal |
 |---|---|
-| auth-service | Java 21, Spring Boot 3, Spring Security, PostgreSQL, JWT |
-| noise-processing-backend | Java 21, Spring Boot 3, Spring Data JPA, PostgreSQL |
+| auth-service | Java 17, Spring Boot 3, Spring Security, PostgreSQL, JWT |
+| noise-processing-backend | Java 17, Spring Boot 3, Spring Data JPA, PostgreSQL |
 | ingestion-api | Python 3.11, FastAPI, Pydantic, httpx |
 | dashboard-api | Python 3.11, FastAPI, SQLAlchemy (async), asyncpg |
 | dashboard-frontend | React 18, Vite 5, Tailwind CSS 3, Recharts, Leaflet |
@@ -212,9 +212,9 @@ Editar `.env` y completar al menos:
 |---|---|
 | `POSTGRES_NOISE_PASSWORD` | Contrasena de la BD de metricas |
 | `POSTGRES_AUTH_PASSWORD` | Contrasena de la BD de autenticacion |
-| `JWT_SECRET` | Clave JWT (minimo 32 caracteres, generar con `openssl rand -base64 32`) |
-| `ADMIN_API_KEY` | Clave para los endpoints `/admin/*` |
-| `SERVER_IP` | IP del servidor en la red local |
+| `STATION_JWT_SECRET` | Clave exclusiva para tokens de estaciones |
+| `ADMIN_JWT_SECRET` | Clave independiente para sesiones administrativas |
+| `CORS_ALLOWED_ORIGIN` | Origen HTTPS exacto del frontend |
 
 ### 3. Levantar todos los servicios
 
@@ -233,39 +233,17 @@ curl http://localhost/ingest/health
 curl http://localhost/processing/health
 ```
 
-### 5. Registrar una estacion nueva
+### 5. Crear el acceso administrativo y registrar una estacion
 
-Paso 1 — Registrar en el Auth Service (obtener el secret):
+En una instalación nueva, crea el superadministrador mediante
+`sql/manage_super_admin.sh bootstrap`. Después inicia sesión en
+`/admin/login` y registra la estación primero en Auth y después en Processing.
+El secret de estación se muestra una sola vez y debe configurarse en la
+Raspberry Pi.
 
-```bash
-curl -X POST http://localhost/admin/auth/stations \
-  -H "X-Admin-Key: <ADMIN_API_KEY>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "stationCode": "ST-CHAPINERO-01",
-    "name": "Estacion Chapinero",
-    "locality": "Chapinero"
-  }'
-```
-
-Guardar el campo `secret` de la respuesta. No se puede recuperar despues.
-
-Paso 2 — Registrar en el Noise Processing Backend (datos geograficos):
-
-```bash
-curl -X POST http://localhost/admin/processing/stations \
-  -H "X-Admin-Key: <ADMIN_API_KEY>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "stationCode": "ST-CHAPINERO-01",
-    "name": "Estacion Chapinero",
-    "locality": "Chapinero",
-    "latitude": 4.6486,
-    "longitude": -74.1057
-  }'
-```
-
-Paso 3 — Configurar la Raspberry Pi con el secret del Paso 1 en el `.env` de `send_metrics`.
+Para una instalación que utilizó credenciales anteriores, aplica
+[docker/SECURITY_ROTATION.md](docker/SECURITY_ROTATION.md) antes de exponer el
+panel a Internet.
 
 ---
 

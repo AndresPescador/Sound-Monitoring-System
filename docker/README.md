@@ -15,6 +15,7 @@ proyecto/
 │   ├── .env.example
 │   ├── .env                         ← crear desde .env.example
 │   ├── VPS_DEPLOYMENT.md             ← HTTPS con Nginx/Certbot en la VPS
+│   ├── SECURITY_ROTATION.md           ← rotación de admin y JWT
 │   └── nginx/
 │       ├── nginx.conf                ← gateway Docker interno
 │       ├── vps-bootstrap.conf.example
@@ -49,11 +50,12 @@ cd docker
 cp .env.example .env
 ```
 
-Editar `.env` y reemplazar todos los valores `change_this_*`:
+Editar `.env` y reemplazar todos los marcadores:
 
 ```bash
-# Generar JWT_SECRET seguro
-openssl rand -base64 32
+# Ejecutar dos veces y usar un resultado diferente para cada clave
+openssl rand -base64 48
+openssl rand -base64 48
 ```
 
 El `.env` mínimo que debes completar:
@@ -62,8 +64,12 @@ El `.env` mínimo que debes completar:
 |---|---|
 | `POSTGRES_NOISE_PASSWORD` | Contraseña de la BD de métricas |
 | `POSTGRES_AUTH_PASSWORD` | Contraseña de la BD de autenticación |
-| `JWT_SECRET` | Clave para firmar tokens JWT (mínimo 32 chars) |
-| `ADMIN_API_KEY` | Clave para endpoints `/admin/*` |
+| `STATION_JWT_SECRET` | Clave exclusiva para JWT de estaciones |
+| `ADMIN_JWT_SECRET` | Clave distinta para JWT administrativos |
+| `CORS_ALLOWED_ORIGIN` | Origen HTTPS exacto del frontend |
+
+Las dos claves JWT deben contener al menos 32 bytes y ser diferentes. Auth
+Service se niega a iniciar si falta alguna o si son iguales.
 
 ### 3. Construir e iniciar todos los servicios
 
@@ -98,6 +104,16 @@ ingestion-api      running
 nginx              running
 ```
 
+En una instalación nueva, crea el primer superadministrador con:
+
+```bash
+sudo apt install -y apache2-utils
+bash ../sql/manage_super_admin.sh bootstrap
+```
+
+Para actualizar una instalación que utilizó la credencial o la clave JWT
+anterior, sigue [SECURITY_ROTATION.md](SECURITY_ROTATION.md).
+
 ### 5. Verificar health checks
 
 ```bash
@@ -125,8 +141,8 @@ Cada estación nueva requiere dos llamadas al administrador, en este orden:
 ### Paso 1 — Registrar en Auth Service
 
 ```bash
-curl -X POST http://localhost/admin/auth/stations \
-  -H "X-Admin-Key: tu_admin_api_key" \
+curl -X POST https://soundmonitoring.systems/auth/admin/stations \
+  -H "Authorization: Bearer <JWT_ADMIN>" \
   -H "Content-Type: application/json" \
   -d '{
     "stationCode": "ST-CHAPINERO-01",
@@ -148,8 +164,8 @@ Respuesta — **guarda el `secret`, no se puede recuperar después**:
 ### Paso 2 — Registrar en Noise Processing
 
 ```bash
-curl -X POST http://localhost/admin/processing/stations \
-  -H "X-Admin-Key: tu_admin_api_key" \
+curl -X POST https://soundmonitoring.systems/processing/admin/stations \
+  -H "Authorization: Bearer <JWT_ADMIN>" \
   -H "Content-Type: application/json" \
   -d '{
     "stationCode": "ST-CHAPINERO-01",
@@ -258,7 +274,7 @@ dashboard-api      ── noise_data ──► postgres-noise
 | Síntoma | Causa probable | Solución |
 |---|---|---|
 | `auth-service` no arranca | `postgres-auth` aún no está `healthy` | Esperar 30s y revisar `docker compose logs postgres-auth` |
-| Error `JWT_SECRET` muy corta | Secret menor de 32 caracteres | Generar con `openssl rand -base64 32` |
+| Error de claves JWT | Falta una clave, tiene menos de 32 bytes o ambas son iguales | Generar dos valores independientes con `openssl rand -base64 48` |
 | `noise-processing` devuelve 404 al ingestar | Estación no registrada en noise_analytics | Ejecutar Paso 2 del registro de estación |
 | `127.0.0.1:8080` ocupado | Otro proceso usa el puerto local | Cambiar `NGINX_PORT` y el `proxy_pass` del sitio VPS al mismo valor |
 | Schemas no se aplican | Los `.sql` no están en la ruta esperada | Verificar que `schema_*.sql` están en la raíz del proyecto |

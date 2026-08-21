@@ -1,19 +1,29 @@
 {
   "info": {
     "name": "Monitoreo Acústico Binaural",
-    "description": "Colección de pruebas para el Sistema de Monitoreo Acústico Binaural — Bogotá D.C.\n\nFlujo de prueba:\n1. Registrar estación en Auth Service\n2. Registrar estación en Noise Processing\n3. Obtener token JWT\n4. Enviar métricas (simula la Raspberry Pi)\n5. Verificar duplicado\n6. Health checks",
+    "description": "Colección de pruebas para el Sistema de Monitoreo Acústico Binaural — Bogotá D.C.\n\nFlujo de prueba:\n1. Iniciar sesión como administrador\n2. Registrar estación en Auth Service\n3. Registrar estación en Noise Processing\n4. Obtener token JWT de estación\n5. Enviar métricas\n6. Verificar duplicado\n7. Health checks\n\nNo exportes la colección después de introducir passwords, secrets o tokens.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost",
-      "description": "URL base del sistema (Nginx). Cambiar puerto si NGINX_PORT != 80, ej: http://localhost:8080"
+      "value": "http://127.0.0.1:8080",
+      "description": "Gateway local. En producción usar https://soundmonitoring.systems"
     },
     {
-      "key": "admin_api_key",
-      "value": "mi_clave_admin_para_pruebas",
-      "description": "Valor de ADMIN_API_KEY en tu .env"
+      "key": "admin_username",
+      "value": "",
+      "description": "Username administrativo; usar solo como valor local de Postman"
+    },
+    {
+      "key": "admin_password",
+      "value": "",
+      "description": "Password administrativo; no exportar ni sincronizar"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "description": "Se llena automáticamente al ejecutar 'Iniciar sesión admin'"
     },
     {
       "key": "station_code",
@@ -109,12 +119,40 @@
       "name": "Flujo completo",
       "item": [
         {
-          "name": "1. Registrar estación — Auth Service",
+          "name": "1. Iniciar sesión admin",
           "request": {
             "method": "POST",
-            "url": "{{base_url}}/admin/auth/stations",
+            "url": "{{base_url}}/auth/admin/login",
             "header": [
-              { "key": "X-Admin-Key", "value": "{{admin_api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "description": "Autentica al administrador. No guardes ni exportes el password en la colección."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Login correcto (200)', () => pm.response.to.have.status(200));",
+                "if (pm.response.code === 200) {",
+                "    const json = pm.response.json();",
+                "    pm.collectionVariables.set('admin_token', json.accessToken);",
+                "    pm.test('JWT admin recibido', () => pm.expect(json.accessToken).to.be.a('string').and.not.empty);",
+                "}"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "2. Registrar estación — Auth Service",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/admin/stations",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
@@ -132,7 +170,6 @@
                 "if (pm.response.code === 201) {",
                 "    const json = pm.response.json();",
                 "    pm.collectionVariables.set('secret', json.secret);",
-                "    console.log('Secret guardado:', json.secret);",
                 "    pm.test('Secret recibido', () => pm.expect(json.secret).to.be.a('string').and.not.empty);",
                 "}"
               ]
@@ -140,19 +177,19 @@
           }]
         },
         {
-          "name": "2. Registrar estación — Noise Processing",
+          "name": "3. Registrar estación — Noise Processing",
           "request": {
             "method": "POST",
-            "url": "{{base_url}}/admin/processing/stations",
+            "url": "{{base_url}}/processing/admin/stations",
             "header": [
-              { "key": "X-Admin-Key", "value": "{{admin_api_key}}" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"name\": \"Estación de prueba\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
             },
-            "description": "Registra la estación en noise_analytics.\nDebe ejecutarse DESPUÉS del paso 1."
+            "description": "Registra la estación en noise_analytics.\nDebe ejecutarse DESPUÉS del paso 2."
           },
           "event": [{
             "listen": "test",
@@ -168,7 +205,7 @@
           }]
         },
         {
-          "name": "3. Obtener token JWT",
+          "name": "4. Obtener token JWT de estación",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/auth/token",
@@ -190,7 +227,6 @@
                 "if (pm.response.code === 200) {",
                 "    const json = pm.response.json();",
                 "    pm.collectionVariables.set('token', json.token);",
-                "    console.log('Token guardado:', json.token.substring(0, 30) + '...');",
                 "    pm.test('Token recibido', () => pm.expect(json.token).to.be.a('string').and.not.empty);",
                 "}"
               ]
@@ -198,7 +234,7 @@
           }]
         },
         {
-          "name": "4. Enviar métricas (simula Raspberry Pi)",
+          "name": "5. Enviar métricas (simula Raspberry Pi)",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/ingest/ingest",
@@ -210,7 +246,7 @@
               "mode": "raw",
               "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T16:36:00+00:00\",\n  \"filename\": \"Rec 2025-06-16 16h36m00s 1.wav\",\n  \"duration\": 120.0,\n  \"sampleRate\": 48000,\n  \"isStereo\": true,\n  \"dbfsLevel\": -18.42,\n  \"rmsEnergy\": 0.1198,\n  \"leqDbfs\": -21.07,\n  \"chLeftDbfs\": -18.91,\n  \"chRightDbfs\": -19.34,\n  \"chLeftRms\": 0.1134,\n  \"chRightRms\": 0.1079,\n  \"ildDb\": 0.43,\n  \"interauralCorrelation\": 0.8712,\n  \"dominantFrequency\": 125.0,\n  \"spectralCentroid\": 1842.5,\n  \"spectralRolloff\": 4210.3,\n  \"zeroCrossingRate\": 0.0421\n}"
             },
-            "description": "Simula el envío de métricas desde una estación Raspberry Pi.\nUsa el token guardado en el paso 3.\nEspera HTTP 201 con result: inserted."
+            "description": "Simula el envío de métricas desde una estación Raspberry Pi.\nUsa el token guardado en el paso 4.\nEspera HTTP 201 con result: inserted."
           },
           "event": [{
             "listen": "test",
@@ -227,7 +263,7 @@
           }]
         },
         {
-          "name": "5. Reenviar mismas métricas (prueba de duplicado)",
+          "name": "6. Reenviar mismas métricas (prueba de duplicado)",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/ingest/ingest",
@@ -239,7 +275,7 @@
               "mode": "raw",
               "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"timestamp\": \"2025-06-16T16:36:00+00:00\",\n  \"filename\": \"Rec 2025-06-16 16h36m00s 1.wav\",\n  \"duration\": 120.0,\n  \"sampleRate\": 48000,\n  \"isStereo\": true,\n  \"dbfsLevel\": -18.42,\n  \"rmsEnergy\": 0.1198,\n  \"leqDbfs\": -21.07,\n  \"chLeftDbfs\": -18.91,\n  \"chRightDbfs\": -19.34,\n  \"chLeftRms\": 0.1134,\n  \"chRightRms\": 0.1079,\n  \"ildDb\": 0.43,\n  \"interauralCorrelation\": 0.8712,\n  \"dominantFrequency\": 125.0,\n  \"spectralCentroid\": 1842.5,\n  \"spectralRolloff\": 4210.3,\n  \"zeroCrossingRate\": 0.0421\n}"
             },
-            "description": "Envía exactamente las mismas métricas del paso 4.\nDebe devolver HTTP 200 con result: duplicate (no 201 ni error)."
+            "description": "Envía exactamente las mismas métricas del paso 5.\nDebe devolver HTTP 200 con result: duplicate (no 201 ni error)."
           },
           "event": [{
             "listen": "test",
@@ -255,7 +291,7 @@
           }]
         },
         {
-          "name": "6. Enviar segundo fragmento (misma hora)",
+          "name": "7. Enviar segundo fragmento (misma hora)",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/ingest/ingest",
@@ -358,10 +394,10 @@
           }]
         },
         {
-          "name": "Admin sin X-Admin-Key",
+          "name": "Admin sin JWT",
           "request": {
             "method": "POST",
-            "url": "{{base_url}}/admin/auth/stations",
+            "url": "{{base_url}}/auth/admin/stations",
             "header": [
               { "key": "Content-Type", "value": "application/json" }
             ],
@@ -369,13 +405,13 @@
               "mode": "raw",
               "raw": "{\n  \"stationCode\": \"ST-FAKE-99\",\n  \"name\": \"Intento sin clave\",\n  \"locality\": \"Test\"\n}"
             },
-            "description": "Intenta registrar una estación sin el header X-Admin-Key.\nDebe devolver HTTP 403."
+            "description": "Intenta registrar una estación sin Authorization Bearer.\nDebe devolver HTTP 401."
           },
           "event": [{
             "listen": "test",
             "script": {
               "exec": [
-                "pm.test('Admin sin clave rechazado (403)', () => pm.response.to.have.status(403));"
+                "pm.test('Admin sin JWT rechazado (401)', () => pm.response.to.have.status(401));"
               ]
             }
           }]
