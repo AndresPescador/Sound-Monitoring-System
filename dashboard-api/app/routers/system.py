@@ -18,48 +18,56 @@ async def system_stats(db: AsyncSession = Depends(get_db)):
     - Última medición recibida
     - Resumen por estación (para tabla de estado)
     """
-    sql = text("""
-        SELECT
-            COUNT(*) FILTER (WHERE is_active = true)  AS active_stations,
-            COUNT(*)                                    AS total_stations
-        FROM stations
-    """)
-    counts = (await db.execute(sql)).mappings().fetchone()
-
-    total_m = (await db.execute(
-        text("SELECT COUNT(*) AS total FROM acoustic_measurements")
-    )).scalar()
-
-    total_h = (await db.execute(
-        text("SELECT COUNT(*) AS total FROM hourly_aggregations")
-    )).scalar()
-
-    last_received = (await db.execute(
-        text("SELECT MAX(received_at) FROM acoustic_measurements")
-    )).scalar()
-
-    # Resumen por estación: código, última vez visto, total mediciones
-    summary_sql = text("""
+    # hourly_aggregations se recalcula tras cada ingesta. Usarla evita varios
+    # escaneos completos de acoustic_measurements en esta ruta pública.
+    result = await db.execute(text("""
+        WITH station_rollup AS (
+            SELECT
+                station_id,
+                SUM(measurement_count)::bigint AS measurement_count,
+                MAX(leq_hour) AS max_leq,
+                SUM(leq_hour * measurement_count)
+                    / NULLIF(SUM(measurement_count), 0) AS avg_leq
+            FROM hourly_aggregations
+            GROUP BY station_id
+        ), totals AS (
+            SELECT
+                COUNT(*) AS total_hourly_aggregations,
+                COALESCE(SUM(measurement_count), 0)::bigint AS total_measurements
+            FROM hourly_aggregations
+        )
         SELECT
             s.station_code,
             s.locality,
             s.is_active,
             s.last_seen_at,
-            COUNT(m.id) AS measurement_count,
-            MAX(m.leq_dbfs) AS max_leq,
-            AVG(m.leq_dbfs) AS avg_leq
+            COALESCE(sr.measurement_count, 0) AS measurement_count,
+            sr.max_leq,
+            sr.avg_leq,
+            COUNT(*) OVER () AS total_stations,
+            COUNT(*) FILTER (WHERE s.is_active) OVER () AS active_stations,
+            totals.total_measurements,
+            totals.total_hourly_aggregations,
+            MAX(s.last_seen_at) OVER () AS last_measurement_received_at
         FROM stations s
-        LEFT JOIN acoustic_measurements m ON m.station_id = s.id
-        GROUP BY s.station_code, s.locality, s.is_active, s.last_seen_at
+        LEFT JOIN station_rollup sr ON sr.station_id = s.id
+        CROSS JOIN totals
         ORDER BY s.station_code
-    """)
-    summary_rows = (await db.execute(summary_sql)).mappings().all()
+    """))
+    summary_rows = [dict(row) for row in result.mappings().all()]
+    first = summary_rows[0] if summary_rows else {}
 
     return SystemStats(
-        active_stations=counts["active_stations"],
-        total_stations=counts["total_stations"],
-        total_measurements=total_m or 0,
-        total_hourly_aggregations=total_h or 0,
-        last_measurement_received_at=last_received,
-        stations_summary=[dict(row) for row in summary_rows]
+        active_stations=first.get("active_stations", 0),
+        total_stations=first.get("total_stations", 0),
+        total_measurements=first.get("total_measurements", 0),
+        total_hourly_aggregations=first.get("total_hourly_aggregations", 0),
+        last_measurement_received_at=first.get("last_measurement_received_at"),
+        stations_summary=[{
+            key: row[key]
+            for key in (
+                "station_code", "locality", "is_active", "last_seen_at",
+                "measurement_count", "max_leq", "avg_leq",
+            )
+        } for row in summary_rows],
     )

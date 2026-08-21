@@ -7,6 +7,7 @@ const PRESETS = [
   { label: '7d',   hours: 168 },
   { label: '30d',  hours: 720 },
 ]
+const MAX_PUBLIC_RANGE_MS = 31 * 24 * 60 * 60 * 1000
 
 /**
  * DateRangePicker
@@ -59,6 +60,10 @@ export default function DateRangePicker({
     }
     if (from > to) {
       setError('El inicio no puede ser posterior al final.')
+      return
+    }
+    if (to.getTime() - from.getTime() > MAX_PUBLIC_RANGE_MS) {
+      setError('El rango máximo de consulta pública es de 31 días.')
       return
     }
     setError('')

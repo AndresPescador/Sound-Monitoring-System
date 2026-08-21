@@ -1,8 +1,9 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.database import get_db
+from app.routers.series_utils import get_station_id
 from app.schemas.station import StationOut, StationSummary
 
 router = APIRouter(prefix="/stations", tags=["stations"])
@@ -73,12 +74,7 @@ async def station_summary(station_code: str, db: AsyncSession = Depends(get_db))
     Alimenta la tarjeta de detalle de una estación en el dashboard.
     """
     # Verificar que existe
-    check = await db.execute(
-        text("SELECT id FROM stations WHERE station_code = :code"),
-        {"code": station_code}
-    )
-    if not check.fetchone():
-        raise HTTPException(status_code=404, detail=f"Estación no encontrada: {station_code}")
+    await get_station_id(db, station_code)
 
     sql = text("""
         WITH station AS (
@@ -101,8 +97,8 @@ async def station_summary(station_code: str, db: AsyncSession = Depends(get_db))
             LIMIT 1
         ),
         total AS (
-            SELECT COUNT(*) AS total_measurements
-            FROM acoustic_measurements
+            SELECT COALESCE(SUM(measurement_count), 0) AS total_measurements
+            FROM hourly_aggregations
             WHERE station_id = (SELECT id FROM station)
         )
         SELECT

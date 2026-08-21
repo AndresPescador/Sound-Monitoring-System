@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from sqlalchemy import URL
 
@@ -9,6 +10,12 @@ class Settings(BaseSettings):
     db_name: str | None = None
     db_username: str | None = None
     db_password: str | None = None
+    db_pool_size: int = Field(default=5, ge=1, le=20)
+    db_max_overflow: int = Field(default=5, ge=0, le=20)
+    db_pool_timeout_seconds: int = Field(default=3, ge=1, le=30)
+    db_statement_timeout_ms: int = Field(default=5000, ge=1000, le=30000)
+    cors_allowed_origin: str = "http://localhost:3000"
+    public_cache_seconds: int = Field(default=30, ge=0, le=300)
     port: int = 8083
 
     def database_url(self) -> str | URL:

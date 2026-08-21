@@ -95,7 +95,29 @@ cp .env.example .env
 | `DB_USERNAME` | Rol fijo de solo lectura `dashboard_reader` |
 | `DB_PASSWORD` | Contraseña exclusiva del lector |
 | `DB_URL` | Alternativa para desarrollo; reemplaza las variables anteriores |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | Conexiones persistentes y adicionales máximas (5 + 5) |
+| `DB_POOL_TIMEOUT_SECONDS` | Espera máxima por una conexión libre (default: 3s) |
+| `DB_STATEMENT_TIMEOUT_MS` | Tiempo máximo de una consulta PostgreSQL (default: 5000ms) |
+| `CORS_ALLOWED_ORIGIN` | Origen web exacto autorizado |
+| `PUBLIC_CACHE_SECONDS` | Caché del navegador para respuestas públicas (default: 30s) |
 | `PORT` | Puerto del servicio (default: 8083) |
+
+## Límites de consultas públicas
+
+- Intervalo máximo: 31 días; el final no puede estar más de 5 minutos en el futuro.
+- Comparaciones: máximo 25 estaciones; las mediciones adaptativas entregan
+  como máximo 12.000 puntos totales y las series horarias quedan acotadas por
+  las 25 estaciones y los 31 días.
+- Detalle crudo comparativo: máximo 10.000 puntos repartidos entre las estaciones.
+- Paginación cruda por estación: máximo 1.000 registros por solicitud.
+- Códigos de estación: máximo 50 caracteres y solo letras, números, `_` o `-`.
+- PostgreSQL cancela consultas que superan el timeout y el pool admite como
+  máximo `DB_POOL_SIZE + DB_MAX_OVERFLOW` conexiones por proceso.
+- Errores de timeout o pool responden `503` con `Retry-After`, sin exponer el
+  mensaje interno del controlador PostgreSQL.
+
+Las métricas interpoladas en SQL proceden exclusivamente de listas permitidas;
+los códigos, fechas y demás valores se envían como parámetros enlazados.
 
 ---
 
@@ -138,6 +160,8 @@ dashboard-api:
     DB_NAME: ${POSTGRES_NOISE_DB}
     DB_USERNAME: dashboard_reader
     DB_PASSWORD: ${DASHBOARD_DB_PASSWORD}
+    DB_STATEMENT_TIMEOUT_MS: 5000
+    CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN}
     PORT: 8083
   depends_on:
     postgres-noise:

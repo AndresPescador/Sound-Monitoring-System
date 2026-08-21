@@ -1,10 +1,11 @@
-from datetime import datetime, timezone, timedelta, date
+from datetime import date, datetime, time, timezone, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.database import get_db
+from app.routers.series_utils import get_station_id, resolve_range
 from app.schemas.aggregation import HourlyResponse, HourlyPoint, DailyProfileResponse, DailyProfilePoint
 
 router = APIRouter(prefix="/stations", tags=["aggregations"])
@@ -27,19 +28,8 @@ async def get_hourly(
 
     Recharts: usar AreaChart con tres Area apiladas (L10, L50, L90).
     """
-    now = datetime.now(timezone.utc)
-    if to is None:
-        to = now
-    if from_ is None:
-        from_ = now - timedelta(hours=24)
-
-    check = await db.execute(
-        text("SELECT id FROM stations WHERE station_code = :code"),
-        {"code": station_code}
-    )
-    station = check.fetchone()
-    if not station:
-        raise HTTPException(status_code=404, detail=f"Estación no encontrada: {station_code}")
+    from_, to = resolve_range(from_, to)
+    station_id = await get_station_id(db, station_code)
 
     sql = text("""
         SELECT
@@ -63,9 +53,10 @@ async def get_hourly(
           AND hour_start >= :from_
           AND hour_start <= :to
         ORDER BY hour_start ASC
+        LIMIT 750
     """)
     result = await db.execute(sql, {
-        "station_id": station[0],
+        "station_id": station_id,
         "from_": from_,
         "to": to
     })
@@ -98,14 +89,12 @@ async def get_daily_profile(
     """
     if date_ is None:
         date_ = datetime.now(BOGOTA).date()
+    if date_ > datetime.now(BOGOTA).date():
+        raise HTTPException(status_code=422, detail="La fecha no puede estar en el futuro.")
 
-    check = await db.execute(
-        text("SELECT id FROM stations WHERE station_code = :code"),
-        {"code": station_code}
-    )
-    station = check.fetchone()
-    if not station:
-        raise HTTPException(status_code=404, detail=f"Estación no encontrada: {station_code}")
+    station_id = await get_station_id(db, station_code)
+    day_start = datetime.combine(date_, time.min, tzinfo=BOGOTA).astimezone(timezone.utc)
+    day_end = day_start + timedelta(days=1)
 
     sql = text("""
         SELECT
@@ -118,12 +107,14 @@ async def get_daily_profile(
             measurement_count
         FROM hourly_aggregations
         WHERE station_id = :station_id
-          AND DATE(hour_start AT TIME ZONE 'America/Bogota') = :date_
+          AND hour_start >= :day_start
+          AND hour_start < :day_end
         ORDER BY hour_start ASC
     """)
     result = await db.execute(sql, {
-        "station_id": station[0],
-        "date_": date_
+        "station_id": station_id,
+        "day_start": day_start,
+        "day_end": day_end,
     })
     rows = result.mappings().all()
 

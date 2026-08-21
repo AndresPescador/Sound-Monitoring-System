@@ -2,6 +2,10 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.config import settings
 
 from app.routers import stations, measurements, aggregations, compare, binaural, spectral, system
 
@@ -9,6 +13,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s — %(name)s — %(levelname)s — %(message)s",
 )
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Dashboard Backend API",
@@ -20,14 +25,37 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS: permite que el frontend React (en cualquier puerto durante desarrollo)
-# pueda llamar a esta API. En producción reemplazar "*" con la URL del frontend.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[settings.cors_allowed_origin],
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(SQLAlchemyError)
+async def database_error_handler(_request, exc):
+    logger.warning("Consulta pública PostgreSQL rechazada: %s", type(exc).__name__)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Consulta temporalmente no disponible."},
+        headers={"Retry-After": "2", "Cache-Control": "no-store"},
+    )
+
+
+@app.middleware("http")
+async def public_cache_headers(request, call_next):
+    response = await call_next(request)
+    if (
+        request.method == "GET"
+        and request.url.path != "/health"
+        and response.status_code == 200
+    ):
+        response.headers["Cache-Control"] = (
+            f"public, max-age={settings.public_cache_seconds}, "
+            f"stale-while-revalidate={settings.public_cache_seconds}"
+        )
+    return response
 
 app.include_router(stations.router)
 app.include_router(measurements.router)

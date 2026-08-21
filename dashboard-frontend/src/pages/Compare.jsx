@@ -714,7 +714,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
                     className="dashboard-load-more-button"
                     onClick={() => setExactPointLimit(EXACT_MAX_LIMIT)}
                   >
-                    Cargar hasta {EXACT_MAX_LIMIT.toLocaleString('es-CO')} puntos exactos por estación
+                    Cargar hasta {EXACT_MAX_LIMIT.toLocaleString('es-CO')} puntos exactos en total
                   </button>
                 )}
                 {hasMoreExactPoints

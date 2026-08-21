@@ -32,4 +32,7 @@ SELECT format(
 ALTER ROLE noise_writer SET search_path = pg_catalog, public;
 ALTER ROLE dashboard_reader SET search_path = pg_catalog, public;
 ALTER ROLE dashboard_reader SET default_transaction_read_only = on;
+ALTER ROLE dashboard_reader SET statement_timeout = '5s';
+ALTER ROLE dashboard_reader SET lock_timeout = '1s';
+ALTER ROLE dashboard_reader SET idle_in_transaction_session_timeout = '5s';
 SQL

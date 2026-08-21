@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from math import ceil
+import re
 
 from fastapi import HTTPException
 from sqlalchemy import text
@@ -9,29 +10,115 @@ from sqlalchemy.ext.asyncio import AsyncSession
 DEFAULT_CHART_POINTS = 1500
 MAX_CHART_POINTS = 3000
 MIN_BUCKET_SECONDS = 60
+MAX_PUBLIC_RANGE = timedelta(days=31)
+MAX_FUTURE_SKEW = timedelta(minutes=5)
+MAX_COMPARE_STATIONS = 25
+MAX_COMPARE_TOTAL_POINTS = 12000
+MAX_STATION_FILTER_LENGTH = MAX_COMPARE_STATIONS * 51
+STATION_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$")
+
+
+def normalize_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def resolve_range(from_: datetime | None, to: datetime | None) -> tuple[datetime, datetime]:
-    """Normaliza un intervalo inclusivo ``[from, to]`` y evita rangos invertidos."""
+    """Normaliza y limita un intervalo público inclusivo ``[from, to]``."""
     now = datetime.now(timezone.utc)
-    resolved_to = to or now
-    resolved_from = from_ or (resolved_to - timedelta(hours=24))
-
-    if resolved_to.tzinfo is None:
-        resolved_to = resolved_to.replace(tzinfo=timezone.utc)
-    if resolved_from.tzinfo is None:
-        resolved_from = resolved_from.replace(tzinfo=timezone.utc)
+    resolved_to = normalize_datetime(to) if to else now
+    resolved_from = (
+        normalize_datetime(from_)
+        if from_
+        else resolved_to - timedelta(hours=24)
+    )
 
     if resolved_from > resolved_to:
         raise HTTPException(
             status_code=422,
             detail="El inicio del rango no puede ser posterior al final.",
         )
+    if resolved_to > now + MAX_FUTURE_SKEW:
+        raise HTTPException(
+            status_code=422,
+            detail="El final del rango no puede estar en el futuro.",
+        )
+    if resolved_to - resolved_from > MAX_PUBLIC_RANGE:
+        raise HTTPException(
+            status_code=422,
+            detail="El rango público máximo es de 31 días.",
+        )
 
     return resolved_from, resolved_to
 
 
+def validate_station_code(station_code: str) -> str:
+    if not STATION_CODE_PATTERN.fullmatch(station_code):
+        raise HTTPException(status_code=422, detail="Código de estación no válido.")
+    return station_code
+
+
+def parse_station_codes(stations: str | None) -> list[str] | None:
+    if stations is None:
+        return None
+    if len(stations) > MAX_STATION_FILTER_LENGTH:
+        raise HTTPException(status_code=422, detail="Filtro de estaciones demasiado largo.")
+
+    codes = list(dict.fromkeys(code.strip() for code in stations.split(",") if code.strip()))
+    if not codes:
+        raise HTTPException(status_code=422, detail="Indica al menos una estación válida.")
+    if len(codes) > MAX_COMPARE_STATIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Se permiten como máximo {MAX_COMPARE_STATIONS} estaciones por consulta.",
+        )
+    for code in codes:
+        validate_station_code(code)
+    return codes
+
+
+async def get_compare_stations(
+    db: AsyncSession,
+    station_codes: list[str] | None,
+) -> list[dict]:
+    station_filter = ""
+    params: dict = {"limit": MAX_COMPARE_STATIONS + 1}
+    if station_codes is not None:
+        station_filter = "AND station_code = ANY(:codes)"
+        params["codes"] = station_codes
+
+    result = await db.execute(
+        text(f"""
+            SELECT id, station_code, locality
+            FROM stations
+            WHERE is_active = true
+              {station_filter}
+            ORDER BY station_code ASC
+            LIMIT :limit
+        """),
+        params,
+    )
+    rows = [dict(row) for row in result.mappings().all()]
+    if len(rows) > MAX_COMPARE_STATIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Hay más de {MAX_COMPARE_STATIONS} estaciones activas; "
+                "selecciona explícitamente un subconjunto."
+            ),
+        )
+    return rows
+
+
+def compare_points_per_station(requested_points: int, station_count: int) -> int:
+    if station_count <= 0:
+        return requested_points
+    return max(100, min(requested_points, MAX_COMPARE_TOTAL_POINTS // station_count))
+
+
 async def get_station_id(db: AsyncSession, station_code: str):
+    validate_station_code(station_code)
     result = await db.execute(
         text("SELECT id FROM stations WHERE station_code = :code"),
         {"code": station_code},

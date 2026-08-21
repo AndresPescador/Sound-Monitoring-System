@@ -16,6 +16,10 @@ privilegios implícitos de `PUBLIC`. Los privilegios por defecto mantienen estas
 restricciones en objetos futuros creados por el propietario: cada migración que
 añada una tabla, secuencia o función debe conceder explícitamente solo lo que
 necesite su consumidor.
+`dashboard_reader` incorpora además límites de 5s por consulta, 1s de espera de
+bloqueo y 5s para transacciones inactivas.
+Si el rol ya existía antes de incorporar estos límites, vuelve a ejecutar
+`bash ../sql/apply_least_privilege_roles.sh` desde `docker/`.
 
 ## Instalación nueva
 

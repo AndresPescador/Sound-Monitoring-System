@@ -272,6 +272,18 @@ Si `172.28.10.0/24` colisiona con otra red de la VPS, asigna una subred privada
 libre mediante `AUTH_GATEWAY_SUBNET`; Compose usa el mismo valor como red y como
 lista de confianza de Auth para evitar divergencias.
 
+## Protección de consultas públicas
+
+Las rutas `/dashboard/*` admiten 120 solicitudes por minuto e IP, con una ráfaga
+breve de 60, tanto en el borde de la VPS como en el gateway Docker. Dashboard API
+limita rangos a 31 días, comparaciones a 25 estaciones, comparaciones de
+mediciones a 12.000 puntos y respuestas crudas a 10.000 puntos totales.
+
+El pool PostgreSQL queda acotado a 5 conexiones más 5 de desborde por proceso;
+cada consulta se cancela a los 5 segundos. Las respuestas GET correctas usan una
+caché pública corta de 30 segundos y CORS solo autoriza `CORS_ALLOWED_ORIGIN`.
+Los valores se ajustan con las variables `DASHBOARD_*` de `.env.example`.
+
 ---
 
 ## Diagrama de red interna

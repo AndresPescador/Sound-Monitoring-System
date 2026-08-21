@@ -8,8 +8,12 @@ from app.routers.measurements import ALLOWED_METRICS
 from app.routers.series_utils import (
     DEFAULT_CHART_POINTS,
     MAX_CHART_POINTS,
+    MAX_STATION_FILTER_LENGTH,
     _bucket_interval,
     bucket_seconds,
+    compare_points_per_station,
+    get_compare_stations,
+    parse_station_codes,
     resolve_range,
 )
 from app.schemas.aggregation import (
@@ -35,7 +39,7 @@ MAX_RAW_COMPARE_POINTS = 10000
 async def compare_stations(
     metric: str = Query(default="leq_hour",
                         description=f"Métrica a comparar. Opciones: {', '.join(sorted(ALLOWED_COMPARE_METRICS))}"),
-    stations: str = Query(default=None,
+    stations: str = Query(default=None, max_length=MAX_STATION_FILTER_LENGTH,
                           description="Códigos de estaciones separados por coma. Si no se indica, se usan todas."),
     from_: datetime = Query(default=None, alias="from"),
     to: datetime = Query(default=None),
@@ -70,14 +74,14 @@ async def compare_stations(
     # normalizador se usa para los endpoints de mediciones y datos crudos.
     from_, to = resolve_range(from_, to)
 
-    # Filtrar por estaciones específicas o traer todas las activas
-    station_filter = ""
-    params: dict = {"from_": from_, "to": to}
-
-    if stations:
-        codes = [s.strip() for s in stations.split(",") if s.strip()]
-        params["codes"] = codes
-        station_filter = "AND s.station_code = ANY(:codes)"
+    station_rows = await get_compare_stations(db, parse_station_codes(stations))
+    if not station_rows:
+        return CompareResponse(metric=metric, from_=from_, to=to, series=[])
+    params = {
+        "from_": from_,
+        "to": to,
+        "station_ids": [row["id"] for row in station_rows],
+    }
 
     sql = text(f"""
         SELECT
@@ -90,7 +94,7 @@ async def compare_stations(
         WHERE ha.hour_start >= :from_
           AND ha.hour_start <= :to
           AND s.is_active = true
-          {station_filter}
+          AND s.id = ANY(:station_ids)
         ORDER BY s.station_code, ha.hour_start ASC
     """)
 
@@ -128,6 +132,7 @@ async def compare_measurements(
     ),
     stations: str = Query(
         default=None,
+        max_length=MAX_STATION_FILTER_LENGTH,
         description="Códigos de estaciones separados por coma. Si no se indica, se usan todas las activas.",
     ),
     from_: datetime = Query(default=None, alias="from"),
@@ -149,24 +154,7 @@ async def compare_measurements(
         )
 
     from_, to = resolve_range(from_, to)
-    station_filter = ""
-    station_params: dict = {}
-    if stations:
-        codes = [code.strip() for code in stations.split(",") if code.strip()]
-        station_filter = "AND station_code = ANY(:codes)"
-        station_params["codes"] = codes
-
-    station_result = await db.execute(
-        text(f"""
-            SELECT id, station_code, locality
-            FROM stations
-            WHERE is_active = true
-              {station_filter}
-            ORDER BY station_code ASC
-        """),
-        station_params,
-    )
-    station_rows = [dict(row) for row in station_result.mappings().all()]
+    station_rows = await get_compare_stations(db, parse_station_codes(stations))
     station_ids = [row["id"] for row in station_rows]
 
     if not station_rows:
@@ -180,7 +168,8 @@ async def compare_measurements(
             series=[],
         )
 
-    seconds = bucket_seconds(from_, to, max_points)
+    points_per_station = compare_points_per_station(max_points, len(station_rows))
+    seconds = bucket_seconds(from_, to, points_per_station)
     interval = _bucket_interval()
     params = {
         "station_ids": station_ids,
@@ -303,6 +292,7 @@ async def compare_raw_measurements(
     ),
     stations: str = Query(
         default=None,
+        max_length=MAX_STATION_FILTER_LENGTH,
         description="Códigos de estaciones separados por coma. Si no se indica, se usan todas las activas.",
     ),
     from_: datetime = Query(default=None, alias="from"),
@@ -310,7 +300,7 @@ async def compare_raw_measurements(
     raw_limit: int = Query(default=DEFAULT_RAW_COMPARE_POINTS, ge=1, le=MAX_RAW_COMPARE_POINTS),
     db: AsyncSession = Depends(get_db),
 ):
-    """Devuelve puntos exactos para el ScatterChart, separados del grid agregado."""
+    """Devuelve una muestra exacta acotada para toda la comparación."""
     if metric not in ALLOWED_METRICS:
         raise HTTPException(
             status_code=400,
@@ -318,24 +308,7 @@ async def compare_raw_measurements(
         )
 
     from_, to = resolve_range(from_, to)
-    station_filter = ""
-    station_params: dict = {}
-    if stations:
-        codes = [code.strip() for code in stations.split(",") if code.strip()]
-        station_filter = "AND station_code = ANY(:codes)"
-        station_params["codes"] = codes
-
-    station_result = await db.execute(
-        text(f"""
-            SELECT id, station_code, locality
-            FROM stations
-            WHERE is_active = true
-              {station_filter}
-            ORDER BY station_code ASC
-        """),
-        station_params,
-    )
-    station_rows = [dict(row) for row in station_result.mappings().all()]
+    station_rows = await get_compare_stations(db, parse_station_codes(stations))
     station_ids = [row["id"] for row in station_rows]
 
     if not station_rows:
@@ -365,6 +338,7 @@ async def compare_raw_measurements(
         params,
     )
     counts = {row["station_id"]: int(row["total_count"]) for row in count_result.mappings().all()}
+    per_station_limit = max(1, raw_limit // len(station_rows))
 
     raw_result = await db.execute(
         text(f"""
@@ -375,7 +349,7 @@ async def compare_raw_measurements(
                     s.locality,
                     am.recorded_at,
                     am.{metric} AS value,
-                    NTILE(:raw_limit) OVER (
+                    NTILE(:per_station_limit) OVER (
                         PARTITION BY am.station_id
                         ORDER BY am.recorded_at ASC
                     ) AS sample_bucket
@@ -393,7 +367,7 @@ async def compare_raw_measurements(
             FROM bucketed
             ORDER BY station_code ASC, sample_bucket ASC, recorded_at ASC
         """),
-        {**params, "raw_limit": raw_limit},
+        {**params, "per_station_limit": per_station_limit},
     )
 
     series_map = {
@@ -403,8 +377,8 @@ async def compare_raw_measurements(
             "raw_data": [],
             "total_count": counts.get(row["id"], 0),
             "raw_returned_count": 0,
-            "raw_has_more": counts.get(row["id"], 0) > raw_limit,
-            "raw_sampled": counts.get(row["id"], 0) > raw_limit,
+            "raw_has_more": counts.get(row["id"], 0) > per_station_limit,
+            "raw_sampled": counts.get(row["id"], 0) > per_station_limit,
         }
         for row in station_rows
     }

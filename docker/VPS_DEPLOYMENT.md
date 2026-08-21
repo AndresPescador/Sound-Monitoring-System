@@ -77,6 +77,8 @@ habilita TLS 1.2/1.3, HSTS, CSP y los encabezados de seguridad del navegador.
 También sobrescribe `X-Forwarded-For` con la IP real de la conexión y limita en
 el borde la emisión de tokens y el login administrativo. No cambies esa cabecera
 por `$proxy_add_x_forwarded_for`: permitiría reintroducir valores del cliente.
+Las consultas `/dashboard/*` tienen además una cuota propia para impedir que una
+IP monopolice el pool de lectura; el backend aplica cotas de rango y timeout.
 
 ## 5. Verificar emisión y renovación
 

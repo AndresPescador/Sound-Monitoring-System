@@ -13,6 +13,7 @@ from app.routers.series_utils import (
     count_measurements,
     fetch_adaptive_metric,
     get_station_id,
+    normalize_datetime,
     resolve_range,
 )
 from app.schemas.measurement import TimeSeriesResponse
@@ -45,7 +46,7 @@ async def get_measurements_raw(
     station_code: str,
     from_: datetime = Query(default=None, alias="from"),
     to: datetime = Query(default=None),
-    limit: int = Query(default=1000, ge=1, le=5000),
+    limit: int = Query(default=1000, ge=1, le=1000),
     cursor: datetime | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -62,6 +63,12 @@ async def get_measurements_raw(
         "limit": limit + 1,
     }
     if cursor is not None:
+        cursor = normalize_datetime(cursor)
+        if cursor < from_ or cursor >= to:
+            raise HTTPException(
+                status_code=422,
+                detail="El cursor debe estar dentro del rango solicitado.",
+            )
         cursor_filter = "AND recorded_at > :cursor"
         params["cursor"] = cursor
 
