@@ -11,13 +11,14 @@ Captura metricas de ruido ambiental desde estaciones distribuidas (Raspberry Pi 
 ```
 Raspberry Pi (estacion de campo)
     │  process_audio.py  →  archivos .txt con metricas JSON
-    │  send_metrics.py   →  envio HTTP a traves de la red local
+    │  send_metrics.py   →  envio HTTPS al dominio publico
     ▼
-Nginx (puerto 80) — Load Balancer / Reverse Proxy
-    ├── /auth/*           →  Auth Service (Spring Boot, puerto 8081)
-    ├── /ingest/*         →  Ingestion API (FastAPI, puerto 8000)
-    ├── /processing/*     →  Noise Processing Backend (Spring Boot, puerto 8082)
-    └── /dashboard/*      →  Dashboard API (FastAPI, puerto 8083)
+Nginx + Certbot de la VPS (puertos 80/443, TLS y HSTS)
+    └── 127.0.0.1:8080 → Gateway Nginx de Docker
+            ├── /auth/*             → Auth Service (Spring Boot, puerto 8081)
+            ├── /ingest/*           → Ingestion API (FastAPI, puerto 8000)
+            ├── /processing/admin/* → Noise Processing Backend (puerto 8082)
+            └── /dashboard/*        → Dashboard API (FastAPI, puerto 8083)
 
 Dashboard Frontend (React, puerto 3000)
     └── consulta Dashboard API para graficas y mapa
@@ -37,7 +38,7 @@ Servicio de autenticacion de estaciones. Desarrollado con Spring Boot.
 - Registra estaciones y genera un secret aleatorio (hash BCrypt).
 - Emite tokens JWT cuando una estacion presenta su secret.
 - Valida tokens a peticion de la Ingestion API.
-- Expone endpoints de administracion protegidos con `X-Admin-Key`.
+- Expone endpoints de administracion protegidos con JWT y roles.
 - Persiste en la base de datos `station_registry`.
 
 Referencia: [auth-service/README.md](auth-service/README.md)

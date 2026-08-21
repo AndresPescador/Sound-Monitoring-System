@@ -14,9 +14,9 @@ public class SecurityConfig {
 
     /**
      * Desactiva la seguridad por defecto de Spring Security.
-     * Este servicio no autentica tokens JWT — eso ya lo hizo la Ingestion API.
-     * El único endpoint protegido es /admin/stations, que usa X-Admin-Key
-     * validado directamente en el controlador.
+     * /processing/measurements solo se alcanza por la red service_internal y la
+     * identidad de estación ya fue validada por Ingestion API. Los endpoints
+     * /admin/stations validan el JWT de administrador en el controlador.
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {

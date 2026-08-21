@@ -1,22 +1,16 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    load_balancer_url: str
-    auth_service_path: str = "/auth/validate"
-    processing_backend_path: str = "/processing/measurements"
+    # Dependencias internas. En Docker se resuelven exclusivamente por la red
+    # service_internal y nunca a través del gateway publicado.
+    auth_service_url: str = "http://auth-service:8081/auth/validate"
+    processing_backend_url: str = (
+        "http://noise-processing:8082/processing/measurements"
+    )
     port: int = 8000
 
-    @property
-    def auth_service_url(self) -> str:
-        return f"{self.load_balancer_url}{self.auth_service_path}"
-
-    @property
-    def processing_backend_url(self) -> str:
-        return f"{self.load_balancer_url}{self.processing_backend_path}"
-
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()

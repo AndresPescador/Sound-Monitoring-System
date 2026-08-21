@@ -18,6 +18,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - noise_data
 
   postgres-auth:
     image: postgres:16-alpine
@@ -35,6 +37,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - auth_data
 
   # ── Auth Service ────────────────────────────────────────────────────────────
 
@@ -50,6 +54,7 @@ services:
       JWT_SECRET:                ${JWT_SECRET}
       JWT_EXPIRATION_DAYS:       ${JWT_EXPIRATION_DAYS}
       ADMIN_JWT_EXPIRATION_HOURS: ${ADMIN_JWT_EXPIRATION_HOURS}
+      CORS_ALLOWED_ORIGIN:       ${CORS_ALLOWED_ORIGIN:-https://soundmonitoring.systems}
       PORT:                      8081
       SPRINGDOC_SWAGGER_UI_ENABLED: "false"
       SPRINGDOC_API_DOCS_ENABLED:   "false"
@@ -58,6 +63,10 @@ services:
       postgres-auth:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - auth_data
+      - auth_gateway
+      - service_internal
 
   # ── Noise Processing Backend ────────────────────────────────────────────────
 
@@ -71,14 +80,20 @@ services:
       DB_USERNAME:              ${POSTGRES_NOISE_USER}
       DB_PASSWORD:              ${POSTGRES_NOISE_PASSWORD}
       PORT:                     8082
-      AUTH_ADMIN_VALIDATE_URL:  http://nginx/auth/admin/validate
+      AUTH_ADMIN_VALIDATE_URL:  http://auth-service:8081/admin/validate
       SPRINGDOC_SWAGGER_UI_ENABLED: "false"
       SPRINGDOC_API_DOCS_ENABLED:   "false"
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health"
     depends_on:
       postgres-noise:
         condition: service_healthy
+      auth-service:
+        condition: service_started
     restart: unless-stopped
+    networks:
+      - noise_data
+      - processing_gateway
+      - service_internal
 
   # ── Ingestion API ───────────────────────────────────────────────────────────
 
@@ -88,13 +103,18 @@ services:
       dockerfile: Dockerfile
     container_name: ingestion-api
     environment:
-      LOAD_BALANCER_URL:          http://nginx:80
-      AUTH_SERVICE_PATH:          /auth/validate
-      PROCESSING_BACKEND_PATH:    /processing/measurements
-      PORT:                       8000
+      AUTH_SERVICE_URL:       http://auth-service:8081/auth/validate
+      PROCESSING_BACKEND_URL: http://noise-processing:8082/processing/measurements
+      PORT:                   8000
     depends_on:
-      - nginx
+      auth-service:
+        condition: service_started
+      noise-processing:
+        condition: service_started
     restart: unless-stopped
+    networks:
+      - ingestion_gateway
+      - service_internal
 
   # ── Dashboard API ───────────────────────────────────────────────────────────
 
@@ -110,6 +130,9 @@ services:
       postgres-noise:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - noise_data
+      - dashboard_gateway
 
   # ── Frontend ────────────────────────────────────────────────────────────────
 
@@ -122,6 +145,8 @@ services:
         VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY}
     container_name: dashboard-frontend
     restart: unless-stopped
+    networks:
+      - frontend_gateway
 
   # ── Nginx (API Gateway interno) ─────────────────────────────────────────────
 
@@ -129,16 +154,55 @@ services:
     image: nginx:alpine
     container_name: nginx
     ports:
-      - "${NGINX_PORT}:80"
+      # El Nginx de la VPS termina TLS. El gateway Docker no debe escuchar en
+      # ninguna interfaz pública del host.
+      - "127.0.0.1:${NGINX_PORT:-8080}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - auth-service
       - noise-processing
+      - ingestion-api
       - dashboard-api
       - dashboard-frontend
     restart: unless-stopped
+    networks:
+      - public_ingress
+      - auth_gateway
+      - processing_gateway
+      - ingestion_gateway
+      - dashboard_gateway
+      - frontend_gateway
 
 volumes:
   postgres_noise_data:
   postgres_auth_data:
+
+networks:
+  # Única red no interna. Solo Nginx pertenece a ella y es el único contenedor
+  # con un puerto publicado en el host.
+  public_ingress:
+
+  # Un enlace privado e independiente entre Nginx y cada upstream evita que los
+  # servicios públicos laterales puedan comunicarse entre sí por defecto.
+  auth_gateway:
+    internal: true
+  processing_gateway:
+    internal: true
+  ingestion_gateway:
+    internal: true
+  dashboard_gateway:
+    internal: true
+  frontend_gateway:
+    internal: true
+
+  # Red privada exclusiva para llamadas Ingestion -> Auth/Processing y
+  # Processing -> Auth. No ofrece salida directa a Internet.
+  service_internal:
+    internal: true
+
+  # PostgreSQL queda aislado del gateway y de los servicios no consumidores.
+  auth_data:
+    internal: true
+  noise_data:
+    internal: true

@@ -38,7 +38,7 @@ auth-service/
 | Método | Ruta | Descripción | Protección |
 |---|---|---|---|
 | `POST` | `/auth/token` | Estación solicita JWT con su secret | Pública |
-| `POST` | `/auth/validate` | Ingestion API valida un token | Pública |
+| `POST` | `/auth/validate` | Ingestion API valida un token | Solo red interna |
 | `POST` | `/admin/stations` | Registrar nueva estación | X-Admin-Key |
 | `DELETE` | `/admin/stations/{code}/token` | Revocar tokens activos | X-Admin-Key |
 | `DELETE` | `/admin/stations/{code}` | Desactivar estación | X-Admin-Key |

@@ -39,7 +39,7 @@ noise-processing-backend/
 
 | Método | Ruta | Descripción | Protección |
 |---|---|---|---|
-| `POST` | `/processing/measurements` | Recibe y persiste métricas acústicas | Pública (validada por Ingestion API) |
+| `POST` | `/processing/measurements` | Recibe y persiste métricas acústicas | Solo red interna |
 | `POST` | `/admin/stations` | Registra estación en noise_analytics | X-Admin-Key |
 | `GET` | `/health` | Health check | Pública |
 

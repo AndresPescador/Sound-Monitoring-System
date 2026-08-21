@@ -1,0 +1,29 @@
+# Configuración temporal para emitir el primer certificado.
+# Instalar como /etc/nginx/sites-available/sound-monitoring antes de ejecutar
+# Certbot. La aplicación permanece cerrada por HTTP durante el bootstrap.
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name soundmonitoring.systems;
+
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        default_type text/plain;
+        return 503 "HTTPS en proceso de configuración.\n";
+    }
+}

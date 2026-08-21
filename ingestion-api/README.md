@@ -2,7 +2,7 @@
 
 Capa de ingesta del Sistema de Monitoreo Acústico Binaural.
 
-Recibe las métricas acústicas generadas por `process_audio.py` en cada estación, valida su formato y autenticidad, y las reenvía al Noise Processing Backend a través del Load Balancer.
+Recibe las métricas acústicas generadas por `process_audio.py` en cada estación, valida su formato y autenticidad, y las reenvía al Noise Processing Backend por una red interna.
 
 ---
 
@@ -47,9 +47,8 @@ cp .env.example .env
 
 | Variable | Descripción |
 |---|---|
-| `LOAD_BALANCER_URL` | URL del Load Balancer (ej: `http://load-balancer:80`) |
-| `AUTH_SERVICE_PATH` | Ruta del Auth Service en el LB (default: `/auth/validate`) |
-| `PROCESSING_BACKEND_PATH` | Ruta del Processing Backend en el LB (default: `/processing/measurements`) |
+| `AUTH_SERVICE_URL` | URL interna completa de validación en Auth Service |
+| `PROCESSING_BACKEND_URL` | URL interna completa de escritura en Processing |
 | `PORT` | Puerto del servicio (default: `8000`) |
 
 ---
@@ -97,7 +96,7 @@ Ingestion API
   │  4. Reenvía JSON + station_code al Processing Backend (HTTP 503 si falla)
   │  5. Devuelve HTTP 201 a la estación
   ▼
-Load Balancer → Noise Processing Backend
+Red privada `service_internal` → Noise Processing Backend
 ```
 
 ---

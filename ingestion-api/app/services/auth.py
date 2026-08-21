@@ -19,7 +19,7 @@ async def validate_token(token: str) -> str:
     """
     Valida el token JWT contra el Station Authentication Service.
 
-    Envía el token al Auth Service a través del Load Balancer.
+    Envía el token directamente al Auth Service por la red interna de servicios.
     Si el token es válido, devuelve el station_code asociado a esa estación.
 
     Args:

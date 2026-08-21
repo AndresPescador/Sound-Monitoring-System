@@ -20,8 +20,8 @@ import java.util.Map;
  * por lo que delega la validación al Auth Service via HTTP interno Docker.
  * Este es el mismo patrón que usa la Ingestion API para validar tokens de estación.
  *
- * Endpoint interno: POST http://nginx/auth/admin/validate
- * (bloqueado en VPS Nginx — solo accesible dentro de la red Docker)
+ * Endpoint interno: POST http://auth-service:8081/admin/validate
+ * (solo accesible mediante la red privada service_internal)
  */
 @Component
 @RequiredArgsConstructor

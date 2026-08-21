@@ -14,8 +14,11 @@ proyecto/
 │   ├── docker-compose.yml
 │   ├── .env.example
 │   ├── .env                         ← crear desde .env.example
+│   ├── VPS_DEPLOYMENT.md             ← HTTPS con Nginx/Certbot en la VPS
 │   └── nginx/
-│       └── nginx.conf
+│       ├── nginx.conf                ← gateway Docker interno
+│       ├── vps-bootstrap.conf.example
+│       └── vps-site.conf.example     ← proxy TLS del host
 ├── auth-service/                    ← backend autenticación (Spring Boot)
 ├── noise-processing-backend/        ← backend procesamiento (Spring Boot)
 ├── ingestion-api/                   ← backend ingesta (FastAPI)
@@ -98,17 +101,17 @@ nginx              running
 ### 5. Verificar health checks
 
 ```bash
-# Nginx
-curl http://localhost/health
+# Gateway Docker, accesible únicamente desde la propia VPS
+curl http://127.0.0.1:8080/health
 
 # Auth Service (a través de Nginx)
-curl http://localhost/auth/health
+curl http://127.0.0.1:8080/auth/health
 
 # Noise Processing (a través de Nginx)
-curl http://localhost/processing/health
+curl http://127.0.0.1:8080/processing/health
 
 # Ingestion API (a través de Nginx)
-curl http://localhost/ingest/health
+curl http://127.0.0.1:8080/ingest/health
 ```
 
 Todos deben devolver `{"status": "ok", ...}`.
@@ -189,48 +192,63 @@ docker compose down -v
 
 ---
 
-## Rutas del sistema (a través de Nginx en puerto 80)
+## Rutas del sistema
+
+En producción, Nginx + Certbot de la VPS recibe HTTPS y reenvía al gateway en
+`127.0.0.1:8080`. Consulta [VPS_DEPLOYMENT.md](VPS_DEPLOYMENT.md).
 
 | Ruta | Servicio destino | Descripción |
 |---|---|---|
 | `POST /ingest/ingest` | Ingestion API | Métricas desde estaciones |
 | `GET /ingest/health` | Ingestion API | Health check |
 | `POST /auth/token` | Auth Service | Solicitar JWT |
-| `POST /auth/validate` | Auth Service | Validar JWT |
 | `GET /auth/health` | Auth Service | Health check |
-| `POST /admin/auth/stations` | Auth Service | Registrar estación |
-| `DELETE /admin/auth/stations/{code}/token` | Auth Service | Revocar token |
-| `POST /processing/measurements` | Noise Processing | Interno (Ingestion API) |
+| `/auth/admin/*` | Auth Service | Login y administración con JWT |
+| `/processing/admin/*` | Noise Processing | Administración con JWT |
 | `GET /processing/health` | Noise Processing | Health check |
-| `POST /admin/processing/stations` | Noise Processing | Registrar estación |
+| `/dashboard/*` | Dashboard API | Consultas públicas |
+
+Las siguientes rutas no se publican. Si se solicitan a Nginx devuelven `404`:
+
+| Ruta interna | Consumidor autorizado |
+|---|---|
+| `POST /auth/validate` | Ingestion API por `service_internal` |
+| `POST /admin/validate` | Noise Processing por `service_internal` |
+| `POST /processing/measurements` | Ingestion API por `service_internal` |
 
 ---
 
 ## Puertos expuestos al host
 
-| Puerto | Servicio | Uso |
+| Escucha del host | Servicio | Exposición |
 |---|---|---|
-| `80` | Nginx | Punto de entrada principal |
-| `5433` | postgres-noise | Acceso directo a BD métricas (desarrollo) |
-| `5434` | postgres-auth | Acceso directo a BD autenticación (desarrollo) |
+| `127.0.0.1:8080` | Gateway Docker | Solo loopback de la VPS |
+| `0.0.0.0:80/443` | Nginx del host | Internet, HTTP→HTTPS y TLS |
+
+PostgreSQL y los backends no publican puertos en el host.
 
 ---
 
 ## Diagrama de red interna
 
 ```
-Host (tu máquina)
-  │
-  └── puerto 80 ──► nginx
-                      ├── /auth/*           ──► auth-service:8081
-                      ├── /admin/auth/*     ──► auth-service:8081
-                      ├── /processing/*     ──► noise-processing:8082
-                      ├── /admin/processing/──► noise-processing:8082
-                      └── /ingest/*         ──► ingestion-api:8000
-                                                     │
-                                               llama a nginx para
-                                               validar tokens y
-                                               reenviar métricas
+Internet ── HTTPS :443 ──► Nginx + Certbot de la VPS
+                              │
+                              └── 127.0.0.1:8080 ──► nginx Docker
+                  ├── auth_gateway       ──► auth-service
+                  ├── processing_gateway ──► noise-processing (solo admin/health)
+                  ├── ingestion_gateway  ──► ingestion-api
+                  ├── dashboard_gateway  ──► dashboard-api
+                  └── frontend_gateway   ──► dashboard-frontend
+
+ingestion-api ── service_internal ──► auth-service
+              └─ service_internal ──► noise-processing
+
+noise-processing ── service_internal ──► auth-service
+
+auth-service       ── auth_data  ──► postgres-auth
+noise-processing   ── noise_data ──► postgres-noise
+dashboard-api      ── noise_data ──► postgres-noise
 ```
 
 ---
@@ -242,5 +260,5 @@ Host (tu máquina)
 | `auth-service` no arranca | `postgres-auth` aún no está `healthy` | Esperar 30s y revisar `docker compose logs postgres-auth` |
 | Error `JWT_SECRET` muy corta | Secret menor de 32 caracteres | Generar con `openssl rand -base64 32` |
 | `noise-processing` devuelve 404 al ingestar | Estación no registrada en noise_analytics | Ejecutar Paso 2 del registro de estación |
-| Puerto 80 ocupado | Otro servicio usa el puerto 80 | Cambiar `NGINX_PORT=8080` en `.env` |
+| `127.0.0.1:8080` ocupado | Otro proceso usa el puerto local | Cambiar `NGINX_PORT` y el `proxy_pass` del sitio VPS al mismo valor |
 | Schemas no se aplican | Los `.sql` no están en la ruta esperada | Verificar que `schema_*.sql` están en la raíz del proyecto |

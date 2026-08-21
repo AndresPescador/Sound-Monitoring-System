@@ -1,0 +1,90 @@
+# Nginx del host: termina TLS y reenvía exclusivamente al gateway Docker que
+# escucha en 127.0.0.1:8080. Ajustar server_name y las rutas del certificado si
+# se usa un dominio distinto de soundmonitoring.systems.
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name soundmonitoring.systems;
+
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://soundmonitoring.systems$request_uri;
+    }
+}
+
+# Rechaza SNI/Host desconocidos sin presentar el sitio de la aplicación.
+server {
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name _;
+    ssl_certificate /etc/letsencrypt/live/soundmonitoring.systems/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/soundmonitoring.systems/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    return 444;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name soundmonitoring.systems;
+
+    server_tokens off;
+
+    ssl_certificate /etc/letsencrypt/live/soundmonitoring.systems/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/soundmonitoring.systems/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # HSTS se habilita sin includeSubDomains/preload hasta confirmar que todos
+    # los posibles subdominios funcionan exclusivamente mediante HTTPS.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-XSS-Protection "0" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://api.maptiler.com https://*.maptiler.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com; connect-src 'self' https://api.maptiler.com https://*.maptiler.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" always;
+
+    client_max_body_size 256k;
+    client_body_timeout 15s;
+    keepalive_timeout 30s;
+    send_timeout 35s;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 35s;
+        proxy_send_timeout 35s;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Sobrescribe cualquier valor enviado por el cliente. El gateway Docker
+        # añadirá únicamente su propio salto a esta dirección confiable.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+
+        proxy_hide_header X-Powered-By;
+    }
+}
