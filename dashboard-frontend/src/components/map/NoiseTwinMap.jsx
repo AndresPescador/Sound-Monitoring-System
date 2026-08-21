@@ -36,17 +36,18 @@ const BOGOTA_BOUNDARY_LAYER_ID = 'bogota-administrative-boundary-line'
 // para evitar que las restricciones CORS del portal afecten al visor.
 const BOGOTA_BOUNDARY_URL = '/bogota-municipio.geojson'
 
-// Ambos estilos mantienen la misma cartografía de referencia. El modo claro
-// conserva su fondo original; los iconos POI se colorean por separado después
-// de cargar el estilo.
-const MAP_STYLES = {
-  light: import.meta.env.VITE_MAPTILER_KEY
-    ? `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
-    : 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-  dark: import.meta.env.VITE_MAPTILER_KEY
-    ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`
-    : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+// CARTO se mantiene como respaldo para que el visor siga disponible si la
+// clave, cuota o reglas de origen de MapTiler impiden cargar su estilo.
+const CARTO_STYLES = {
+  light: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
 }
+const MAPTILER_STYLES = import.meta.env.VITE_MAPTILER_KEY
+  ? {
+      light: `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`,
+      dark: `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${import.meta.env.VITE_MAPTILER_KEY}`,
+    }
+  : null
 
 const LIGHT_POI_ICON_COLOR_EXPRESSION = [
   'match',
@@ -190,7 +191,10 @@ function NoiseTwinMap({
   const { isDark } = useTheme()
   const [cameraTarget, setCameraTarget] = useState(null)
   const [legendOpen, setLegendOpen] = useState(false)
+  const [useCartoFallback, setUseCartoFallback] = useState(false)
   const mapRef = useRef(null)
+
+  const mapStyle = (MAPTILER_STYLES && !useCartoFallback ? MAPTILER_STYLES : CARTO_STYLES)[isDark ? 'dark' : 'light']
 
   const observedStations = useMemo(() => (
     stations.filter(s => (
@@ -387,6 +391,16 @@ function NoiseTwinMap({
     applyLightPoiIconColors(map, !isDark)
   }, [isDark])
 
+  const handleMapError = useCallback(event => {
+    if (useCartoFallback || !MAPTILER_STYLES) return
+
+    const errorUrl = event?.error?.url ?? ''
+    const errorMessage = event?.error?.message ?? ''
+    if (errorUrl.includes('api.maptiler.com') || errorMessage.includes('api.maptiler.com')) {
+      setUseCartoFallback(true)
+    }
+  }, [useCartoFallback])
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-slate-900" onContextMenu={event => event.preventDefault()}>
       <DeckGL
@@ -416,7 +430,7 @@ function NoiseTwinMap({
         <Map
           ref={mapRef}
           mapLib={maplibregl}
-          mapStyle={isDark ? MAP_STYLES.dark : MAP_STYLES.light}
+          mapStyle={mapStyle}
           reuseMaps
           dragRotate
           maxPitch={85}
@@ -428,6 +442,7 @@ function NoiseTwinMap({
           }}
           onStyleData={handleMapStyleData}
           onIdle={handleMapIdle}
+          onError={handleMapError}
           onMoveEnd={() => window.requestAnimationFrame(reportSelectedPosition)}
         />
       </DeckGL>
