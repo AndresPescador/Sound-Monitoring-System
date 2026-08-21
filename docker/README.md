@@ -94,6 +94,19 @@ Para correr en segundo plano:
 docker compose up --build -d
 ```
 
+### Recursos y endurecimiento
+
+El Compose de producción limita CPU, memoria, PIDs y logs de cada contenedor.
+Los servicios sin estado además usan un sistema de archivos de solo lectura,
+`no-new-privileges` y ninguna capacidad Linux por defecto. No elimines estas
+opciones para resolver un fallo: revisa primero los logs y aumenta únicamente
+el límite del servicio afectado. Los límites actuales requieren una VPS con al
+menos 4 GB de RAM para mantener margen para el sistema operativo y PostgreSQL.
+
+Las imágenes y dependencias se fijan a versiones/digests concretos. Al hacer
+una actualización planificada, actualiza los digests, compila y ejecuta un
+escaneo de imágenes antes de desplegar.
+
 ### 4. Verificar que todo está corriendo
 
 ```bash

@@ -1,9 +1,36 @@
+x-container-security: &container-security
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  # Tini, habilitado con init: true, usa esta capacidad únicamente para
+  # reenviar señales a los procesos hijos al detener el contenedor.
+  cap_add:
+    - KILL
+  logging:
+    driver: local
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
 
   # ── Bases de datos ──────────────────────────────────────────────────────────
 
   postgres-noise:
-    image: postgres:16-alpine
+    <<: *container-security
+    # El entrypoint oficial corrige los permisos del volumen antes de bajar al
+    # usuario postgres. Limitarlo a estas capacidades evita concederle el set
+    # completo por defecto.
+    cap_add:
+      - KILL
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
     container_name: postgres-noise
     environment:
       POSTGRES_DB:       ${POSTGRES_NOISE_DB}
@@ -22,11 +49,26 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    pids_limit: 200
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 768M
+          pids: 200
     networks:
       - noise_data
 
   postgres-auth:
-    image: postgres:16-alpine
+    <<: *container-security
+    cap_add:
+      - KILL
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
     container_name: postgres-auth
     environment:
       POSTGRES_DB:       ${POSTGRES_AUTH_DB}
@@ -44,13 +86,27 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    pids_limit: 160
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+          pids: 160
     networks:
       - auth_data
 
   # ── Estado efímero de rate limiting ────────────────────────────────────────
 
   redis-rate-limit:
-    image: redis:7.4-alpine
+    <<: *container-security
+    # El entrypoint oficial inicia como root y baja al usuario redis.
+    # Estas son las únicas capacidades necesarias para ese cambio de UID/GID.
+    cap_add:
+      - KILL
+      - SETGID
+      - SETUID
+    image: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     container_name: redis-rate-limit
     command:
       - redis-server
@@ -72,12 +128,23 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    pids_limit: 64
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+          pids: 64
     networks:
       - rate_limit_data
 
   # ── Auth Service ────────────────────────────────────────────────────────────
 
   auth-service:
+    <<: *container-security
     build:
       context: ../auth-service
       dockerfile: Dockerfile
@@ -106,6 +173,16 @@ services:
       redis-rate-limit:
         condition: service_healthy
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    pids_limit: 160
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+          pids: 160
     networks:
       - auth_data
       - rate_limit_data
@@ -115,6 +192,7 @@ services:
   # ── Noise Processing Backend ────────────────────────────────────────────────
 
   noise-processing:
+    <<: *container-security
     build:
       context: ../noise-processing-backend
       dockerfile: Dockerfile
@@ -134,6 +212,16 @@ services:
       auth-service:
         condition: service_started
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=96m,mode=1777
+    pids_limit: 180
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 640M
+          pids: 180
     networks:
       - noise_data
       - processing_gateway
@@ -142,6 +230,7 @@ services:
   # ── Ingestion API ───────────────────────────────────────────────────────────
 
   ingestion-api:
+    <<: *container-security
     build:
       context: ../ingestion-api
       dockerfile: Dockerfile
@@ -156,6 +245,16 @@ services:
       noise-processing:
         condition: service_started
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    pids_limit: 96
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+          pids: 96
     networks:
       - ingestion_gateway
       - service_internal
@@ -163,6 +262,7 @@ services:
   # ── Dashboard API ───────────────────────────────────────────────────────────
 
   dashboard-api:
+    <<: *container-security
     build:
       context: ../dashboard-api
       dockerfile: Dockerfile
@@ -184,6 +284,16 @@ services:
       postgres-noise:
         condition: service_healthy
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    pids_limit: 96
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+          pids: 96
     networks:
       - noise_data
       - dashboard_gateway
@@ -191,6 +301,7 @@ services:
   # ── Frontend ────────────────────────────────────────────────────────────────
 
   dashboard-frontend:
+    <<: *container-security
     build:
       context: ../dashboard-frontend
       dockerfile: Dockerfile
@@ -199,13 +310,26 @@ services:
         VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY}
     container_name: dashboard-frontend
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /var/cache/nginx:rw,noexec,nosuid,size=16m,uid=101,gid=101,mode=0755
+      - /run:rw,noexec,nosuid,size=4m,uid=101,gid=101,mode=0755
+    pids_limit: 64
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+          pids: 64
     networks:
       - frontend_gateway
 
   # ── Nginx (API Gateway interno) ─────────────────────────────────────────────
 
   nginx:
-    image: nginx:alpine
+    <<: *container-security
+    image: nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913
     container_name: nginx
     ports:
       # El Nginx de la VPS termina TLS. El gateway Docker no debe escuchar en
@@ -220,6 +344,25 @@ services:
       - dashboard-api
       - dashboard-frontend
     restart: unless-stopped
+    cap_add:
+      - KILL
+      # Nginx prepara directorios tmpfs para su usuario de trabajo.
+      - CHOWN
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+      - /var/cache/nginx:rw,noexec,nosuid,size=16m,mode=0755
+      - /var/run:rw,noexec,nosuid,size=4m,mode=0755
+    pids_limit: 96
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+          pids: 96
     networks:
       - public_ingress
       - auth_gateway
