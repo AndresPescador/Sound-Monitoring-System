@@ -8,24 +8,7 @@
     <link rel="icon" type="image/png" href="/assets/logo-oido-urbano.png" />
     <link rel="preload" href="/assets/bogota-binaural-station.webp" as="image" type="image/webp" />
     <title>Monitoreo Acústico Binaural | Bogotá D.C.</title>
-    <script>
-      (() => {
-        try {
-          const storedTheme = window.localStorage.getItem('sound-monitoring-theme')
-          document.documentElement.dataset.theme = storedTheme === 'dark' ? 'dark' : 'light'
-          document.documentElement.style.colorScheme = document.documentElement.dataset.theme
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', document.documentElement.dataset.theme === 'dark' ? '#07101f' : '#f8fbff')
-        } catch {
-          document.documentElement.dataset.theme = 'light'
-          document.documentElement.style.colorScheme = 'light'
-        }
-      })()
-    </script>
-    <!-- Leaflet CSS -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+    <script src="/theme-init.js"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
