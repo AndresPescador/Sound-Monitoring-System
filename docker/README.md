@@ -16,6 +16,7 @@ proyecto/
 │   ├── .env                         ← crear desde .env.example
 │   ├── VPS_DEPLOYMENT.md             ← HTTPS con Nginx/Certbot en la VPS
 │   ├── SECURITY_ROTATION.md           ← rotación de admin y JWT
+│   ├── DATABASE_ROLES.md               ← migración a usuarios PostgreSQL restringidos
 │   └── nginx/
 │       ├── nginx.conf                ← gateway Docker interno
 │       ├── vps-bootstrap.conf.example
@@ -64,12 +65,19 @@ El `.env` mínimo que debes completar:
 |---|---|
 | `POSTGRES_NOISE_PASSWORD` | Contraseña de la BD de métricas |
 | `POSTGRES_AUTH_PASSWORD` | Contraseña de la BD de autenticación |
+| `NOISE_PROCESSOR_DB_PASSWORD` | Contraseña exclusiva de `noise_writer` |
+| `DASHBOARD_DB_PASSWORD` | Contraseña exclusiva de `dashboard_reader` |
+| `AUTH_DB_PASSWORD` | Contraseña exclusiva de `auth_app` |
 | `STATION_JWT_SECRET` | Clave exclusiva para JWT de estaciones |
 | `ADMIN_JWT_SECRET` | Clave distinta para JWT administrativos |
 | `CORS_ALLOWED_ORIGIN` | Origen HTTPS exacto del frontend |
 
 Las dos claves JWT deben contener al menos 32 bytes y ser diferentes. Auth
 Service se niega a iniciar si falta alguna o si son iguales.
+
+Las cuentas `POSTGRES_*_USER` son propietarias administrativas y no se entregan
+a los backends. Para actualizar un volumen existente, aplica obligatoriamente
+[DATABASE_ROLES.md](DATABASE_ROLES.md) antes de reconstruir los servicios.
 
 ### 3. Construir e iniciar todos los servicios
 
@@ -98,6 +106,7 @@ Deberías ver todos los servicios con estado `running` o `healthy`:
 NAME               STATUS
 postgres-noise     running (healthy)
 postgres-auth      running (healthy)
+redis-rate-limit   running (healthy)
 auth-service       running
 noise-processing   running
 ingestion-api      running
@@ -241,7 +250,27 @@ Las siguientes rutas no se publican. Si se solicitan a Nginx devuelven `404`:
 | `127.0.0.1:8080` | Gateway Docker | Solo loopback de la VPS |
 | `0.0.0.0:80/443` | Nginx del host | Internet, HTTP→HTTPS y TLS |
 
-PostgreSQL y los backends no publican puertos en el host.
+PostgreSQL y los backends no publican puertos en el host. Auth usa `auth_app`,
+Processing usa `noise_writer` y Dashboard usa `dashboard_reader`; las cuentas
+propietarias quedan limitadas a inicialización y mantenimiento.
+Redis tampoco publica puertos: conserva únicamente contadores efímeros y solo
+comparte la red interna `rate_limit_data` con Auth Service.
+
+## Protección de autenticación e IP del cliente
+
+El Nginx de la VPS elimina cualquier `X-Forwarded-For` enviada por el cliente y
+escribe la IP de la conexión. El gateway Docker solo confía en el salto privado
+del bridge, vuelve a enviar una única IP canónica y aplica límites a
+`POST /auth/token` y `POST /auth/admin/login`. Auth Service valida además que la
+cabecera proceda de `auth_gateway` y mantiene en Redis una cuota compartida por
+IP. Una caída de Redis cierra temporalmente esos endpoints con `503`.
+
+Los valores de aplicación se ajustan con `AUTH_TOKEN_RATE_LIMIT` y
+`ADMIN_LOGIN_RATE_LIMIT`. Los límites de borde se mantienen en las plantillas
+Nginx para que un atacante sea rechazado antes de consumir recursos Java.
+Si `172.28.10.0/24` colisiona con otra red de la VPS, asigna una subred privada
+libre mediante `AUTH_GATEWAY_SUBNET`; Compose usa el mismo valor como red y como
+lista de confianza de Auth para evitar divergencias.
 
 ---
 
@@ -262,9 +291,10 @@ ingestion-api ── service_internal ──► auth-service
 
 noise-processing ── service_internal ──► auth-service
 
-auth-service       ── auth_data  ──► postgres-auth
-noise-processing   ── noise_data ──► postgres-noise
-dashboard-api      ── noise_data ──► postgres-noise
+auth-service (auth_app) ── auth_data ──► postgres-auth
+auth-service ── rate_limit_data ──► redis-rate-limit (contadores efímeros)
+noise-processing (noise_writer) ── noise_data ──► postgres-noise
+dashboard-api (dashboard_reader) ── noise_data ──► postgres-noise
 ```
 
 ---
@@ -274,6 +304,9 @@ dashboard-api      ── noise_data ──► postgres-noise
 | Síntoma | Causa probable | Solución |
 |---|---|---|
 | `auth-service` no arranca | `postgres-auth` aún no está `healthy` | Esperar 30s y revisar `docker compose logs postgres-auth` |
+| Error `role ... does not exist` | Se reconstruyó un backend antes de migrar un volumen existente | Aplicar [DATABASE_ROLES.md](DATABASE_ROLES.md) |
+| Login/token devuelve `503` | Redis no está disponible | Revisar `docker compose ps redis-rate-limit` y sus logs |
+| Cliente legítimo devuelve `429` | Se agotó la cuota por IP | Esperar `Retry-After`; ajustar límites solo tras revisar los logs |
 | Error de claves JWT | Falta una clave, tiene menos de 32 bytes o ambas son iguales | Generar dos valores independientes con `openssl rand -base64 48` |
 | `noise-processing` devuelve 404 al ingestar | Estación no registrada en noise_analytics | Ejecutar Paso 2 del registro de estación |
 | `127.0.0.1:8080` ocupado | Otro proceso usa el puerto local | Cambiar `NGINX_PORT` y el `proxy_pass` del sitio VPS al mismo valor |

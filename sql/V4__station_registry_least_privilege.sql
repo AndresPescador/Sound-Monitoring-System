@@ -1,0 +1,34 @@
+-- Ejecutar como el propietario administrativo de station_registry.
+-- Requiere que init_auth_app_role.sh haya creado el rol auth_app.
+
+BEGIN;
+
+SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', current_database())
+\gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO auth_app', current_database())
+\gexec
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO auth_app;
+
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, auth_app;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, auth_app;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, auth_app;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE registered_stations TO auth_app;
+GRANT SELECT, INSERT, UPDATE ON TABLE api_tokens TO auth_app;
+GRANT SELECT, INSERT ON TABLE auth_audit_log TO auth_app;
+GRANT SELECT, INSERT, UPDATE ON TABLE admin_users TO auth_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO auth_app;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO auth_app;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    REVOKE ALL ON TABLES FROM PUBLIC, auth_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    REVOKE ALL ON SEQUENCES FROM PUBLIC, auth_app;
+ALTER DEFAULT PRIVILEGES
+    REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    REVOKE ALL ON FUNCTIONS FROM auth_app;
+
+COMMIT;

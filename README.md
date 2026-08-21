@@ -24,8 +24,8 @@ Dashboard Frontend (React, puerto 3000)
     └── consulta Dashboard API para graficas y mapa
 
 PostgreSQL — dos bases de datos aisladas
-    ├── station_registry   →  credenciales y tokens JWT
-    └── noise_analytics    →  mediciones acusticas y agregaciones
+    ├── station_registry   → auth_app (escritura restringida)
+    └── noise_analytics    → noise_writer + dashboard_reader (solo lectura)
 ```
 
 ---

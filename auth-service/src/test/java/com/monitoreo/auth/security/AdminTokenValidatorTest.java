@@ -28,6 +28,9 @@ class AdminTokenValidatorTest {
     private AdminUserRepository adminUserRepository;
 
     @Mock
+    private ClientIpResolver clientIpResolver;
+
+    @Mock
     private HttpServletRequest request;
 
     @Mock
@@ -38,7 +41,7 @@ class AdminTokenValidatorTest {
 
     @BeforeEach
     void setUp() {
-        validator = new AdminTokenValidator(jwtConfig, adminUserRepository);
+        validator = new AdminTokenValidator(jwtConfig, adminUserRepository, clientIpResolver);
         admin = new AdminUser();
         admin.setUsername("security-admin");
         admin.setSuperAdmin(true);

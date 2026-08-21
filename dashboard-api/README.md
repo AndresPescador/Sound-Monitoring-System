@@ -91,7 +91,10 @@ cp .env.example .env
 
 | Variable | Descripción |
 |---|---|
-| `DB_URL` | URL asyncpg de `noise_analytics` |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | Destino PostgreSQL de `noise_analytics` |
+| `DB_USERNAME` | Rol fijo de solo lectura `dashboard_reader` |
+| `DB_PASSWORD` | Contraseña exclusiva del lector |
+| `DB_URL` | Alternativa para desarrollo; reemplaza las variables anteriores |
 | `PORT` | Puerto del servicio (default: 8083) |
 
 ---
@@ -130,7 +133,11 @@ dashboard-api:
     dockerfile: Dockerfile
   container_name: dashboard-api
   environment:
-    DB_URL: postgresql+asyncpg://${POSTGRES_NOISE_USER}:${POSTGRES_NOISE_PASSWORD}@postgres-noise:5432/${POSTGRES_NOISE_DB}
+    DB_HOST: postgres-noise
+    DB_PORT: 5432
+    DB_NAME: ${POSTGRES_NOISE_DB}
+    DB_USERNAME: dashboard_reader
+    DB_PASSWORD: ${DASHBOARD_DB_PASSWORD}
     PORT: 8083
   depends_on:
     postgres-noise:

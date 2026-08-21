@@ -74,6 +74,9 @@ sudo systemctl reload nginx
 
 La configuración definitiva redirige HTTP a HTTPS, rechaza hosts desconocidos,
 habilita TLS 1.2/1.3, HSTS, CSP y los encabezados de seguridad del navegador.
+También sobrescribe `X-Forwarded-For` con la IP real de la conexión y limita en
+el borde la emisión de tokens y el login administrativo. No cambies esa cabecera
+por `$proxy_add_x_forwarded_for`: permitiría reintroducir valores del cliente.
 
 ## 5. Verificar emisión y renovación
 
@@ -89,6 +92,11 @@ Resultados esperados:
 - HTTPS devuelve HSTS, CSP, `X-Content-Type-Options`, `X-Frame-Options`,
   `Referrer-Policy` y `Permissions-Policy`.
 - La prueba de renovación termina correctamente y valida Nginx antes de recargar.
+
+Para comprobar el límite sin usar credenciales reales, envía repetidamente un
+JSON inválido a `POST /auth/admin/login`: tras la ráfaga permitida, Nginx debe
+responder `429`. Espera el intervalo indicado antes de repetir la prueba para no
+bloquear temporalmente tu propia IP.
 
 No habilites `includeSubDomains` o `preload` en HSTS hasta confirmar que todos
 los subdominios presentes y futuros estarán disponibles únicamente por HTTPS.

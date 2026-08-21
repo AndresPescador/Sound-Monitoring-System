@@ -30,6 +30,7 @@ public class AdminTokenValidator {
 
     private final JwtConfig jwtConfig;
     private final AdminUserRepository adminUserRepository;
+    private final ClientIpResolver clientIpResolver;
 
     /**
      * Verifica que el request tenga un Bearer token válido con role ADMIN o SUPER_ADMIN.
@@ -52,16 +53,10 @@ public class AdminTokenValidator {
     }
 
     /**
-     * Extrae el IP real del cliente, considerando el header X-Forwarded-For
-     * que pone Nginx cuando actúa como proxy.
+     * Devuelve la IP canónica validada contra la lista de proxies confiables.
      */
     public String extractIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            // X-Forwarded-For puede ser una lista: "client, proxy1, proxy2"
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 
     // ─── Privado ──────────────────────────────────────────────────────────────

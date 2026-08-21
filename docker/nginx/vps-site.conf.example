@@ -2,6 +2,11 @@
 # escucha en 127.0.0.1:8080. Ajustar server_name y las rutas del certificado si
 # se usa un dominio distinto de soundmonitoring.systems.
 
+# Estas zonas viven en el contexto http porque este archivo se instala en
+# sites-available/sites-enabled. Conservan estado por IP entre workers.
+limit_req_zone $binary_remote_addr zone=edge_station_token:10m rate=20r/m;
+limit_req_zone $binary_remote_addr zone=edge_admin_login:10m rate=5r/m;
+
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
@@ -69,6 +74,43 @@ server {
     keepalive_timeout 30s;
     send_timeout 35s;
 
+    limit_req_status 429;
+    limit_req_log_level warn;
+
+    # Límites en el borde: frenan abuso antes de entrar a Docker. La capa de
+    # aplicación aplica además cuotas compartidas mediante Redis.
+    location = /auth/token {
+        limit_req zone=edge_station_token burst=10 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 35s;
+        proxy_send_timeout 35s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_hide_header X-Powered-By;
+    }
+
+    location = /auth/admin/login {
+        limit_req zone=edge_admin_login burst=3 nodelay;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 35s;
+        proxy_send_timeout 35s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_hide_header X-Powered-By;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
@@ -79,7 +121,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         # Sobrescribe cualquier valor enviado por el cliente. El gateway Docker
-        # añadirá únicamente su propio salto a esta dirección confiable.
+        # solo acepta este salto y vuelve a entregar una única IP canónica.
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto https;
         proxy_set_header X-Forwarded-Host $host;

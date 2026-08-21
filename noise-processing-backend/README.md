@@ -54,10 +54,14 @@ cp .env.example .env
 | Variable | Descripción |
 |---|---|
 | `DB_URL` | URL JDBC de `noise_analytics` |
-| `DB_USERNAME` | Usuario de PostgreSQL |
+| `DB_USERNAME` | Rol de escritura restringido `noise_writer` en producción |
 | `DB_PASSWORD` | Contraseña de PostgreSQL |
 | `AUTH_ADMIN_VALIDATE_URL` | Endpoint interno de Auth para validar JWT admin |
 | `PORT` | Puerto del servicio (default: 8082) |
+
+No uses la cuenta propietaria `POSTGRES_NOISE_USER` en este servicio. La matriz
+de permisos y la migración están en
+[`docker/DATABASE_ROLES.md`](../docker/DATABASE_ROLES.md).
 
 ---
 
