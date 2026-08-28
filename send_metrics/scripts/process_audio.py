@@ -4,7 +4,7 @@ Uso:
     python scripts/process_audio.py [--watch] [--folder FOLDER_PATH] [--output OUTPUT_PATH]
 
     --watch:  Modo de monitoreo continuo (para Raspberry Pi)
-    --folder: Carpeta donde se depositan los .wav  (por defecto: ~/Documents/)
+    --folder: Carpeta donde se depositan los .wav  (por defecto: configuración compartida)
     --output: Carpeta donde se guardan los .txt    (por defecto: ./audio_stats/)
 """
 
@@ -14,33 +14,45 @@ import numpy as np
 import librosa
 import re
 import argparse
+import signal
 from datetime import datetime
 import time
 import logging
+import json
+import tempfile
+import queue
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
 
+from audio_spool import AudioSpool, published_wav_from_event
 from index_lock import index_lock
+from runtime_status import StatusPublisher, read_json_snapshot
+from station_config import load_station_config
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
-load_dotenv(PROJECT_DIR / ".env")
-
-
-def _project_path(value: str, default: Path) -> Path:
-    path = Path(value) if value else default
-    return path if path.is_absolute() else PROJECT_DIR / path
-
-
-RUNTIME_DIR = _project_path(os.getenv("RUNTIME_DIR", ""), PROJECT_DIR / "runtime")
-DEFAULT_OUTPUT_DIR = _project_path(
-    os.getenv("METRICS_OUTPUT_DIR", ""), RUNTIME_DIR / "audio_stats"
-)
+STATION_CONFIG = load_station_config(project_dir=PROJECT_DIR)
+RUNTIME_DIR = STATION_CONFIG.runtime_dir
+DEFAULT_OUTPUT_DIR = STATION_CONFIG.metrics_output_dir
 RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+LOG_MAX_BYTES = STATION_CONFIG.log_max_bytes
+LOG_BACKUP_COUNT = STATION_CONFIG.log_backup_count
+PROCESS_STATUS = StatusPublisher(
+    RUNTIME_DIR / "processor_status.json",
+    "process-audio",
+    current_file="",
+    last_processed_file="",
+    processed_count=0,
+    failed_count=0,
+    quarantined_count=0,
+    queued_count=0,
+)
+
+RECONCILE_INTERVAL_SECONDS = 15
+PROCESS_RETRY_DELAY_SECONDS = 60
 
 
 # Configuración de logging
@@ -48,12 +60,34 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(RUNTIME_DIR / 'audio_processing_log.log'),
+        RotatingFileHandler(
+            RUNTIME_DIR / 'audio_processing_log.log',
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
+            encoding="utf-8",
+        ),
         logging.StreamHandler(sys.stdout)
     ]
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _handle_termination(_signum, _frame):
+    raise KeyboardInterrupt
+
+
+def _sync_directory(directory):
+    """Persiste un rename en POSIX para resistir una pérdida repentina de energía."""
+    try:
+        directory_fd = os.open(str(directory), os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
 
 class AudioProcessor:
     """Clase para procesar archivos de audio y extraer métricas de ruido."""
@@ -62,6 +96,9 @@ class AudioProcessor:
         if output_dir is None:
             output_dir = DEFAULT_OUTPUT_DIR
         self.output_dir = output_dir
+        self.processed_count = 0
+        self.failed_count = 0
+        self.quarantined_count = 0
         os.makedirs(self.output_dir, exist_ok=True)
         logger.info(f"Carpeta de salida: {self.output_dir}")
     
@@ -121,9 +158,9 @@ class AudioProcessor:
         return filtered / norm if norm > 1e-10 else filtered
 
     def _silence_metrics(self, filename, file_path, duration, sample_rate, is_stereo):
-        """Devuelve un dict de métricas con valores nulos para silencio o error."""
+        """Devuelve métricas de silencio para un WAV válido sin señal útil."""
         return {
-            'timestamp': self.parse_timestamp_from_filename(filename),
+            'timestamp': self.parse_timestamp_from_filename(file_path),
             'filename': filename,
             'dbfs_level': -100.0,
             'rms_energy': 0.0,
@@ -144,20 +181,20 @@ class AudioProcessor:
         }
     
 
-    def parse_timestamp_from_filename(self, filename):
+    def parse_timestamp_from_filename(self, file_path):
         """
         Extrae el timestamp de un nombre de archivo con formato:
         'Rec YYYY-MM-DD HHhMMmSSs ...'
 
         Args:
-            filename (str): Nombre del archivo (con o sin extensión)
+            file_path (str): Ruta del archivo cuyo nombre se debe analizar.
 
         Returns:
             datetime: Timestamp extraído
         """
         try:
             # Quitar extensión si existe
-            name = os.path.splitext(filename)[0]
+            name = Path(file_path).stem
 
             # Regex para capturar fecha y hora
             # Ejemplo que matchea: Rec 2025-06-16 16h36m00s 1
@@ -170,10 +207,10 @@ class AudioProcessor:
                 return datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
 
         except Exception as e:
-            logger.warning(f"No se pudo parsear timestamp desde {filename}: {e}")
+            logger.warning(f"No se pudo parsear timestamp desde {file_path}: {e}")
 
         # Fallback → timestamp del archivo
-        return datetime.fromtimestamp(os.path.getmtime(filename))
+        return datetime.fromtimestamp(os.path.getmtime(file_path))
 
     
     def extract_audio_features(self, file_path):
@@ -238,7 +275,16 @@ class AudioProcessor:
             # ── ILD e correlación interaural ─────────────────────────────────
             ild_db = float(dbfs_left - dbfs_right)
             if is_stereo:
-                interaural_corr = float(np.corrcoef(ch_left, ch_right)[0, 1])
+                # np.corrcoef devuelve NaN si uno de los canales no tiene
+                # variación (por ejemplo, un canal desconectado o en silencio).
+                # 0.0 expresa que no hay correlación medible y mantiene el
+                # payload dentro del contrato del servidor.
+                if np.std(ch_left) < 1e-10 or np.std(ch_right) < 1e-10:
+                    interaural_corr = 0.0
+                else:
+                    interaural_corr = float(np.corrcoef(ch_left, ch_right)[0, 1])
+                    if not np.isfinite(interaural_corr):
+                        interaural_corr = 0.0
             else:
                 interaural_corr = 1.0
 
@@ -261,7 +307,7 @@ class AudioProcessor:
             dominant_bin     = int(np.argmax(mean_magnitude))
             dominant_frequency = float(librosa.fft_frequencies(sr=sample_rate, n_fft=2048)[dominant_bin])
 
-            timestamp = self.parse_timestamp_from_filename(filename)
+            timestamp = self.parse_timestamp_from_filename(file_path)
 
             return {
                 'timestamp':              timestamp,
@@ -289,21 +335,143 @@ class AudioProcessor:
                 'is_stereo':              is_stereo,
             }
 
-        except Exception as e:
-            logger.error(f"Error al procesar {file_path}: {e}")
-            return self._silence_metrics(
-                os.path.basename(file_path), file_path, 0.0, 0, False
+        except Exception:
+            # Un WAV corrupto o un fallo de análisis no equivale a silencio.
+            # Se conserva el original para diagnóstico y reprocesamiento.
+            logger.exception(f"Error al procesar {file_path}; el WAV se conservará.")
+            return None
+
+    def save_metrics(self, metrics, file_path):
+        """Publica una métrica completa y la deja visible para el emisor.
+
+        El .txt es la fuente de verdad de la cola. Se publica mediante rename
+        atómico para que send_metrics.py nunca lea JSON parcial; index.json es
+        un manifiesto reconstruible de esos archivos.
+        """
+        results_dir = Path(self.output_dir)
+        base_name = Path(file_path).stem
+        txt_path = results_dir / f"{base_name}.txt"
+        temp_path = None
+
+        try:
+            fd, temp_name = tempfile.mkstemp(
+                dir=results_dir,
+                prefix=f".{base_name}.",
+                suffix=".tmp",
+                text=True,
             )
+            temp_path = Path(temp_name)
+            with os.fdopen(fd, "w", encoding="utf-8") as output_file:
+                json.dump(
+                    metrics,
+                    output_file,
+                    ensure_ascii=False,
+                    indent=4,
+                    allow_nan=False,
+                )
+                output_file.flush()
+                os.fsync(output_file.fileno())
+
+            os.replace(temp_path, txt_path)
+            _sync_directory(results_dir)
+            temp_path = None
+            logger.info(f"Métricas guardadas en {txt_path}")
+
+            index_path = results_dir / "index.json"
+            try:
+                # El índice se deriva del contenido durable de la cola. Si esta
+                # actualización falla, send_metrics.py lo reconstruirá al leer.
+                with index_lock(index_path):
+                    txt_files = sorted(path.name for path in results_dir.glob("*.txt"))
+                    tmp_index_path = index_path.with_suffix(".tmp")
+                    tmp_index_path.write_text(
+                        json.dumps(txt_files, ensure_ascii=False, indent=4),
+                        encoding="utf-8",
+                    )
+                    tmp_index_path.replace(index_path)
+                    _sync_directory(results_dir)
+                logger.info(f"index.json actualizado con {len(txt_files)} archivos.")
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning(
+                    "La métrica quedó publicada, pero no se pudo actualizar index.json; "
+                    f"el emisor lo reconstruirá: {exc}"
+                )
+
+            return True
+        except (OSError, TypeError, ValueError) as exc:
+            logger.error(f"No se pudieron guardar las métricas de {file_path}: {exc}")
+            return False
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except OSError as exc:
+                    logger.warning(f"No se pudo limpiar el temporal {temp_path}: {exc}")
+
+    def metric_path_for(self, file_path):
+        return Path(self.output_dir) / f"{Path(file_path).stem}.txt"
+
+    def quarantine_failed_file(self, file_path, reason):
+        """Aparta un WAV problemático sin destruirlo ni volver a analizarlo en bucle."""
+        source = Path(file_path)
+        quarantine_dir = source.parent / ".failed"
+        try:
+            quarantine_dir.mkdir(parents=True, exist_ok=True)
+            destination = quarantine_dir / source.name
+            suffix = 2
+            while destination.exists():
+                destination = quarantine_dir / f"{source.stem} ({suffix}){source.suffix}"
+                suffix += 1
+            os.replace(source, destination)
+            _sync_directory(source.parent)
+            _sync_directory(quarantine_dir)
+        except OSError as exc:
+            logger.error(
+                f"No se pudo mover {source} a cuarentena; se conservará en origen: {exc}"
+            )
+            return None
+
+        # El sidecar es diagnóstico, no parte de la transacción que preserva
+        # el WAV. Si falla, el archivo ya está a salvo en cuarentena.
+        try:
+            error_path = destination.with_suffix(destination.suffix + ".error.txt")
+            error_path.write_text(reason + "\n", encoding="utf-8")
+        except OSError as exc:
+            logger.warning(f"No se pudo escribir el motivo de cuarentena: {exc}")
+        self.quarantined_count += 1
+        logger.error(f"WAV conservado en cuarentena: {destination}")
+        return destination
 
     def process_audio_file(self, file_path):
         """
         Procesa un único archivo de audio.
+
+        Devuelve ``processed``, ``quarantined`` o ``retry``. El WAV solo se
+        elimina después de publicar durablemente su métrica.
         """
         if not file_path.lower().endswith('.wav'):
             logger.warning(f"Archivo ignorado (no es .wav): {file_path}")
-            return
+            return "ignored"
+
+        if not os.path.exists(file_path):
+            return "ignored"
+
+        # Recuperación tras un cierre entre publicar la métrica y limpiar el
+        # WAV. No se repite un análisis costoso si el .txt durable ya existe.
+        if self.metric_path_for(file_path).exists():
+            if self.cleanup_processed_file(file_path):
+                logger.info(f"WAV residual limpiado: {file_path}")
+                return "processed"
+            return "retry"
         
         logger.info(f"Procesando: {file_path}")
+        PROCESS_STATUS.publish(
+            state="processing",
+            current_file=os.path.basename(file_path),
+            last_error="",
+            processed_count=self.processed_count,
+            failed_count=self.failed_count,
+        )
         
         metrics = self.extract_audio_features(file_path)
         if metrics:
@@ -311,43 +479,85 @@ class AudioProcessor:
                 if isinstance(value, datetime):
                     metrics[key] = value.isoformat()
 
-            results_dir = self.output_dir
-
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
-            txt_path = os.path.join(results_dir, f"{base_name}.txt")
-
-            try:
-                import json
-                with open(txt_path, "w", encoding="utf-8") as f:
-                    json.dump(metrics, f, ensure_ascii=False, indent=4)
-                logger.info(f"Métricas guardadas en {txt_path}")
-                index_path = os.path.join(results_dir, "index.json")
-                # Compartir el bloqueo con send_metrics.py para que la
-                # eliminación de un archivo no sea sobrescrita por una
-                # actualización concurrente del productor.
-                with index_lock(Path(index_path)):
-                    txt_files = sorted(
-                        f for f in os.listdir(results_dir) if f.endswith(".txt")
-                    )
-                    tmp_index_path = f"{index_path}.tmp"
-                    with open(tmp_index_path, "w", encoding="utf-8") as f:
-                        json.dump(txt_files, f, ensure_ascii=False, indent=4)
-                    os.replace(tmp_index_path, index_path)
-                logger.info(f"index.json actualizado con {len(txt_files)} archivos.")
-
-            except Exception as e:
-                logger.error(f"No se pudo guardar o actualizar archivos de métricas: {e}")
-            
-            logger.info(f"Procesamiento completado: {os.path.basename(file_path)}")
-            self.cleanup_processed_file(file_path)
+            if self.save_metrics(metrics, file_path):
+                logger.info(f"Procesamiento completado: {os.path.basename(file_path)}")
+                cleaned = self.cleanup_processed_file(file_path)
+                self.processed_count += 1
+                PROCESS_STATUS.publish(
+                    state="watching",
+                    current_file="",
+                    last_processed_file=os.path.basename(file_path),
+                    processed_count=self.processed_count,
+                    failed_count=self.failed_count,
+                    quarantined_count=self.quarantined_count,
+                    last_error="",
+                )
+                return "processed" if cleaned else "retry"
+            else:
+                logger.error(
+                    f"No se publicó la métrica; se conservará el WAV: {file_path}"
+                )
+                self.failed_count += 1
+                PROCESS_STATUS.publish(
+                    state="watching",
+                    current_file="",
+                    processed_count=self.processed_count,
+                    failed_count=self.failed_count,
+                    last_error=f"No se publicó la métrica de {os.path.basename(file_path)}.",
+                )
+                return "retry"
         else:
-            logger.error(f"Falló el procesamiento: {file_path}")
+            logger.error(f"Falló el procesamiento; se conservará el WAV: {file_path}")
+            self.failed_count += 1
+            quarantined = self.quarantine_failed_file(
+                file_path,
+                "Falló el análisis acústico. Consulte audio_processing_log.log.",
+            )
+            PROCESS_STATUS.publish(
+                state="watching",
+                current_file="",
+                processed_count=self.processed_count,
+                failed_count=self.failed_count,
+                quarantined_count=self.quarantined_count,
+                last_quarantined_file=str(quarantined or ""),
+                last_error=f"Falló el análisis de {os.path.basename(file_path)}; "
+                + ("se movió a cuarentena." if quarantined else "se reintentará."),
+            )
+            return "quarantined" if quarantined else "retry"
+
+    def quarantine_stale_partials(self, recordings_dir, recorder_state_file, min_age=60):
+        """Conserva parciales abandonados por caídas sin tocar el archivo activo.
+
+        Solo actúa cuando el grabador declara explícitamente cuál es su archivo
+        actual. Esto evita confundir una pausa de ALSA con un parcial huérfano.
+        """
+        state = read_json_snapshot(Path(recorder_state_file))
+        if state.get("state") != "recording" or not state.get("current_file"):
+            return 0
+
+        active_partial = Path(str(state["current_file"]) + ".part").absolute()
+        now = time.time()
+        moved = 0
+        for partial in sorted(Path(recordings_dir).glob("*.wav.part")):
+            try:
+                age = now - partial.stat().st_mtime
+            except OSError:
+                continue
+            if partial.absolute() == active_partial or age < min_age:
+                continue
+            destination = self.quarantine_failed_file(
+                partial,
+                "Parcial abandonado tras una interrupción del grabador.",
+            )
+            if destination is not None:
+                moved += 1
+        return moved
 
     
     def cleanup_processed_file(self, file_path: str):
         """
         Elimina el archivo de audio inmediatamente después de procesarlo 
-        y guardar sus métricas en la base de datos.
+        y publicar sus métricas en la cola local.
 
         Args:
             file_path (str): Ruta al archivo procesado
@@ -356,10 +566,14 @@ class AudioProcessor:
             if os.path.exists(file_path):
                 os.remove(file_path)
                 logger.info(f"Archivo eliminado después de procesar: {file_path}")
+                _sync_directory(Path(file_path).parent)
+                return True
             else:
                 logger.warning(f"Archivo no encontrado al intentar eliminar: {file_path}")
-        except Exception as e:
+                return True
+        except OSError as e:
             logger.error(f"Error al eliminar archivo {file_path}: {e}")
+            return False
 
     
     def process_folder(self, folder_path):
@@ -373,7 +587,7 @@ class AudioProcessor:
             logger.error(f"La carpeta no existe: {folder_path}")
             return
         
-        wav_files = [f for f in os.listdir(folder_path) if f.lower().endswith('.wav')]
+        wav_files = sorted(f for f in os.listdir(folder_path) if f.lower().endswith('.wav'))
         
         if not wav_files:
             logger.warning(f"No se encontraron archivos .wav en: {folder_path}")
@@ -396,21 +610,19 @@ class AudioFileHandler(FileSystemEventHandler):
     programa C++ deposita los archivos de audio grabados.
     """
     
-    def __init__(self, processor):
-        self.processor = processor
-    
-    def on_created(self, event):
-        """
-        Se ejecuta cuando se crea un nuevo archivo .wav
-        """
-        if not event.is_directory and event.src_path.lower().endswith('.wav'):
-            logger.info(f"Nuevo archivo detectado: {event.src_path}")
+    def __init__(self, spool):
+        self.spool = spool
 
-            # Esperar a que el archivo esté completo antes de procesarlo
-            if self.wait_for_file_completion(event.src_path, timeout=360):
-                self.processor.process_audio_file(event.src_path)
-            else:
-                logger.error(f"No se pudo procesar (archivo incompleto): {event.src_path}")
+    def on_created(self, event):
+        path = published_wav_from_event(event)
+        if path is not None and self.spool.enqueue(path):
+            logger.info(f"WAV creado encolado: {path}")
+
+    def on_moved(self, event):
+        """Encola el WAV final cuando el grabador lo publica mediante rename."""
+        path = published_wav_from_event(event, moved=True)
+        if path is not None and self.spool.enqueue(path):
+            logger.info(f"WAV publicado encolado: {path}")
 
     
     # Verificación de completitud del archivo
@@ -450,11 +662,12 @@ class AudioFileHandler(FileSystemEventHandler):
 
 def main():
     """Función principal del script."""
+    signal.signal(signal.SIGTERM, _handle_termination)
     parser = argparse.ArgumentParser(description='Procesador de audio para monitoreo de ruido')
     parser.add_argument('--watch', action='store_true',
                         help='Modo de monitoreo continuo (para Raspberry Pi)')
-    parser.add_argument('--folder', default=os.path.join(os.path.expanduser("~"), "Documents"),
-                        help='Carpeta a monitorear (por defecto: ~/Documents/)')
+    parser.add_argument('--folder', default=str(STATION_CONFIG.recordings_dir),
+                        help='Carpeta a monitorear (por defecto: configuración compartida)')
     parser.add_argument('--output', default=str(DEFAULT_OUTPUT_DIR),
                         help='Carpeta de salida para los .txt de métricas (por defecto: runtime/audio_stats/)')
 
@@ -467,34 +680,96 @@ def main():
 
     # Inicializar el procesador con la carpeta de salida
     processor = AudioProcessor(output_dir=args.output)
+    PROCESS_STATUS.publish(
+        state="starting",
+        input_dir=str(args.folder),
+        output_dir=str(args.output),
+        last_error="",
+    )
     
     if args.watch:
-
-        processor.process_folder(args.folder)
-        # Modo de monitoreo continuo 
+        # El observador se inicia antes de reconciliar el directorio. Así no
+        # existe una ventana entre el escaneo inicial y la suscripción a
+        # eventos. AudioSpool deduplica si ambos detectan el mismo archivo.
         logger.info(f"Iniciando monitoreo continuo de: {args.folder}")
         logger.info("MODO RASPBERRY PI: Esperando archivos del programa C++ de grabación...")
-        
-        event_handler = AudioFileHandler(processor)
+
+        spool = AudioSpool()
+        event_handler = AudioFileHandler(spool)
         observer = Observer()
         observer.schedule(event_handler, args.folder, recursive=False)
         observer.start()
-        
+        processor.quarantine_stale_partials(
+            args.folder,
+            STATION_CONFIG.recorder_state_file,
+        )
+        discovered = spool.reconcile(args.folder)
+        logger.info(f"Reconciliación inicial: {discovered} WAV encolado(s).")
+        PROCESS_STATUS.publish(
+            state="watching",
+            input_dir=str(args.folder),
+            output_dir=str(args.output),
+            current_file="",
+            queued_count=spool.qsize(),
+            last_error="",
+        )
+
+        next_reconciliation = time.monotonic() + RECONCILE_INTERVAL_SECONDS
         try:
             while True:
-                time.sleep(1)
-                
+                timeout = max(0.1, next_reconciliation - time.monotonic())
+                try:
+                    file_path = spool.get(timeout=timeout)
+                except queue.Empty:
+                    spool.discard_missing()
+                    processor.quarantine_stale_partials(
+                        args.folder,
+                        STATION_CONFIG.recorder_state_file,
+                    )
+                    spool.reconcile(args.folder)
+                    next_reconciliation = time.monotonic() + RECONCILE_INTERVAL_SECONDS
+                    PROCESS_STATUS.publish(
+                        state="watching",
+                        current_file="",
+                        queued_count=spool.qsize(),
+                    )
+                    continue
+
+                retry_after = 0
+                try:
+                    if not file_path.exists():
+                        result = "ignored"
+                    elif event_handler.wait_for_file_completion(str(file_path), timeout=360):
+                        result = processor.process_audio_file(str(file_path))
+                    else:
+                        logger.error(f"No se pudo procesar (archivo incompleto): {file_path}")
+                        result = "retry"
+                    if result == "retry":
+                        retry_after = PROCESS_RETRY_DELAY_SECONDS
+                finally:
+                    spool.finish(file_path, retry_after_seconds=retry_after)
+
+                if time.monotonic() >= next_reconciliation:
+                    spool.discard_missing()
+                    processor.quarantine_stale_partials(
+                        args.folder,
+                        STATION_CONFIG.recorder_state_file,
+                    )
+                    spool.reconcile(args.folder)
+                    next_reconciliation = time.monotonic() + RECONCILE_INTERVAL_SECONDS
         except KeyboardInterrupt:
-            observer.stop()
             logger.info("Monitoreo detenido por el usuario")
-        
-        observer.join()
+        finally:
+            observer.stop()
+            observer.join()
+            PROCESS_STATUS.publish(state="stopped", current_file="")
         
     else:
         # Modo de procesamiento por lotes (para desarrollo local)
         logger.info(f"Procesando archivos existentes en: {args.folder}")
         processor.process_folder(args.folder)
         logger.info("Procesamiento por lotes completado")
+        PROCESS_STATUS.publish(state="stopped", current_file="")
 
 if __name__ == "__main__":
     main()

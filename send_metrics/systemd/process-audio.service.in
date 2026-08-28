@@ -1,0 +1,21 @@
+[Unit]
+Description=Procesamiento acústico de Sound Monitor
+After=local-fs.target continuous-recorder.service
+Wants=continuous-recorder.service
+
+[Service]
+Type=simple
+User=@STATION_USER@
+Group=@STATION_GROUP@
+WorkingDirectory=@PROJECT_DIR@
+Environment=SOUND_MONITOR_CONFIG=@CONFIG_PATH@
+ExecStart=@VENV_DIR@/bin/python @PROJECT_DIR@/scripts/process_audio.py --watch
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

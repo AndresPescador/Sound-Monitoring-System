@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+launcher_path=$(readlink -f "$0")
+project_dir=$(CDPATH= cd -- "$(dirname -- "$launcher_path")/.." && pwd)
+python_path="$project_dir/audio_env/bin/python"
+
+# sudo/runuser y algunas sesiones SSH no propagan la dirección de la sesión
+# PipeWire/PulseAudio. Recuperarla permite validar micrófonos Bluetooth desde
+# la TUI sin afectar dispositivos ALSA físicos.
+station_uid=$(id -u)
+audio_runtime_dir="/run/user/$station_uid"
+if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -d "$audio_runtime_dir" ]; then
+    XDG_RUNTIME_DIR="$audio_runtime_dir"
+    export XDG_RUNTIME_DIR
+fi
+if [ -z "${PULSE_SERVER:-}" ] && [ -S "$audio_runtime_dir/pulse/native" ]; then
+    PULSE_SERVER="unix:$audio_runtime_dir/pulse/native"
+    export PULSE_SERVER
+fi
+
+if [ ! -x "$python_path" ]; then
+    printf '%s\n' "Sound Monitor no está instalado. Ejecute setup/install_station.sh." >&2
+    exit 1
+fi
+
+exec "$python_path" "$project_dir/tui/app.py" "$@"

@@ -9,16 +9,20 @@ La estructura esperada es:
 ```text
 send_metrics/
 ├── README.md
-├── .env.example              # Plantilla; copiar como .env y completar
-├── .env                      # Configuración real; nunca versionar
-├── requirements.txt          # Dependencias de ambos scripts
+├── .env.example              # Compatibilidad para desarrollo local
+├── requirements.txt          # Dependencias Python y de la TUI
 ├── audio_env/                # Entorno virtual local; ignorado por Git
+├── bin/sound-monitor         # Lanzador de la TUI
+├── tui/app.py                # Interfaz de operación y configuración
+├── recorder/                 # Grabador ALSA C++
 ├── scripts/
 │   ├── process_audio.py      # Analiza los WAV
 │   ├── send_metrics.py       # Envía las métricas
-│   └── index_lock.py         # Bloqueo compartido de index.json
+│   ├── station_config.py     # Configuración TOML compartida
+│   └── runtime_status.py     # Estado atómico para la TUI
 ├── setup/
-│   ├── setup_env_linux.sh    # Instalación para Raspberry Pi/Linux
+│   ├── install_station.sh    # Instalación completa en Raspberry Pi OS
+│   ├── setup_env_linux.sh    # Entorno de desarrollo Linux
 │   └── setup_env_windows.bat # Instalación para Windows
 └── runtime/                  # Datos generados; ignorado por Git
     ├── audio_stats/          # JSON de métricas con extensión .txt
@@ -28,7 +32,7 @@ send_metrics/
     └── audio_processing_log.log
 ```
 
-`process_audio.py` y `send_metrics.py` deben usar la misma carpeta `runtime/audio_stats`. Los archivos de `runtime/` son datos locales de la estación y no deben copiarse al repositorio ni compartirse públicamente.
+`process_audio.py` y `send_metrics.py` deben usar la misma carpeta `runtime/audio_stats`. Los archivos `.txt` publicados son la fuente de verdad de la cola; `index.json` es un manifiesto que se reconstruye automáticamente si falta, se corrompe o la estación se apaga durante su actualización. Los archivos de `runtime/` son datos locales de la estación y no deben copiarse al repositorio ni compartirse públicamente.
 
 ## 2. Instalación en una Raspberry Pi
 
@@ -44,51 +48,49 @@ cd /home/pi/Sound-Monitoring-System/send_metrics
 
 La ruta puede ser diferente, pero debe conservarse la estructura anterior.
 
-### 2.2 Configurar la estación
+### 2.2 Instalación completa
 
-Crear la configuración real a partir de la plantilla:
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-Completar al menos:
-
-```dotenv
-STATION_CODE=ST-CODIGO-DE-LA-ESTACION
-STATION_SECRET=secret_entregado_al_registrar_la_estacion
-SERVER_URL=http://IP_DEL_SERVIDOR
-RUNTIME_DIR=./runtime
-METRICS_OUTPUT_DIR=./runtime/audio_stats
-```
-
-`SERVER_URL` debe ser la dirección del servidor central, no `localhost`. El `STATION_CODE` y el `STATION_SECRET` deben corresponder a una estación registrada tanto en Auth Service como en Noise Processing.
-
-No incluir el contenido real de `.env` en logs, issues, commits ni capturas de pantalla.
-
-### 2.3 Instalar las dependencias
-
-Ejecutar una sola vez:
+Conecte primero el dispositivo de captura. Desde la carpeta `send_metrics`, ejecute:
 
 ```bash
-chmod +x setup/setup_env_linux.sh
+chmod +x setup/install_station.sh
+./setup/install_station.sh
+```
+
+El instalador solicita privilegios una vez y realiza de forma idempotente:
+
+- dependencias C++ y Python;
+- entorno virtual, compilación e instalación del grabador;
+- las tres unidades systemd y sus permisos restringidos;
+- el comando global `sound-monitor`;
+- autologin y apertura de la TUI en Raspberry Pi OS Desktop;
+- el asistente de primera configuración.
+
+El asistente pide código, secreto, URL del servidor y dispositivo ALSA. Valida el hardware y solicita un token antes de guardar. La estación debe existir previamente en Auth y Processing.
+
+La configuración se guarda en `~/.config/sound-monitor/station.toml` con permisos `0600`. No incluirla en logs, issues, commits ni capturas de pantalla.
+
+Al terminar, los tres servicios se habilitan para cada arranque. Reinicie la Raspberry para aplicar el autologin gráfico.
+
+### 2.3 Abrir la TUI
+
+```bash
+sound-monitor
+```
+
+El comando funciona desde cualquier carpeta, consola local o sesión SSH. En el escritorio se abre automáticamente una terminal con la TUI al iniciar la sesión. Salir de la interfaz no detiene los servicios.
+
+Desde la interfaz se puede revisar el progreso de grabación, análisis, cola, envío, disco y eventos; operar servicios; probar ALSA/servidor; reactivar fallidos y editar los parámetros avanzados.
+
+### 2.4 Desarrollo sin instalar servicios
+
+Para preparar solo el entorno Python del checkout:
+
+```bash
 ./setup/setup_env_linux.sh
 ```
 
-El instalador:
-
-- prepara las dependencias del sistema para audio;
-- crea `audio_env/` en la raíz de `send_metrics`;
-- instala las dependencias de procesamiento y envío;
-- crea `runtime/audio_stats/`;
-- verifica las importaciones principales.
-
-Activar el entorno cada vez que se vaya a ejecutar manualmente:
-
-```bash
-source audio_env/bin/activate
-```
+En este modo `.env` sigue siendo compatible. La instalación de estación usa el TOML compartido como fuente principal.
 
 ## 3. Preparar la carpeta de grabaciones
 
@@ -105,6 +107,14 @@ Rec 2026-08-20 18h27m31s 1.wav
 ```
 
 El script acepta otros nombres, pero si no encuentra ese patrón intentará usar la fecha de modificación del archivo.
+
+### 3.1 Grabador ALSA de terminal
+
+El componente `recorder/` reemplaza la antigua aplicación JUCE. Captura WAV PCM de 24 bits, 44.100 Hz y hasta dos canales en segmentos de 60 segundos, y publica cada archivo cerrado en la carpeta de grabaciones.
+
+La fuente no se selecciona automáticamente: el asistente de `sound-monitor` enumera ALSA, permite elegir el dispositivo y lo valida antes de activar el servicio. La guía del binario se encuentra en [`recorder/README.md`](recorder/README.md).
+
+El grabador escribe primero `*.wav.part` y lo renombra a `.wav` al cerrar el segmento. Por tanto, `process_audio.py --watch` debe seguir apuntando a la misma carpeta, pero solo verá archivos completos.
 
 ## 4. Probar el procesamiento y el envío
 
@@ -125,7 +135,9 @@ Por cada `.wav` válido se crea un archivo `.txt` cuyo contenido es JSON. Tambi�
 runtime/audio_stats/index.json
 ```
 
-El `.wav` se elimina después de procesarse correctamente según la lógica actual del procesador. Para una prueba, utilizar copias de los audios originales.
+El `.wav` se elimina únicamente después de publicar durablemente su métrica. Si
+falla la escritura local se conserva para reintento; si el audio no puede
+analizarse se mueve a `grabaciones/.failed/` para diagnóstico.
 
 ### 4.2 Revisar la cola local
 
@@ -179,83 +191,51 @@ source audio_env/bin/activate
 python scripts/send_metrics.py
 ```
 
-`process_audio.py` detecta nuevos WAV y `send_metrics.py` consulta la cola cada 30 segundos por defecto.
+`process_audio.py` inicia la vigilancia antes del escaneo inicial, encola los
+eventos sin bloquear `watchdog` y reconcilia el directorio periódicamente. Un
+evento perdido o un WAV publicado durante el arranque se recupera sin reiniciar
+el servicio. `send_metrics.py` consulta la cola cada 30 segundos por defecto.
 
 ## 6. Arranque automático con systemd
 
-Para una estación permanente se recomienda usar dos servicios separados.
+`setup/install_station.sh` genera e instala tres unidades a partir de las plantillas de `systemd/`:
 
-### 6.1 Servicio del procesador
+- `continuous-recorder.service` captura y publica WAV completos;
+- `process-audio.service` produce las métricas locales;
+- `send-metrics.service` autentica y entrega la cola.
 
-Crear `/etc/systemd/system/process-audio.service`:
-
-```ini
-[Unit]
-Description=Procesamiento de audio de la estación
-After=local-fs.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/Sound-Monitoring-System/send_metrics
-ExecStart=/home/pi/Sound-Monitoring-System/send_metrics/audio_env/bin/python /home/pi/Sound-Monitoring-System/send_metrics/scripts/process_audio.py --watch --folder /home/pi/grabaciones --output /home/pi/Sound-Monitoring-System/send_metrics/runtime/audio_stats
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### 6.2 Servicio del emisor
-
-Crear `/etc/systemd/system/send-metrics.service`:
-
-```ini
-[Unit]
-Description=Envío de métricas acústicas de la estación
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/Sound-Monitoring-System/send_metrics
-ExecStart=/home/pi/Sound-Monitoring-System/send_metrics/audio_env/bin/python /home/pi/Sound-Monitoring-System/send_metrics/scripts/send_metrics.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Activar ambos servicios:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now process-audio.service
-sudo systemctl enable --now send-metrics.service
-```
+Los procesos están aislados para que un fallo de análisis o red no interrumpa la captura. La TUI solo los observa y opera; cerrarla no modifica su estado.
 
 Comprobar estado y logs:
 
 ```bash
+systemctl status continuous-recorder.service
 systemctl status process-audio.service
 systemctl status send-metrics.service
+journalctl -u continuous-recorder.service -f
 journalctl -u process-audio.service -f
 journalctl -u send-metrics.service -f
 ```
 
+La regla de `/etc/sudoers.d/sound-monitor` solo autoriza a la TUI a ejecutar `start`, `stop` y `restart` sobre esas tres unidades.
+
 ## 7. Cómo funciona la cola y la recuperación
 
-- `index.json` contiene los archivos pendientes.
+- Los `.txt` publicados contienen los archivos pendientes; `index.json` es su índice reconstruible.
+- El WAV solo se elimina después de publicar y sincronizar su `.txt`. Los WAV que no pueden analizarse se conservan en `grabaciones/.failed/` junto con el motivo; un fallo temporal al escribir la métrica conserva el WAV y lo reintenta con espera.
+- Los eventos de archivos son avisos y no la fuente de verdad: el procesador vuelve a escanear los WAV finales cada 15 segundos y deduplica los detectados por ambas vías.
 - La cola se procesa en orden lexicográfico, que coincide con el orden temporal si los nombres mantienen el formato de grabación.
 - `MAX_BACKLOG` limita los archivos enviados por ciclo.
 - Los errores temporales de red se reintentan hasta `MAX_RETRIES` y después quedan pausados en `failed_files.json`, sin borrarse.
 - Los payloads inválidos se conservan para diagnóstico y no se reintentan automáticamente.
-- Si se recibe `401`, se elimina la caché local del token y se solicita otro.
+- El JWT se renueva preventivamente con `TOKEN_RENEWAL_MARGIN_SECONDS` (24 horas por defecto). Si Auth no responde, el token aún vigente sigue usándose y la renovación aplica backoff exponencial, respetando `Retry-After` cuando exista.
+- Si se recibe `401`, se descarta la caché, se solicita un token nuevo y se reintenta esa misma métrica en el ciclo actual. Si Auth sigue caído, la estación conserva la cola y se recupera sola al volver el servicio.
+- Para probar una expiración de dos minutos, configura temporalmente `TOKEN_RENEWAL_MARGIN_SECONDS=0` en la Raspberry y elimina su `runtime/token.json` antes de iniciar el emisor, para que no reutilice un JWT antiguo.
 - `process_audio.py` y `send_metrics.py` bloquean conjuntamente `index.json` para evitar que una actualización sobrescriba la otra.
+- Cuando existe `station.toml`, las variables heredadas del entorno no sustituyen sus valores. Esto impide que los servicios usen rutas diferentes accidentalmente; `.env` solo se consulta si no existe el TOML.
+- Cada log rota al alcanzar `LOG_MAX_BYTES` (5 MiB por defecto) y conserva `LOG_BACKUP_COUNT` archivos históricos (5 por defecto). Con esos valores, cada script usa como máximo aproximadamente 30 MiB en logs locales.
 
-Para reactivar un archivo después de corregir el problema, revisar primero los logs y eliminar únicamente su entrada de `runtime/failed_files.json`. Si se elimina el archivo completo, se reactivarán todos los archivos pausados.
+Para reactivar archivos después de corregir el problema, use **Controles → Reactivar fallidos** en `sound-monitor`. La TUI pausa brevemente el emisor, actualiza el registro bajo bloqueo y vuelve a iniciarlo.
 
 ## 8. Dependencias
 
@@ -268,14 +248,22 @@ Para reactivar un archivo después de corregir el problema, revisar primero los 
 | `watchdog` | Detección de nuevos archivos |
 | `httpx` | Solicitudes HTTP al servidor |
 | `python-dotenv` | Lectura de `.env` |
+| `tomli` | Lectura TOML en Python 3.9/3.10 |
+| `Textual` / `Rich` | Interfaz de terminal |
+| `pactl` (`pulseaudio-utils`) | Nombre y tipo de la fuente física detrás de PulseAudio/PipeWire |
+| ALSA / libsndfile / toml++ | Captura C++ y configuración del grabador |
 
 ## 9. Solución rápida de problemas
 
 | Síntoma | Comprobación |
 |---|---|
-| No se generan métricas | Revisar `process_audio.log`, la carpeta de WAV y los permisos de salida |
+| No se generan métricas | Revisar `runtime/audio_processing_log.log`, la carpeta de WAV y los permisos de salida |
 | `index.json` vacío | Verificar que existan WAV y que `--output` coincida con `METRICS_OUTPUT_DIR` |
 | No conecta al servidor | Revisar `SERVER_URL`, red local y `systemctl status send-metrics` |
+| `pulse: Connection refused` al validar Bluetooth | Confirmar `systemctl --user status pipewire-pulse`, que exista `/run/user/$(id -u)/pulse/native` y volver a ejecutar el instalador actualizado |
 | Error `401` | Confirmar estación activa, `STATION_CODE` y `STATION_SECRET` |
 | Archivos en `failed_files.json` | Revisar `runtime/send_metrics.log` antes de reactivar los archivos |
+| `sound-monitor` no existe | Reejecutar `setup/install_station.sh` |
+| La TUI no controla servicios | Validar `/etc/sudoers.d/sound-monitor` y revisar `sudo -n -l` |
+| No aparece al iniciar el escritorio | Confirmar autologin y `~/.config/autostart/sound-monitor.desktop` |
 | VS Code no encuentra paquetes | Seleccionar `audio_env/bin/python` como intérprete |

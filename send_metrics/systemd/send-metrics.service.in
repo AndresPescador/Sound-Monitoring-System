@@ -1,0 +1,21 @@
+[Unit]
+Description=Envío de métricas de Sound Monitor
+After=network-online.target process-audio.service
+Wants=network-online.target process-audio.service
+
+[Service]
+Type=simple
+User=@STATION_USER@
+Group=@STATION_GROUP@
+WorkingDirectory=@PROJECT_DIR@
+Environment=SOUND_MONITOR_CONFIG=@CONFIG_PATH@
+ExecStart=@VENV_DIR@/bin/python @PROJECT_DIR@/scripts/send_metrics.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

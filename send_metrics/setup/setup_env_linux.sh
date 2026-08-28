@@ -65,6 +65,8 @@ dependencies = {
     "watchdog": "watchdog",
     "httpx": "httpx",
     "dotenv": "dotenv",
+    "textual": "textual",
+    "rich": "rich",
 }
 
 failed = []

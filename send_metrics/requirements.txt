@@ -8,3 +8,6 @@ soundfile>=0.12.1
 scipy>=1.10.0
 librosa>=0.10.0
 watchdog>=4.0.0
+textual>=8.2.0,<9
+rich>=14.0.0,<15
+tomli>=2.0.1; python_version < "3.11"

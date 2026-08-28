@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 :: =============================================================================
 :: setup_env_windows.bat
-:: Prepara el entorno común de process_audio.py y send_metrics.py.
+:: Prepara el entorno Python de procesamiento, envío y TUI.
 :: =============================================================================
 
 set "SETUP_DIR=%~dp0"
@@ -43,7 +43,7 @@ if errorlevel 1 (
 )
 
 echo Verificando instalacion...
-python -c "import numpy, soundfile, librosa, scipy, watchdog, httpx, dotenv; print('Dependencias principales: OK')"
+python -c "import numpy, soundfile, librosa, scipy, watchdog, httpx, dotenv, textual, rich; print('Dependencias principales: OK')"
 if errorlevel 1 (
     echo ERROR: falta alguna dependencia.
     pause

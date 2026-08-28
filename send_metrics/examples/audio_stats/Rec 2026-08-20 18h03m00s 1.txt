@@ -1,0 +1,20 @@
+{
+    "timestamp": "2026-08-20T18:03:00",
+    "filename": "Rec 2026-08-20 18h03m00s 1.wav",
+    "dbfs_level": -41.95,
+    "rms_energy": 0.00798914,
+    "leq_dbfs": -45.15,
+    "ch_left_dbfs": -42.35,
+    "ch_right_dbfs": -41.55,
+    "ch_left_rms": 0.00762957,
+    "ch_right_rms": 0.00836566,
+    "ild_db": -0.8,
+    "interaural_correlation": 0.69,
+    "dominant_frequency": 672.5,
+    "spectral_centroid": 1845.0,
+    "spectral_rolloff": 4120.0,
+    "zero_crossing_rate": 0.091,
+    "duration": 60.0,
+    "sample_rate": 44100,
+    "is_stereo": true
+}

@@ -19,37 +19,40 @@ import json
 import logging
 import math
 import os
+import signal
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from enum import Enum
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Optional
 
 import httpx
-from dotenv import load_dotenv
 
 from index_lock import index_lock
+from runtime_status import StatusPublisher
+from station_config import load_station_config
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
-load_dotenv(PROJECT_DIR / ".env")
+STATION_CONFIG = load_station_config(project_dir=PROJECT_DIR)
 
-
-def _project_path(value: str, default: Path) -> Path:
-    path = Path(value) if value else default
-    return path if path.is_absolute() else PROJECT_DIR / path
-
-# ── Configuración desde .env ───────────────────────────────────────────────────
-STATION_CODE          = os.getenv("STATION_CODE", "")
-STATION_SECRET        = os.getenv("STATION_SECRET", "")
-SERVER_URL            = os.getenv("SERVER_URL", "").rstrip("/")
-RUNTIME_DIR           = _project_path(os.getenv("RUNTIME_DIR", ""), PROJECT_DIR / "runtime")
-METRICS_OUTPUT_DIR    = _project_path(
-    os.getenv("METRICS_OUTPUT_DIR", ""), RUNTIME_DIR / "audio_stats"
-)
-SEND_INTERVAL_SECONDS = int(os.getenv("SEND_INTERVAL_SECONDS", "30"))
-MAX_RETRIES           = int(os.getenv("MAX_RETRIES", "3"))
-MAX_BACKLOG           = int(os.getenv("MAX_BACKLOG", "100"))
+# ── Configuración compartida ──────────────────────────────────────────────────
+STATION_CODE = STATION_CONFIG.station_code
+STATION_SECRET = STATION_CONFIG.station_secret
+SERVER_URL = STATION_CONFIG.server_url
+RUNTIME_DIR = STATION_CONFIG.runtime_dir
+METRICS_OUTPUT_DIR = STATION_CONFIG.metrics_output_dir
+SEND_INTERVAL_SECONDS = STATION_CONFIG.send_interval_seconds
+MAX_RETRIES = STATION_CONFIG.max_retries
+MAX_BACKLOG = STATION_CONFIG.max_backlog
+TOKEN_RENEWAL_MARGIN_SECONDS = STATION_CONFIG.token_renewal_margin_seconds
+AUTH_RETRY_INITIAL_SECONDS = STATION_CONFIG.auth_retry_initial_seconds
+AUTH_RETRY_MAX_SECONDS = STATION_CONFIG.auth_retry_max_seconds
+LOG_MAX_BYTES = STATION_CONFIG.log_max_bytes
+LOG_BACKUP_COUNT = STATION_CONFIG.log_backup_count
 
 INGEST_URL = f"{SERVER_URL}/ingest/ingest"
 AUTH_URL   = f"{SERVER_URL}/auth/token"
@@ -58,13 +61,27 @@ TOKEN_FILE        = RUNTIME_DIR / "token.json"
 FAILED_FILES_FILE = RUNTIME_DIR / "failed_files.json"
 
 RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+SENDER_STATUS = StatusPublisher(
+    RUNTIME_DIR / "sender_status.json",
+    "send-metrics",
+    current_file="",
+    last_sent_file="",
+    last_outcome="",
+    pending=0,
+    exhausted=0,
+)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s — %(levelname)s — %(message)s",
     handlers=[
-        logging.FileHandler(RUNTIME_DIR / "send_metrics.log"),
+        RotatingFileHandler(
+            RUNTIME_DIR / "send_metrics.log",
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
+            encoding="utf-8",
+        ),
         logging.StreamHandler(sys.stdout),
     ]
 )
@@ -73,8 +90,24 @@ logger = logging.getLogger(__name__)
 BOGOTA_TZ = timezone(timedelta(hours=-5))
 
 
+def _handle_termination(_signum, _frame):
+    raise KeyboardInterrupt
+
+
 class TokenRequestError(RuntimeError):
     """No se pudo obtener un token de estación."""
+
+    def __init__(self, message, retry_after_seconds=None):
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+
+
+@dataclass
+class CachedToken:
+    """JWT local con su expiración comprobada desde el claim exp."""
+
+    value: str
+    expires_at: datetime
 
 
 class SendOutcome(str, Enum):
@@ -82,6 +115,7 @@ class SendOutcome(str, Enum):
 
     SENT = "sent"
     RETRY = "retry"
+    TOKEN_REJECTED = "token_rejected"
     PERMANENT_FAILURE = "permanent_failure"
     CLEANUP_PENDING = "cleanup_pending"
 
@@ -144,13 +178,24 @@ def validate_config():
     if MAX_BACKLOG <= 0:
         logger.error("MAX_BACKLOG debe ser mayor que cero")
         sys.exit(1)
+    if TOKEN_RENEWAL_MARGIN_SECONDS < 0:
+        logger.error("TOKEN_RENEWAL_MARGIN_SECONDS no puede ser negativo")
+        sys.exit(1)
+    if AUTH_RETRY_INITIAL_SECONDS <= 0:
+        logger.error("AUTH_RETRY_INITIAL_SECONDS debe ser mayor que cero")
+        sys.exit(1)
+    if AUTH_RETRY_MAX_SECONDS < AUTH_RETRY_INITIAL_SECONDS:
+        logger.error(
+            "AUTH_RETRY_MAX_SECONDS debe ser mayor o igual que AUTH_RETRY_INITIAL_SECONDS"
+        )
+        sys.exit(1)
 
 
 # =============================================================================
 # GESTIÓN DEL TOKEN JWT
 # =============================================================================
 
-def _parse_datetime(value) -> datetime | None:
+def _parse_datetime(value) -> Optional[datetime]:
     if not isinstance(value, str):
         return None
     try:
@@ -160,7 +205,7 @@ def _parse_datetime(value) -> datetime | None:
         return None
 
 
-def _token_expiration(token: str) -> datetime | None:
+def _token_expiration(token: str) -> Optional[datetime]:
     """Lee el claim exp del JWT sin sustituir la validación del servidor."""
     try:
         parts = token.split(".")
@@ -179,7 +224,20 @@ def _token_expiration(token: str) -> datetime | None:
         return None
 
 
-def load_token() -> str | None:
+def _parse_retry_after(response) -> Optional[int]:
+    """Obtiene Retry-After en segundos cuando el proxy o Auth lo entrega."""
+    value = response.headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        retry_after = int(value)
+        return retry_after if retry_after > 0 else None
+    except ValueError:
+        return None
+
+
+def load_token() -> Optional[CachedToken]:
+    """Carga un JWT no expirado; un token cercano a vencer sigue siendo usable."""
     if not TOKEN_FILE.exists():
         return None
     try:
@@ -194,16 +252,33 @@ def load_token() -> str | None:
         if expires_at is None:
             logger.warning("token.json no contiene una expiración válida.")
             return None
-        if (expires_at - datetime.now(timezone.utc)).total_seconds() < 86400:
-            logger.info("Token por vencer, se renovará.")
+        if expires_at <= datetime.now(timezone.utc):
+            logger.info("El token local está vencido; se solicitará uno nuevo.")
             return None
-        return token
-    except Exception as e:
-        logger.warning(f"No se pudo leer token.json: {e}")
+        return CachedToken(value=token, expires_at=expires_at)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning(f"No se pudo leer token.json: {exc}")
         return None
 
 
-def request_token() -> str:
+def _save_token(token, expires_at):
+    """Guarda el token de forma atómica y restringe su lectura al usuario local."""
+    token_data = {"token": token, "expires_at": expires_at.isoformat()}
+    tmp_path = TOKEN_FILE.with_suffix(".tmp")
+    try:
+        tmp_path.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
+        try:
+            os.chmod(tmp_path, 0o600)
+        except OSError:
+            # En Windows chmod no ofrece la misma semántica; la escritura
+            # atómica sigue preservando la integridad del archivo.
+            pass
+        tmp_path.replace(TOKEN_FILE)
+    except OSError as exc:
+        raise TokenRequestError("No se pudo guardar token.json.") from exc
+
+
+def request_token() -> CachedToken:
     logger.info(f"Solicitando token JWT para estación: {STATION_CODE}")
     try:
         response = httpx.post(
@@ -220,7 +295,8 @@ def request_token() -> str:
 
     if response.status_code != 200:
         raise TokenRequestError(
-            f"Auth Service respondió HTTP {response.status_code}."
+            f"Auth Service respondió HTTP {response.status_code}.",
+            retry_after_seconds=_parse_retry_after(response),
         )
 
     try:
@@ -232,24 +308,100 @@ def request_token() -> str:
         raise TokenRequestError("Auth Service devolvió un token vacío.")
 
     expires_at = _token_expiration(token)
-    token_data = {"token": token}
-    if expires_at is not None:
-        token_data["expires_at"] = expires_at.isoformat()
-    else:
-        logger.warning("El JWT no contiene exp; no se podrá reutilizar con seguridad.")
+    if expires_at is None:
+        raise TokenRequestError("Auth Service devolvió un JWT sin expiración válida.")
 
-    try:
-        TOKEN_FILE.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
-    except OSError as exc:
-        raise TokenRequestError("No se pudo guardar token.json.") from exc
-
+    _save_token(token, expires_at)
     logger.info("Token JWT obtenido y guardado.")
-    return token
+    return CachedToken(value=token, expires_at=expires_at)
 
 
-def get_token() -> str:
-    token = load_token()
-    return token if token else request_token()
+class TokenManager:
+    """Renueva JWT sin interrumpir la estación por un fallo temporal de Auth."""
+
+    def __init__(self):
+        self.cached_token = load_token()
+        self.next_refresh_at = None
+        self.refresh_failures = 0
+
+    def _schedule_retry(self, error):
+        self.refresh_failures += 1
+        exponential_delay = min(
+            AUTH_RETRY_INITIAL_SECONDS * (2 ** (self.refresh_failures - 1)),
+            AUTH_RETRY_MAX_SECONDS,
+        )
+        delay = error.retry_after_seconds or exponential_delay
+        delay = min(delay, AUTH_RETRY_MAX_SECONDS)
+        self.next_refresh_at = datetime.now(timezone.utc) + timedelta(seconds=delay)
+        logger.warning(
+            f"La renovación del JWT falló; siguiente intento en {delay}s "
+            f"(fallo consecutivo {self.refresh_failures}): {error}"
+        )
+
+    def _renew(self):
+        try:
+            self.cached_token = request_token()
+        except TokenRequestError as exc:
+            self._schedule_retry(exc)
+            raise
+        self.refresh_failures = 0
+        self.next_refresh_at = None
+
+    def get_token(self, force_refresh=False):
+        """Devuelve un JWT válido o intenta renovarlo respetando el backoff.
+
+        Un token aún válido se conserva como respaldo durante una renovación
+        preventiva fallida. Tras un 401 no se reutiliza: se solicita uno nuevo
+        de inmediato y se reintenta la métrica en el mismo ciclo.
+        """
+        now = datetime.now(timezone.utc)
+        if self.cached_token is None:
+            self.cached_token = load_token()
+
+        cached_is_valid = (
+            self.cached_token is not None and self.cached_token.expires_at > now
+        )
+        remaining_seconds = (
+            (self.cached_token.expires_at - now).total_seconds()
+            if cached_is_valid
+            else None
+        )
+        needs_refresh = (
+            force_refresh
+            or not cached_is_valid
+            or remaining_seconds <= TOKEN_RENEWAL_MARGIN_SECONDS
+        )
+        if not needs_refresh:
+            return self.cached_token.value
+
+        if self.next_refresh_at is not None and now < self.next_refresh_at:
+            if cached_is_valid and not force_refresh:
+                return self.cached_token.value
+            retry_in = int((self.next_refresh_at - now).total_seconds()) + 1
+            raise TokenRequestError(
+                f"La renovación está en espera de backoff ({retry_in}s restantes).",
+                retry_after_seconds=retry_in,
+            )
+
+        try:
+            self._renew()
+        except TokenRequestError:
+            if cached_is_valid and not force_refresh:
+                logger.warning("Se conserva el JWT vigente mientras Auth se recupera.")
+                return self.cached_token.value
+            raise
+
+        return self.cached_token.value
+
+    def invalidate(self):
+        """Descarta un JWT rechazado para no volver a usarlo tras un 401."""
+        self.cached_token = None
+        self.next_refresh_at = None
+        self.refresh_failures = 0
+        try:
+            TOKEN_FILE.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning(f"No se pudo eliminar el token local rechazado: {exc}")
 
 
 # =============================================================================
@@ -277,21 +429,35 @@ def _safe_metric_path(filename: str) -> Path:
 
 
 def read_index() -> list[str]:
-    """Lee index.json. Devuelve lista vacía si no existe o está siendo escrito."""
+    """Lee y reconcilia la cola a partir de los .txt publicados de forma atómica."""
     index_path = METRICS_OUTPUT_DIR / "index.json"
-    if not index_path.exists():
-        return []
     with index_lock(index_path):
-        try:
-            files = json.loads(index_path.read_text(encoding="utf-8"))
-            if not isinstance(files, list) or not all(isinstance(item, str) for item in files):
-                raise ValueError("index.json debe contener una lista de nombres")
-            return sorted(set(files))
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
-            # Un índice inválido se reintentará en el siguiente ciclo. El
-            # bloqueo compartido evita que coincida con una escritura válida.
-            logger.warning(f"index.json no disponible o inválido: {exc}")
-            return []
+        disk_files = sorted(path.name for path in METRICS_OUTPUT_DIR.glob("*.txt"))
+        index_files = []
+        if index_path.exists():
+            try:
+                files = json.loads(index_path.read_text(encoding="utf-8"))
+                if not isinstance(files, list) or not all(isinstance(item, str) for item in files):
+                    raise ValueError("index.json debe contener una lista de nombres")
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
+                logger.warning(f"index.json no disponible o inválido; se reconstruirá: {exc}")
+            else:
+                index_files = sorted(set(files))
+
+        # Los .txt son la fuente de verdad: si la Raspberry se apaga después
+        # de publicar uno pero antes de escribir el índice, no se pierde.
+        if index_files != disk_files:
+            try:
+                tmp_path = index_path.with_suffix(".tmp")
+                tmp_path.write_text(
+                    json.dumps(disk_files, ensure_ascii=False, indent=4),
+                    encoding="utf-8",
+                )
+                tmp_path.replace(index_path)
+                logger.info(f"index.json reconciliado con {len(disk_files)} archivos.")
+            except OSError as exc:
+                logger.warning(f"No se pudo reconstruir index.json: {exc}")
+        return disk_files
 
 
 def remove_from_index(filename: str) -> bool:
@@ -378,7 +544,8 @@ def load_failed_files() -> dict:
     if not FAILED_FILES_FILE.exists():
         return {}
     try:
-        failed = json.loads(FAILED_FILES_FILE.read_text(encoding="utf-8"))
+        with index_lock(FAILED_FILES_FILE):
+            failed = json.loads(FAILED_FILES_FILE.read_text(encoding="utf-8"))
         if not isinstance(failed, dict):
             raise ValueError("failed_files.json debe contener un objeto")
         return {
@@ -394,11 +561,12 @@ def load_failed_files() -> dict:
 def save_failed_files(failed: dict):
     tmp_path = FAILED_FILES_FILE.with_suffix(".tmp")
     try:
-        tmp_path.write_text(
-            json.dumps(failed, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        tmp_path.replace(FAILED_FILES_FILE)
+        with index_lock(FAILED_FILES_FILE):
+            tmp_path.write_text(
+                json.dumps(failed, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            tmp_path.replace(FAILED_FILES_FILE)
     except OSError as exc:
         logger.error(f"No se pudo guardar failed_files.json: {exc}")
 
@@ -501,13 +669,8 @@ def send_file(filename: str, token: str) -> SendOutcome:
             return SendOutcome.SENT
 
         if response.status_code == 401:
-            logger.warning("Token rechazado. Se renovará antes del siguiente intento.")
-            if TOKEN_FILE.exists():
-                try:
-                    TOKEN_FILE.unlink()
-                except OSError as exc:
-                    logger.warning(f"No se pudo eliminar el token local: {exc}")
-            return SendOutcome.RETRY
+            logger.warning("Token rechazado por Ingestion API.")
+            return SendOutcome.TOKEN_REJECTED
 
         if response.status_code in RETRYABLE_HTTP_STATUS_CODES:
             logger.warning(
@@ -537,31 +700,91 @@ def send_file(filename: str, token: str) -> SendOutcome:
 # CICLO PRINCIPAL
 # =============================================================================
 
-def run_cycle(token: str | None, failed: dict) -> tuple[str | None, dict]:
+def run_cycle(token_manager: TokenManager, failed: dict) -> dict:
     index = read_index()
+    # failed_files.json también es estado derivado de la cola durable. Podía
+    # conservar entradas de métricas ya eliminadas y mostrar fallos fantasma.
+    active_files = set(index)
+    pruned_failed = {
+        filename: count
+        for filename, count in failed.items()
+        if filename in active_files
+    }
+    if pruned_failed != failed:
+        failed = pruned_failed
+        save_failed_files(failed)
+    exhausted_count = sum(1 for count in failed.values() if count >= MAX_RETRIES)
+    SENDER_STATUS.publish(
+        state="idle",
+        current_file="",
+        pending=len(index),
+        exhausted=exhausted_count,
+    )
     if not index:
         logger.debug("index.json vacío o no disponible. Esperando archivos.")
-        return token, failed
+        return failed
 
     pending = get_pending_files(index, failed)
     if not pending:
         logger.debug("No hay archivos pendientes de enviar.")
-        return token, failed
+        return failed
 
     logger.info(f"Archivos pendientes: {len(pending)}")
 
     for filename in pending:
+        SENDER_STATUS.publish(
+            state="sending",
+            current_file=filename,
+            pending=len(index),
+            exhausted=exhausted_count,
+            last_error="",
+        )
         try:
-            token = get_token()
+            token = token_manager.get_token()
         except TokenRequestError as exc:
             # No contar el archivo como fallido: el problema es de
             # autenticación/conectividad y no del payload local.
             logger.error(f"No se pudo obtener el token; se reintentará después: {exc}")
+            SENDER_STATUS.publish(
+                state="waiting",
+                current_file="",
+                last_outcome="auth_error",
+                last_error=str(exc),
+            )
             break
 
         outcome = send_file(filename, token)
+        if outcome == SendOutcome.TOKEN_REJECTED:
+            # No se espera al siguiente ciclo: un JWT vencido, revocado o
+            # invalidado se reemplaza y la misma métrica se vuelve a enviar.
+            token_manager.invalidate()
+            try:
+                refreshed_token = token_manager.get_token(force_refresh=True)
+            except TokenRequestError as exc:
+                logger.error(
+                    "El token fue rechazado y no se pudo renovar; "
+                    f"se reintentará después: {exc}"
+                )
+                break
+
+            outcome = send_file(filename, refreshed_token)
+            if outcome == SendOutcome.TOKEN_REJECTED:
+                token_manager.invalidate()
+                logger.error(
+                    "El token recién renovado también fue rechazado; "
+                    "se reintentará en el siguiente ciclo."
+                )
+                break
+
         if outcome in {SendOutcome.SENT, SendOutcome.CLEANUP_PENDING}:
             failed.pop(filename, None)
+            SENDER_STATUS.publish(
+                state="sending",
+                current_file="",
+                last_sent_file=filename,
+                last_outcome=outcome.value,
+                last_error="",
+            )
         elif outcome == SendOutcome.PERMANENT_FAILURE:
             # Se conserva el archivo y el registro para diagnóstico, pero no
             # se vuelve a intentar automáticamente un payload inválido.
@@ -575,8 +798,23 @@ def run_cycle(token: str | None, failed: dict) -> tuple[str | None, dict]:
                     "Se pausará hasta intervención manual."
                 )
 
+        if outcome not in {SendOutcome.SENT, SendOutcome.CLEANUP_PENDING}:
+            SENDER_STATUS.publish(
+                state="waiting",
+                current_file="",
+                last_outcome=outcome.value,
+                last_error=f"No se pudo enviar {filename}.",
+            )
+
     save_failed_files(failed)
-    return token, failed
+    remaining = read_index()
+    SENDER_STATUS.publish(
+        state="idle",
+        current_file="",
+        pending=len(remaining),
+        exhausted=sum(1 for count in failed.values() if count >= MAX_RETRIES),
+    )
+    return failed
 
 
 def show_status():
@@ -604,6 +842,7 @@ def show_status():
 # =============================================================================
 
 def main():
+    signal.signal(signal.SIGTERM, _handle_termination)
     parser = argparse.ArgumentParser(description="Módulo de envío de métricas acústicas")
     parser.add_argument("--once",   action="store_true", help="Ejecutar un solo ciclo y terminar")
     parser.add_argument("--status", action="store_true", help="Mostrar estado sin enviar nada")
@@ -616,25 +855,29 @@ def main():
         return
 
     logger.info(f"Iniciando — estación: {STATION_CODE}, servidor: {SERVER_URL}")
+    SENDER_STATUS.publish(state="starting", last_error="")
 
     failed = load_failed_files()
-    # El token se obtiene de forma perezosa, únicamente cuando haya archivos
-    # pendientes. Así la Raspberry puede arrancar sin servidor disponible.
-    token: str | None = None
+    # La autenticación se obtiene de forma perezosa, únicamente si hay cola.
+    # Un error temporal de Auth mantiene el proceso vivo y activa backoff.
+    token_manager = TokenManager()
 
     if args.once:
-        run_cycle(token, failed)
+        run_cycle(token_manager, failed)
         logger.info("Modo --once completado.")
+        SENDER_STATUS.publish(state="stopped", current_file="")
         return
 
     logger.info(f"Modo continuo — intervalo: {SEND_INTERVAL_SECONDS}s. Ctrl+C para detener.")
+    SENDER_STATUS.publish(state="idle", last_error="")
     try:
         while True:
-            token, failed = run_cycle(token, failed)
+            failed = run_cycle(token_manager, failed)
             time.sleep(SEND_INTERVAL_SECONDS)
     except KeyboardInterrupt:
         logger.info("Módulo detenido por el usuario.")
         save_failed_files(failed)
+        SENDER_STATUS.publish(state="stopped", current_file="")
 
 
 if __name__ == "__main__":

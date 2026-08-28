@@ -1,0 +1,28 @@
+[Unit]
+Description=Grabador continuo de Sound Monitor
+After=sound.target local-fs.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=@STATION_USER@
+Group=@STATION_GROUP@
+RuntimeDirectory=continuous-recorder
+RuntimeDirectoryMode=0750
+WorkingDirectory=@PROJECT_DIR@/recorder
+Environment=SOUND_MONITOR_CONFIG=@CONFIG_PATH@
+# Permite usar fuentes Bluetooth administradas por PipeWire/PulseAudio. Para
+# dispositivos ALSA físicos estas variables son inocuas.
+Environment=XDG_RUNTIME_DIR=/run/user/@STATION_UID@
+Environment=PULSE_SERVER=unix:/run/user/@STATION_UID@/pulse/native
+ExecStart=/usr/local/bin/continuous-recorder record --config @CONFIG_PATH@
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

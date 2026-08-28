@@ -1,0 +1,13 @@
+# Sound Monitor: únicamente permite operar sus tres unidades conocidas.
+Cmnd_Alias SOUND_MONITOR_SERVICES = \
+    @SYSTEMCTL@ start continuous-recorder.service, \
+    @SYSTEMCTL@ stop continuous-recorder.service, \
+    @SYSTEMCTL@ restart continuous-recorder.service, \
+    @SYSTEMCTL@ start process-audio.service, \
+    @SYSTEMCTL@ stop process-audio.service, \
+    @SYSTEMCTL@ restart process-audio.service, \
+    @SYSTEMCTL@ start send-metrics.service, \
+    @SYSTEMCTL@ stop send-metrics.service, \
+    @SYSTEMCTL@ restart send-metrics.service
+
+@STATION_USER@ ALL=(root) NOPASSWD: SOUND_MONITOR_SERVICES
