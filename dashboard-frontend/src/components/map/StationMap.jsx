@@ -6,11 +6,20 @@ import { useTheme } from '../../context/ThemeContext'
 
 // Encuadre inicial: prioriza la zona urbana y la red de estaciones de Bogotá.
 const BOGOTA_VIEW = { center: [4.67, -74.08], zoom: 12 }
-const TILE_URLS = {
-  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-}
-const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
+const TILE_URLS = MAPTILER_KEY
+  ? {
+      light: `https://api.maptiler.com/maps/streets-v2-light/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+      dark: `https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+    }
+  : {
+      // Permite levantar el frontend sin .env local; producción usa MapTiler.
+      light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    }
+const TILE_ATTRIBUTION = MAPTILER_KEY
+  ? '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 const BOGOTA_BOUNDARY_URL = '/bogota-municipio.geojson'
 
 const NOISE_COLOR = {
