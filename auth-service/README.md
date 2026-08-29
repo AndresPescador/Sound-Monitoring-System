@@ -122,12 +122,15 @@ docker run -p 8081:8081 --env-file .env auth-service
 ```
 1. Un administrador autenticado llama POST /admin/stations
    Header: Authorization: Bearer <JWT administrativo>
+   Body: { "stationCode": "ST-CHAPINERO-01", "locality": "Chapinero", ... }
 
-2. Auth Service genera secret aleatorio, lo hashea con BCrypt
-   y guarda solo el hash en registered_stations
+2. Auth Service asigna el nombre inmutable "Estación ST-CHAPINERO-01",
+   genera un secret aleatorio, lo hashea con BCrypt y guarda solo el hash
+   en registered_stations. El nombre no se acepta como entrada del cliente.
 
 3. Respuesta devuelve el secret en texto plano UNA SOLA VEZ:
-   { "stationCode": "ST-CHAPINERO-01", "secret": "abc123..." }
+   { "stationCode": "ST-CHAPINERO-01", "name": "Estación ST-CHAPINERO-01",
+     "locality": "Chapinero", "secret": "abc123..." }
 
 4. Admin configura el secret en la Raspberry Pi (.env de la estación)
 ```

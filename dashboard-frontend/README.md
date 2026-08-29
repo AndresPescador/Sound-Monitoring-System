@@ -29,8 +29,12 @@ Interfaz web del Sistema de Monitoreo Acústico Binaural — Bogotá D.C.
 | `/mapa-2d/compare` | Comparación 2D de métricas entre estaciones |
 | `/mapa-2d/data` | Portal de datos abiertos de la experiencia 2D |
 | `/mapa-3d` | Inicio independiente de la experiencia 3D |
+| `/admin/stations` | Gestión administrativa y registro de estaciones |
 
 Las rutas históricas `/stations/:code`, `/compare`, `/data` y `/urban-3d` redirigen a sus equivalentes canónicos para conservar enlaces existentes.
+
+Al registrar una estación, el panel muestra el nombre generado `Estación {stationCode}`.
+El nombre no es editable durante el alta ni después de crear la estación.
 
 ---
 

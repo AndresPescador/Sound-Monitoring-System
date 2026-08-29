@@ -27,7 +27,7 @@ export const createAdmin = (username, password) =>
 // GESTIÓN DE ESTACIONES — Auth Service (credenciales)
 // =============================================================================
 
-// Registra la estación en Auth Service. Devuelve el secret UNA SOLA VEZ.
+// Registra la estación en Auth Service. El backend genera el nombre y devuelve el secret UNA SOLA VEZ.
 export const registerStationAuth = (data) =>
   adminClient.post('/auth/admin/stations', data)
 
@@ -53,7 +53,7 @@ export const listStationsAdmin = () =>
 export const getStationAdmin = (stationCode) =>
   adminClient.get(`/processing/admin/stations/${stationCode}`)
 
-// Registra la estación en Noise Processing (llamar DESPUÉS de registerStationAuth)
+// Registra la estación en Noise Processing; el backend genera el nombre (llamar DESPUÉS de registerStationAuth)
 export const registerStationProcessing = (data) =>
   adminClient.post('/processing/admin/stations', data)
 

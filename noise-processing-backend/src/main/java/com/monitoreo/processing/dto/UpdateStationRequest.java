@@ -1,5 +1,6 @@
 package com.monitoreo.processing.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -7,10 +8,8 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
+@JsonIgnoreProperties("name")
 public class UpdateStationRequest {
-
-    @NotBlank(message = "El nombre es requerido.")
-    private String name;
 
     private String description;
 

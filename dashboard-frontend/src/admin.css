@@ -730,6 +730,15 @@
   transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
 }
 
+.admin-input:read-only:not(:disabled) {
+  background: var(--admin-field);
+  color: var(--admin-muted);
+}
+
+.admin-input:read-only:not(:disabled):focus {
+  background: var(--admin-field);
+}
+
 .admin-textarea {
   min-height: 84px;
   resize: vertical;

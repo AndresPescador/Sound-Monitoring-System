@@ -44,9 +44,12 @@ export function Field({
   required,
   type = 'text',
   disabled = false,
+  readOnly = false,
   step,
+  hint,
 }) {
   const inputId = useId()
+  const hintId = useId()
 
   return (
     <div className="admin-field">
@@ -61,8 +64,11 @@ export function Field({
         placeholder={placeholder}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         step={step}
+        aria-describedby={hint ? hintId : undefined}
       />
+      {hint && <p id={hintId} className="admin-field__hint">{hint}</p>}
     </div>
   )
 }

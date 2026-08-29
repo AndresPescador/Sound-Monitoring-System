@@ -218,7 +218,7 @@ public class AdminAuthService {
 
         RegisteredStation station = new RegisteredStation();
         station.setStationCode(request.getStationCode());
-        station.setName(request.getName());
+        station.setName("Estación " + request.getStationCode());
         station.setDescription(request.getDescription());
         station.setLocality(request.getLocality());
         station.setSecretHash(secretHash);

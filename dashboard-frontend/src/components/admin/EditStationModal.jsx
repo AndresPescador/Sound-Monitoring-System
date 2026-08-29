@@ -4,7 +4,6 @@ import { Field, Modal } from './ModalComponents'
 
 export function EditStationModal({ station, onClose, onSaved }) {
   const [form, setForm] = useState({
-    name: station.name || '',
     locality: station.locality || '',
     description: station.description || '',
     address: station.address || '',
@@ -40,7 +39,14 @@ export function EditStationModal({ station, onClose, onSaved }) {
     <Modal title={`Editar ${station.stationCode}`} onClose={saving ? null : onClose}>
       <form onSubmit={handleSubmit} className="admin-form">
         <div className="admin-form-grid">
-          <Field label="Nombre" name="name" value={form.name} onChange={handleChange} required disabled={saving} />
+          <Field
+            label="Nombre"
+            name="stationName"
+            value={station.name || ''}
+            readOnly
+            disabled={saving}
+            hint="El nombre de la estación es inmutable."
+          />
           <Field label="Localidad" name="locality" value={form.locality} onChange={handleChange} required disabled={saving} />
           <Field label="Dirección" name="address" value={form.address} onChange={handleChange} disabled={saving} />
           <div aria-hidden="true" />

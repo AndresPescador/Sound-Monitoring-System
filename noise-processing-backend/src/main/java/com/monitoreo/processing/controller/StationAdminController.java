@@ -80,8 +80,8 @@ public class StationAdminController {
 
     /**
      * PUT /admin/stations/{stationCode}
-     * Actualiza nombre, descripción, dirección y coordenadas.
-     * El station_code no es modificable.
+     * Actualiza descripción, localidad, dirección y coordenadas.
+     * El station_code y el nombre no son modificables.
      */
     @PutMapping("/{stationCode}")
     public ResponseEntity<StationAdminResponse> updateStation(

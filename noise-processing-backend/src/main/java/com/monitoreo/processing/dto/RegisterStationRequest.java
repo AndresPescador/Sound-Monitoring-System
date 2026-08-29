@@ -1,5 +1,6 @@
 package com.monitoreo.processing.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 /**
@@ -8,9 +9,9 @@ import lombok.Data;
  * Debe llamarse después de registrarla en el Auth Service.
  */
 @Data
+@JsonIgnoreProperties("name")
 public class RegisterStationRequest {
     private String stationCode;
-    private String name;
     private String description;
     private String locality;
     private String address;

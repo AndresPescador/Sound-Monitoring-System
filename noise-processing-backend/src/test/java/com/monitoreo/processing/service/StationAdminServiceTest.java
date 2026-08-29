@@ -1,0 +1,77 @@
+package com.monitoreo.processing.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.monitoreo.processing.dto.RegisterStationRequest;
+import com.monitoreo.processing.dto.RegisterStationResponse;
+import com.monitoreo.processing.dto.StationAdminResponse;
+import com.monitoreo.processing.dto.UpdateStationRequest;
+import com.monitoreo.processing.entity.Station;
+import com.monitoreo.processing.repository.StationRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class StationAdminServiceTest {
+
+    @Mock private StationRepository stationRepository;
+
+    @InjectMocks private StationAdminService service;
+
+    @Test
+    void registerStationGeneratesStandardNameAndIgnoresLegacyName() throws Exception {
+        RegisterStationRequest request = new ObjectMapper().readValue("""
+                {
+                  "stationCode": "ST-CHAPINERO-01",
+                  "name": "Nombre controlado por el cliente",
+                  "locality": "Chapinero",
+                  "latitude": 4.65,
+                  "longitude": -74.06
+                }
+                """, RegisterStationRequest.class);
+        when(stationRepository.existsByStationCode("ST-CHAPINERO-01")).thenReturn(false);
+
+        RegisterStationResponse response = service.registerStation(request);
+
+        ArgumentCaptor<Station> stationCaptor = ArgumentCaptor.forClass(Station.class);
+        verify(stationRepository).save(stationCaptor.capture());
+        assertEquals("Estación ST-CHAPINERO-01", stationCaptor.getValue().getName());
+        assertEquals("Estación ST-CHAPINERO-01", response.getName());
+    }
+
+    @Test
+    void updateStationPreservesExistingNameAndIgnoresLegacyName() throws Exception {
+        Station station = new Station();
+        station.setStationCode("ST-EXISTENTE-01");
+        station.setName("Nombre histórico");
+        station.setLocality("Usaquén");
+        station.setLatitude(4.70);
+        station.setLongitude(-74.03);
+        UpdateStationRequest request = new ObjectMapper().readValue("""
+                {
+                  "name": "Nombre que no debe aplicarse",
+                  "locality": "Chapinero",
+                  "description": "Actualizada",
+                  "address": "Calle 1",
+                  "latitude": 4.66,
+                  "longitude": -74.07
+                }
+                """, UpdateStationRequest.class);
+        when(stationRepository.findByStationCode("ST-EXISTENTE-01")).thenReturn(Optional.of(station));
+
+        StationAdminResponse response = service.updateStation("ST-EXISTENTE-01", request);
+
+        assertEquals("Nombre histórico", station.getName());
+        assertEquals("Nombre histórico", response.getName());
+        assertEquals("Chapinero", response.getLocality());
+    }
+}

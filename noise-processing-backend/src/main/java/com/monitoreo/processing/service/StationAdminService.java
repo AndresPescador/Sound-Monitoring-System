@@ -29,7 +29,7 @@ public class StationAdminService {
 
         Station station = new Station();
         station.setStationCode(request.getStationCode());
-        station.setName(request.getName());
+        station.setName("Estación " + request.getStationCode());
         station.setDescription(request.getDescription());
         station.setLocality(request.getLocality());
         station.setAddress(request.getAddress());
@@ -67,7 +67,6 @@ public class StationAdminService {
         Station station = stationRepository.findByStationCode(stationCode)
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
 
-        station.setName(request.getName());
         station.setDescription(request.getDescription());
         station.setLocality(request.getLocality());
         station.setAddress(request.getAddress());

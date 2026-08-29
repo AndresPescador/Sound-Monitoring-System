@@ -4,7 +4,6 @@ import { Field, Modal } from './ModalComponents'
 
 const EMPTY = {
   stationCode: '',
-  name: '',
   locality: '',
   description: '',
   address: '',
@@ -16,6 +15,7 @@ export function CreateStationModal({ onClose, onCreated }) {
   const [form, setForm] = useState(EMPTY)
   const [error, setError] = useState('')
   const [step, setStep] = useState('')
+  const generatedName = form.stationCode ? `Estación ${form.stationCode}` : ''
 
   const handleChange = (event) => {
     setForm(previous => ({ ...previous, [event.target.name]: event.target.value }))
@@ -35,7 +35,6 @@ export function CreateStationModal({ onClose, onCreated }) {
       setStep('Registrando credenciales…')
       const authResponse = await registerStationAuth({
         stationCode: payload.stationCode,
-        name: payload.name,
         locality: payload.locality,
         description: payload.description,
       })
@@ -65,13 +64,13 @@ export function CreateStationModal({ onClose, onCreated }) {
             disabled={Boolean(step)}
           />
           <Field
-            label="Nombre"
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            placeholder="Estación Chapinero Norte"
-            required
+            label="Nombre generado"
+            name="generatedName"
+            value={generatedName}
+            placeholder="Se generará a partir del código"
+            readOnly
             disabled={Boolean(step)}
+            hint="El nombre se asigna automáticamente y no podrá modificarse después."
           />
           <Field
             label="Localidad"

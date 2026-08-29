@@ -168,16 +168,17 @@ curl -X POST https://soundmonitoring.systems/auth/admin/stations \
   -H "Content-Type: application/json" \
   -d '{
     "stationCode": "ST-CHAPINERO-01",
-    "name": "Estación Chapinero",
     "locality": "Chapinero"
   }'
 ```
+
+Auth genera el nombre inmutable `Estación ST-CHAPINERO-01`; no se recibe desde el cliente.
 
 Respuesta — **guarda el `secret`, no se puede recuperar después**:
 ```json
 {
   "stationCode": "ST-CHAPINERO-01",
-  "name": "Estación Chapinero",
+  "name": "Estación ST-CHAPINERO-01",
   "locality": "Chapinero",
   "secret": "abc123def456..."
 }
@@ -191,7 +192,6 @@ curl -X POST https://soundmonitoring.systems/processing/admin/stations \
   -H "Content-Type: application/json" \
   -d '{
     "stationCode": "ST-CHAPINERO-01",
-    "name": "Estación Chapinero",
     "locality": "Chapinero",
     "latitude": 4.6486,
     "longitude": -74.1057
