@@ -33,8 +33,11 @@ Interfaz web del Sistema de Monitoreo Acústico Binaural — Bogotá D.C.
 
 Las rutas históricas `/stations/:code`, `/compare`, `/data` y `/urban-3d` redirigen a sus equivalentes canónicos para conservar enlaces existentes.
 
-Al registrar una estación, el panel muestra el nombre generado `Estación {stationCode}`.
-El nombre no es editable durante el alta ni después de crear la estación.
+Al registrar una estación, el administrador selecciona una de las 20 localidades
+oficiales. Auth asigna el siguiente código local (`ST-{LOCALIDAD}-{NN}`) y el
+nombre `Estación {stationCode}`. Código, nombre y localidad no son editables.
+Si el alta geográfica falla después de Auth, el modal conserva temporalmente el
+código y el secret y permite reintentar solo el registro en Processing.
 
 ---
 

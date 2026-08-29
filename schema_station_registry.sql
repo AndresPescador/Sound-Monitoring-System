@@ -46,6 +46,32 @@ COMMENT ON COLUMN registered_stations.is_active    IS 'False = estación desacti
 
 
 -- =============================================================================
+-- TABLA: station_code_counters
+-- Reserva de forma atómica el siguiente consecutivo independiente por localidad.
+-- Los contadores no se reducen al eliminar estaciones, por lo que un código no se reutiliza.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS station_code_counters (
+    locality_slug   VARCHAR(100)    PRIMARY KEY,
+    last_number     INTEGER         NOT NULL DEFAULT 0,
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT chk_station_code_counters_last_number CHECK (last_number >= 0)
+);
+
+INSERT INTO station_code_counters (locality_slug, last_number)
+VALUES
+    ('ANTONIO-NARINO', 0), ('BARRIOS-UNIDOS', 0), ('BOSA', 0),
+    ('CHAPINERO', 0), ('CIUDAD-BOLIVAR', 0), ('ENGATIVA', 0),
+    ('FONTIBON', 0), ('KENNEDY', 0), ('LA-CANDELARIA', 0),
+    ('LOS-MARTIRES', 0), ('PUENTE-ARANDA', 0), ('RAFAEL-URIBE-URIBE', 0),
+    ('SAN-CRISTOBAL', 0), ('SANTA-FE', 0), ('SUBA', 0), ('SUMAPAZ', 0),
+    ('TEUSAQUILLO', 0), ('TUNJUELITO', 0), ('USAQUEN', 0), ('USME', 0)
+ON CONFLICT (locality_slug) DO NOTHING;
+
+COMMENT ON TABLE station_code_counters IS 'Último consecutivo asignado por localidad para generar station_code sin colisiones.';
+
+
+-- =============================================================================
 -- TABLA: api_tokens
 -- Tokens JWT emitidos por el Station Authentication Service.
 -- Cada estación puede tener un token activo a la vez.

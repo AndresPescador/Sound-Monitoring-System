@@ -30,6 +30,12 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidLocalityException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidLocality(InvalidLocalityException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
     @ExceptionHandler(TokenInvalidException.class)
     public ResponseEntity<Map<String, String>> handleTokenInvalid(TokenInvalidException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

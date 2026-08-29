@@ -34,22 +34,23 @@ class AdminAuthServiceTest {
     @Mock private AuthAuditLogRepository auditLogRepository;
     @Mock private JwtConfig jwtConfig;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private StationCodeAllocator stationCodeAllocator;
 
     @InjectMocks private AdminAuthService service;
 
     @Test
-    void registerStationGeneratesImmutableStandardNameAndIgnoresLegacyName() throws Exception {
+    void registerStationGeneratesCodeAndNameAndIgnoresLegacyClientValues() throws Exception {
         RegisterStationRequest request = new ObjectMapper().readValue("""
                 {
-                  "stationCode": "ST-CHAPINERO-01",
+                  "stationCode": "ST-CONTROLADO-POR-CLIENTE-99",
                   "name": "Nombre controlado por el cliente",
-                  "locality": "Chapinero"
+                  "locality": "  san cristobal  "
                 }
                 """, RegisterStationRequest.class);
         AdminUser admin = new AdminUser();
         admin.setUsername("admin");
 
-        when(stationRepository.existsByStationCode("ST-CHAPINERO-01")).thenReturn(false);
+        when(stationCodeAllocator.nextCode("SAN-CRISTOBAL")).thenReturn("ST-SAN-CRISTOBAL-04");
         when(passwordEncoder.encode(anyString())).thenReturn("secret-hash");
         when(adminUserRepository.findByUsernameAndActiveTrue("admin")).thenReturn(Optional.of(admin));
 
@@ -57,7 +58,11 @@ class AdminAuthServiceTest {
 
         ArgumentCaptor<RegisteredStation> stationCaptor = ArgumentCaptor.forClass(RegisteredStation.class);
         verify(stationRepository).save(stationCaptor.capture());
-        assertEquals("Estación ST-CHAPINERO-01", stationCaptor.getValue().getName());
-        assertEquals("Estación ST-CHAPINERO-01", response.getName());
+        assertEquals("ST-SAN-CRISTOBAL-04", stationCaptor.getValue().getStationCode());
+        assertEquals("Estación ST-SAN-CRISTOBAL-04", stationCaptor.getValue().getName());
+        assertEquals("San Cristóbal", stationCaptor.getValue().getLocality());
+        assertEquals("ST-SAN-CRISTOBAL-04", response.getStationCode());
+        assertEquals("Estación ST-SAN-CRISTOBAL-04", response.getName());
+        assertEquals("San Cristóbal", response.getLocality());
     }
 }

@@ -167,12 +167,13 @@ curl -X POST https://soundmonitoring.systems/auth/admin/stations \
   -H "Authorization: Bearer <JWT_ADMIN>" \
   -H "Content-Type: application/json" \
   -d '{
-    "stationCode": "ST-CHAPINERO-01",
     "locality": "Chapinero"
   }'
 ```
 
-Auth genera el nombre inmutable `Estación ST-CHAPINERO-01`; no se recibe desde el cliente.
+Auth normaliza la localidad y asigna atómicamente el siguiente código disponible.
+El código y el nombre no se reciben desde el cliente y quedan inmutables junto con
+la localidad.
 
 Respuesta — **guarda el `secret`, no se puede recuperar después**:
 ```json
@@ -186,6 +187,8 @@ Respuesta — **guarda el `secret`, no se puede recuperar después**:
 
 ### Paso 2 — Registrar en Noise Processing
 
+Usa exactamente `stationCode` y `locality` devueltos por Auth:
+
 ```bash
 curl -X POST https://soundmonitoring.systems/processing/admin/stations \
   -H "Authorization: Bearer <JWT_ADMIN>" \
@@ -197,6 +200,16 @@ curl -X POST https://soundmonitoring.systems/processing/admin/stations \
     "longitude": -74.1057
   }'
 ```
+
+Si este segundo paso falla, conserva el `secret` y el código recibidos y reintenta
+solo esta llamada; no vuelvas a registrar la estación en Auth.
+
+### Migración requerida en instalaciones existentes
+
+Antes de reconstruir Auth, aplica `sql/V6__station_code_counters.sql` sobre
+`station_registry` con su usuario propietario. La migración toma el mayor número
+existente por localidad, por lo que no reutiliza códigos como `01` o `03` y el
+siguiente será `04`.
 
 ### Paso 3 — Configurar la Raspberry Pi
 

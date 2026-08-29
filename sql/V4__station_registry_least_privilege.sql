@@ -16,6 +16,7 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, auth_app;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, auth_app;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE registered_stations TO auth_app;
+GRANT SELECT, INSERT, UPDATE ON TABLE station_code_counters TO auth_app;
 GRANT SELECT, INSERT, UPDATE ON TABLE api_tokens TO auth_app;
 GRANT SELECT, INSERT ON TABLE auth_audit_log TO auth_app;
 GRANT SELECT, INSERT, UPDATE ON TABLE admin_users TO auth_app;

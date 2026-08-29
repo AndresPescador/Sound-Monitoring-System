@@ -34,6 +34,7 @@ export default function AdminStations() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [pendingStationRegistration, setPendingStationRegistration] = useState(null)
   const [secretData, setSecretData] = useState(null)
   const [editStation, setEditStation] = useState(null)
   const [deletingCode, setDeletingCode] = useState('')
@@ -105,6 +106,7 @@ export default function AdminStations() {
   }
 
   const handleCreated = (secret, stationCode) => {
+    setPendingStationRegistration(null)
     setShowCreate(false)
     setSecretData({
       stationCode,
@@ -129,7 +131,9 @@ export default function AdminStations() {
               onClick={() => setShowCreate(true)}
               className="admin-button admin-button--primary"
             >
-              Nueva estación
+              {pendingStationRegistration
+                ? `Reanudar ${pendingStationRegistration.stationCode}`
+                : 'Nueva estación'}
             </button>
           </div>
         </header>
@@ -178,7 +182,9 @@ export default function AdminStations() {
                 onClick={() => setShowCreate(true)}
                 className="admin-button admin-button--secondary"
               >
-                Registrar la primera estación
+                {pendingStationRegistration
+                  ? `Reanudar ${pendingStationRegistration.stationCode}`
+                  : 'Registrar la primera estación'}
               </button>
             </div>
           ) : (
@@ -277,7 +283,12 @@ export default function AdminStations() {
       </div>
 
       {showCreate && (
-        <CreateStationModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />
+        <CreateStationModal
+          onClose={() => setShowCreate(false)}
+          onCreated={handleCreated}
+          pendingRegistration={pendingStationRegistration}
+          onPendingChange={setPendingStationRegistration}
+        />
       )}
 
       {secretData && (

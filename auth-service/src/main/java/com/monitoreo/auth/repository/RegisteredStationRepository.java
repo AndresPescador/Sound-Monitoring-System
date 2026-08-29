@@ -8,5 +8,4 @@ import java.util.UUID;
 
 public interface RegisteredStationRepository extends JpaRepository<RegisteredStation, UUID> {
     Optional<RegisteredStation> findByStationCode(String stationCode);
-    boolean existsByStationCode(String stationCode);
 }

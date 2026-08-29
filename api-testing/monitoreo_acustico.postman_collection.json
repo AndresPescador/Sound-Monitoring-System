@@ -27,8 +27,13 @@
     },
     {
       "key": "station_code",
-      "value": "ST-TEST-01",
-      "description": "Código de la estación de prueba"
+      "value": "",
+      "description": "Se llena automáticamente con el código asignado por Auth"
+    },
+    {
+      "key": "station_locality",
+      "value": "",
+      "description": "Se llena automáticamente con la localidad canónica devuelta por Auth"
     },
     {
       "key": "secret",
@@ -157,9 +162,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\"\n}"
+              "raw": "{\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\"\n}"
             },
-            "description": "Registra la estación en station_registry.\nGuarda el secret automáticamente en la variable {{secret}}.\n\nESTE SECRET SOLO SE MUESTRA UNA VEZ — guardarlo bien."
+            "description": "Envía únicamente la localidad y la descripción. Auth asigna el código, normaliza la localidad y registra la estación en station_registry.\nGuarda automáticamente station_code, station_locality y secret para los pasos siguientes.\n\nESTE SECRET SOLO SE MUESTRA UNA VEZ — guardarlo bien."
           },
           "event": [{
             "listen": "test",
@@ -170,6 +175,8 @@
                 "if (pm.response.code === 201) {",
                 "    const json = pm.response.json();",
                 "    pm.collectionVariables.set('secret', json.secret);",
+                "    pm.collectionVariables.set('station_code', json.stationCode);",
+                "    pm.collectionVariables.set('station_locality', json.locality);",
                 "    pm.test('Nombre estandarizado', () => pm.expect(json.name).to.eql(`Estación ${pm.collectionVariables.get('station_code')}`));",
                 "    pm.test('Secret recibido', () => pm.expect(json.secret).to.be.a('string').and.not.empty);",
                 "}"
@@ -188,9 +195,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"locality\": \"{{station_locality}}\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
             },
-            "description": "Registra la estación en noise_analytics.\nDebe ejecutarse DESPUÉS del paso 2."
+            "description": "Registra en noise_analytics exactamente el station_code y la localidad canónica devueltos por Auth.\nDebe ejecutarse DESPUÉS del paso 2; si falla, se reintenta solo esta llamada."
           },
           "event": [{
             "listen": "test",

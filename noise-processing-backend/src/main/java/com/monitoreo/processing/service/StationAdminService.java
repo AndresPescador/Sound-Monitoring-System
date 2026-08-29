@@ -68,7 +68,6 @@ public class StationAdminService {
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
 
         station.setDescription(request.getDescription());
-        station.setLocality(request.getLocality());
         station.setAddress(request.getAddress());
         station.setLatitude(request.getLatitude());
         station.setLongitude(request.getLongitude());

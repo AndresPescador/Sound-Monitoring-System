@@ -98,8 +98,8 @@ El administrador debe registrar cada estación en DOS pasos independientes:
 Paso 1 — Auth Service:
 POST /admin/stations  →  http://auth-service:8081
 Header: Authorization: Bearer <JWT administrativo>
-Body: { "stationCode": "ST-CHAPINERO-01", "locality": "..." }
-← El nombre se genera como "Estación ST-CHAPINERO-01" y queda inmutable
+Body: { "locality": "Chapinero", "description": "..." }
+← Auth devuelve el stationCode, la localidad canónica y el nombre generados
 ← Guarda el secret devuelto para configurar la Raspberry Pi
 
 Paso 2 — Noise Processing Backend:
@@ -107,7 +107,9 @@ POST /admin/stations  →  http://noise-processing-backend:8082
 Header: Authorization: Bearer <JWT administrativo>
 Body: { "stationCode": "ST-CHAPINERO-01", "locality": "...",
         "latitude": 4.6486, "longitude": -74.1057 }
-← Processing aplica la misma convención; las ediciones posteriores no cambian el nombre
+← Se copian exactamente stationCode y locality devueltos por Auth
+← Las ediciones posteriores solo admiten descripción, dirección y coordenadas;
+  código, nombre y localidad quedan inmutables
 ```
 
 ---

@@ -72,3 +72,30 @@ export function Field({
     </div>
   )
 }
+
+export function SelectField({ label, name, value, onChange, options, required, disabled = false, hint }) {
+  const inputId = useId()
+  const hintId = useId()
+
+  return (
+    <div className="admin-field">
+      <label htmlFor={inputId}>{label}</label>
+      <select
+        id={inputId}
+        className="admin-input"
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        disabled={disabled}
+        aria-describedby={hint ? hintId : undefined}
+      >
+        <option value="">Selecciona una localidad</option>
+        {options.map(option => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      {hint && <p id={hintId} className="admin-field__hint">{hint}</p>}
+    </div>
+  )
+}

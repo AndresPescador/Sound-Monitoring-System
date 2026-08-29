@@ -129,7 +129,8 @@ public class AdminAuthController {
 
     /**
      * POST /admin/stations
-     * Registra una nueva estación. Devuelve el secret UNA SOLA VEZ.
+     * Registra una estación para una localidad oficial. Auth asigna el código y
+     * el nombre; devuelve el secret UNA SOLA VEZ.
      */
     @PostMapping("/stations")
     public ResponseEntity<RegisterStationResponse> registerStation(

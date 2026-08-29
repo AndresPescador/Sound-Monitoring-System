@@ -122,11 +122,13 @@ docker run -p 8081:8081 --env-file .env auth-service
 ```
 1. Un administrador autenticado llama POST /admin/stations
    Header: Authorization: Bearer <JWT administrativo>
-   Body: { "stationCode": "ST-CHAPINERO-01", "locality": "Chapinero", ... }
+   Body: { "locality": "Chapinero", "description": "..." }
 
-2. Auth Service asigna el nombre inmutable "Estación ST-CHAPINERO-01",
-   genera un secret aleatorio, lo hashea con BCrypt y guarda solo el hash
-   en registered_stations. El nombre no se acepta como entrada del cliente.
+2. Auth Service normaliza la localidad contra el catálogo oficial, incrementa
+   atómicamente su contador y asigna el código siguiente, por ejemplo
+   "ST-CHAPINERO-04". También genera el nombre inmutable
+   "Estación ST-CHAPINERO-04" y un secret aleatorio del que guarda solo el hash.
+   stationCode y name enviados por clientes antiguos se ignoran.
 
 3. Respuesta devuelve el secret en texto plano UNA SOLA VEZ:
    { "stationCode": "ST-CHAPINERO-01", "name": "Estación ST-CHAPINERO-01",
@@ -134,6 +136,10 @@ docker run -p 8081:8081 --env-file .env auth-service
 
 4. Admin configura el secret en la Raspberry Pi (.env de la estación)
 ```
+
+Antes de desplegar este contrato sobre una base existente se debe aplicar
+`sql/V6__station_code_counters.sql`. La migración inicia cada contador con el
+mayor sufijo numérico ya registrado y no reduce los contadores al borrar datos.
 
 ## Flujo de autenticación de una estación
 
@@ -180,6 +186,5 @@ docker run -p 8081:8081 --env-file .env auth-service
 | `401 Unauthorized` | Secret incorrecto o token inválido/expirado/revocado |
 | `403 Forbidden` | Rol administrativo insuficiente |
 | `404 Not Found` | station_code no existe |
-| `409 Conflict` | station_code ya registrado |
 | `429 Too Many Requests` | Cuota de autenticación agotada para la IP |
 | `503 Service Unavailable` | Redis no permite aplicar el control de cuota |

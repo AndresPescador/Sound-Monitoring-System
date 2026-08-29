@@ -1,6 +1,7 @@
 package com.monitoreo.auth.service;
 
 import com.monitoreo.auth.config.JwtConfig;
+import com.monitoreo.auth.domain.BogotaLocality;
 import com.monitoreo.auth.dto.*;
 import com.monitoreo.auth.entity.AdminUser;
 import com.monitoreo.auth.entity.AuthAuditLog;
@@ -38,6 +39,7 @@ public class AdminAuthService {
     private final AuthAuditLogRepository auditLogRepository;
     private final JwtConfig jwtConfig;
     private final PasswordEncoder passwordEncoder;
+    private final StationCodeAllocator stationCodeAllocator;
 
     // =========================================================================
     // AUTENTICACIÓN DE ADMINISTRADORES
@@ -208,19 +210,17 @@ public class AdminAuthService {
     @Transactional
     public RegisterStationResponse registerStation(RegisterStationRequest request,
                                                     String adminUsername, String ipAddress) {
-        if (stationRepository.existsByStationCode(request.getStationCode())) {
-            throw new com.monitoreo.auth.exception.StationAlreadyExistsException(
-                    request.getStationCode());
-        }
+        BogotaLocality locality = BogotaLocality.from(request.getLocality());
+        String stationCode = stationCodeAllocator.nextCode(locality.slug());
 
         String secret     = UUID.randomUUID().toString().replace("-", "");
         String secretHash = passwordEncoder.encode(secret);
 
         RegisteredStation station = new RegisteredStation();
-        station.setStationCode(request.getStationCode());
-        station.setName("Estación " + request.getStationCode());
+        station.setStationCode(stationCode);
+        station.setName("Estación " + stationCode);
         station.setDescription(request.getDescription());
-        station.setLocality(request.getLocality());
+        station.setLocality(locality.officialName());
         station.setSecretHash(secretHash);
         stationRepository.save(station);
 
@@ -230,11 +230,11 @@ public class AdminAuthService {
 
         auditLogRepository.save(buildAuditLog(
                 station, admin, "STATION_CREATED", true,
-                "Estación creada: " + request.getStationCode(), ipAddress
+                "Estación creada: " + stationCode, ipAddress
         ));
 
         log.info("Estación '{}' creada por admin '{}'",
-                request.getStationCode(), adminUsername);
+                stationCode, adminUsername);
 
         // Constructor de Auth: (stationCode, name, locality, secret)
         return new RegisterStationResponse(

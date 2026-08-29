@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { registerStationAuth, registerStationProcessing } from '../../api/admin'
-import { Field, Modal } from './ModalComponents'
+import { BOGOTA_LOCALITIES, stationCodePreview } from '../../constants/bogotaLocalities'
+import { Field, Modal, SelectField } from './ModalComponents'
 
 const EMPTY = {
-  stationCode: '',
   locality: '',
   description: '',
   address: '',
@@ -11,11 +11,19 @@ const EMPTY = {
   longitude: '',
 }
 
-export function CreateStationModal({ onClose, onCreated }) {
-  const [form, setForm] = useState(EMPTY)
+export function CreateStationModal({ onClose, onCreated, pendingRegistration, onPendingChange }) {
+  const [form, setForm] = useState(() => pendingRegistration
+    ? {
+        locality: pendingRegistration.locality,
+        description: pendingRegistration.processingPayload.description,
+        address: pendingRegistration.processingPayload.address,
+        latitude: pendingRegistration.processingPayload.latitude,
+        longitude: pendingRegistration.processingPayload.longitude,
+      }
+    : EMPTY)
   const [error, setError] = useState('')
   const [step, setStep] = useState('')
-  const generatedName = form.stationCode ? `Estación ${form.stationCode}` : ''
+  const codePreview = pendingRegistration?.stationCode || stationCodePreview(form.locality)
 
   const handleChange = (event) => {
     setForm(previous => ({ ...previous, [event.target.name]: event.target.value }))
@@ -24,28 +32,39 @@ export function CreateStationModal({ onClose, onCreated }) {
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError('')
-
-    const payload = {
-      ...form,
-      latitude: parseFloat(form.latitude),
-      longitude: parseFloat(form.longitude),
-    }
+    let registration = pendingRegistration
 
     try {
-      setStep('Registrando credenciales…')
-      const authResponse = await registerStationAuth({
-        stationCode: payload.stationCode,
-        locality: payload.locality,
-        description: payload.description,
-      })
-      const secret = authResponse.data.secret
+      if (!registration) {
+        setStep('Asignando código y registrando credenciales…')
+        const authResponse = await registerStationAuth({
+          locality: form.locality,
+          description: form.description,
+        })
+        registration = {
+          stationCode: authResponse.data.stationCode,
+          locality: authResponse.data.locality,
+          secret: authResponse.data.secret,
+          processingPayload: {
+            stationCode: authResponse.data.stationCode,
+            locality: authResponse.data.locality,
+            description: form.description,
+            address: form.address,
+            latitude: parseFloat(form.latitude),
+            longitude: parseFloat(form.longitude),
+          },
+        }
+        onPendingChange(registration)
+      }
 
       setStep('Registrando datos geográficos…')
-      await registerStationProcessing(payload)
-      onCreated(secret, payload.stationCode)
+      await registerStationProcessing(registration.processingPayload)
+      onCreated(registration.secret, registration.stationCode)
     } catch (err) {
       const message = err.response?.data?.error
-      setError(message || 'No se pudo completar el registro de la estación.')
+      setError(message || (registration
+        ? 'Las credenciales ya existen, pero faltó registrar los datos geográficos. Reintenta este paso.'
+        : 'No se pudo completar el registro de la estación.'))
       setStep('')
     }
   }
@@ -54,32 +73,23 @@ export function CreateStationModal({ onClose, onCreated }) {
     <Modal title="Nueva estación" onClose={step ? null : onClose}>
       <form onSubmit={handleSubmit} className="admin-form">
         <div className="admin-form-grid">
-          <Field
-            label="Código"
-            name="stationCode"
-            value={form.stationCode}
-            onChange={handleChange}
-            placeholder="ST-CHAPINERO-02"
-            required
-            disabled={Boolean(step)}
-          />
-          <Field
-            label="Nombre generado"
-            name="generatedName"
-            value={generatedName}
-            placeholder="Se generará a partir del código"
-            readOnly
-            disabled={Boolean(step)}
-            hint="El nombre se asigna automáticamente y no podrá modificarse después."
-          />
-          <Field
+          <SelectField
             label="Localidad"
             name="locality"
             value={form.locality}
             onChange={handleChange}
-            placeholder="Chapinero"
+            options={BOGOTA_LOCALITIES}
             required
-            disabled={Boolean(step)}
+            disabled={Boolean(step || pendingRegistration)}
+          />
+          <Field
+            label="Código generado"
+            name="generatedCode"
+            value={codePreview}
+            placeholder="Selecciona una localidad"
+            readOnly
+            disabled={Boolean(step || pendingRegistration)}
+            hint="El consecutivo exacto se asignará al crear. El nombre será “Estación” seguido de este código."
           />
           <Field
             label="Dirección"
@@ -87,7 +97,7 @@ export function CreateStationModal({ onClose, onCreated }) {
             value={form.address}
             onChange={handleChange}
             placeholder="Calle 72 #10-07"
-            disabled={Boolean(step)}
+            disabled={Boolean(step || pendingRegistration)}
           />
           <Field
             label="Latitud"
@@ -98,7 +108,7 @@ export function CreateStationModal({ onClose, onCreated }) {
             type="number"
             step="any"
             required
-            disabled={Boolean(step)}
+            disabled={Boolean(step || pendingRegistration)}
           />
           <Field
             label="Longitud"
@@ -109,7 +119,7 @@ export function CreateStationModal({ onClose, onCreated }) {
             type="number"
             step="any"
             required
-            disabled={Boolean(step)}
+            disabled={Boolean(step || pendingRegistration)}
           />
           <div className="admin-field admin-field--wide">
             <label htmlFor="station-description">Descripción</label>
@@ -121,12 +131,17 @@ export function CreateStationModal({ onClose, onCreated }) {
               onChange={handleChange}
               rows={3}
               placeholder="Descripción opcional de la estación"
-              disabled={Boolean(step)}
+              disabled={Boolean(step || pendingRegistration)}
             />
           </div>
         </div>
 
         {error && <div className="admin-alert" role="alert">{error}</div>}
+        {pendingRegistration && !step && (
+          <div className="admin-alert admin-alert--warning" role="status">
+            Auth ya reservó {pendingRegistration.stationCode}. El reintento continuará únicamente en Processing.
+          </div>
+        )}
         {step && <div className="admin-alert admin-alert--warning" role="status">{step}</div>}
 
         <div className="admin-form__actions">
@@ -136,10 +151,10 @@ export function CreateStationModal({ onClose, onCreated }) {
             disabled={Boolean(step)}
             className="admin-button admin-button--secondary"
           >
-            Cancelar
+            {pendingRegistration ? 'Cerrar por ahora' : 'Cancelar'}
           </button>
           <button type="submit" disabled={Boolean(step)} className="admin-button admin-button--primary">
-            {step || 'Crear estación'}
+            {step || (pendingRegistration ? 'Reintentar datos geográficos' : 'Crear estación')}
           </button>
         </div>
       </form>

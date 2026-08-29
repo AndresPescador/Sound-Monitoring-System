@@ -49,7 +49,7 @@ class StationAdminServiceTest {
     }
 
     @Test
-    void updateStationPreservesExistingNameAndIgnoresLegacyName() throws Exception {
+    void updateStationPreservesNameAndLocalityAndIgnoresLegacyValues() throws Exception {
         Station station = new Station();
         station.setStationCode("ST-EXISTENTE-01");
         station.setName("Nombre histórico");
@@ -72,6 +72,6 @@ class StationAdminServiceTest {
 
         assertEquals("Nombre histórico", station.getName());
         assertEquals("Nombre histórico", response.getName());
-        assertEquals("Chapinero", response.getLocality());
+        assertEquals("Usaquén", response.getLocality());
     }
 }
