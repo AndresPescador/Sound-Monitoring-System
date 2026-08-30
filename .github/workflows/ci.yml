@@ -393,9 +393,16 @@ jobs:
             -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts"
             -p "$VPS_PORT"
           )
+          scp_options=(
+            -i "$RUNNER_TEMP/ssh/id_ed25519"
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts"
+            -P "$VPS_PORT"
+          )
           remote_target="${VPS_DEPLOY_USER}@${VPS_HOST}"
           remote_archive="/tmp/sound-monitoring-release-${COMMIT_SHA}.tar.gz"
 
-          scp "${ssh_options[@]}" "$RELEASE_ARCHIVE" "${remote_target}:${remote_archive}"
+          scp "${scp_options[@]}" "$RELEASE_ARCHIVE" "${remote_target}:${remote_archive}"
           ssh "${ssh_options[@]}" "$remote_target" \
             "sudo -n /usr/local/sbin/sound-monitoring-deploy '$COMMIT_SHA' '$remote_archive' '$RELEASE_CHECKSUM'"
