@@ -8,6 +8,15 @@ import './landing.css'
 const waveform = [18, 34, 24, 58, 44, 72, 36, 82, 54, 28, 64, 40, 76, 48, 30, 56, 68, 38, 78, 46, 26, 62, 42, 70]
 const metricLabels = ['Leq', 'ILD', 'Correlación', 'L10', 'L50', 'L90', 'Espectro']
 
+const landingSectionGaps = {
+  mapas: 0,
+  proyecto: 144,
+  'estacion-real': 48,
+  sistema: 188,
+  binaural: 160,
+  datos: 48,
+}
+
 function SoundWave({ channel, values, reverse = false }) {
   const sequence = reverse ? [...values].reverse() : values
   return (
@@ -25,7 +34,82 @@ function SoundWave({ channel, values, reverse = false }) {
   )
 }
 
+function getLandingDocumentTop(element) {
+  let documentTop = 0
+  let current = element
+
+  while (current) {
+    documentTop += current.offsetTop
+    current = current.offsetParent
+  }
+
+  return documentTop
+}
+
+function scrollToLandingSection(sectionId, behavior = 'smooth', updateHash = true) {
+  const target = document.getElementById(sectionId)
+  if (!target) return
+
+  const header = document.querySelector('.landing-nav')
+  const headerHeight = header?.getBoundingClientRect().height ?? 0
+  const documentTop = getLandingDocumentTop(target)
+  const sectionGap = sectionId === 'binaural' && window.innerWidth <= 1050
+    ? 72
+    : (landingSectionGaps[sectionId] ?? 28)
+  let targetTop = documentTop - headerHeight - sectionGap
+
+  if (sectionId === 'proyecto') {
+    const projectMosaic = document.querySelector('.landing-project-mosaic')
+
+    if (projectMosaic) {
+      const projectMosaicRect = projectMosaic.getBoundingClientRect()
+      const projectFrameGap = window.innerWidth > 1050 ? 120 : 0
+      targetTop = projectMosaicRect.top + window.scrollY - headerHeight - projectFrameGap
+    }
+  }
+
+  if (sectionId === 'inicio') {
+    const metricRail = document.querySelector('.landing-metric-rail')
+    const metricRailRect = metricRail?.getBoundingClientRect()
+
+    if (metricRailRect) {
+      const metricRailTop = metricRailRect.top + window.scrollY
+      const desiredRailTop = window.innerHeight - metricRailRect.height - 16
+      targetTop = metricRailTop - desiredRailTop
+    }
+  }
+
+  if (sectionId === 'estacion-real' && window.innerWidth > 1050) {
+    const stationMedia = document.querySelector('.landing-field-media')
+
+    if (stationMedia) {
+      targetTop = getLandingDocumentTop(stationMedia) - headerHeight
+    }
+  }
+
+  if (sectionId === 'audiencias') {
+    const centeredGap = window.innerWidth > 1050
+      ? 56
+      : Math.min(96, Math.max(56, window.innerHeight * 0.1))
+    targetTop = documentTop - headerHeight - centeredGap
+  }
+
+  const maxScrollTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+
+  window.scrollTo({ top: Math.min(maxScrollTop, Math.max(0, targetTop)), behavior })
+  if (updateHash) window.history.replaceState(null, '', `#${sectionId}`)
+}
+
 export default function Landing() {
+  useEffect(() => {
+    const initialSectionId = window.location.hash.slice(1)
+    const initialFrame = window.requestAnimationFrame(() => {
+      scrollToLandingSection(initialSectionId || 'inicio', 'auto', Boolean(initialSectionId))
+    })
+
+    return () => window.cancelAnimationFrame(initialFrame)
+  }, [])
+
   useEffect(() => {
     const root = document.querySelector('.landing-page')
     if (!root || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
@@ -60,26 +144,44 @@ export default function Landing() {
     }
   }, [])
 
+  const handleSectionNavigation = (event, sectionId) => {
+    event.preventDefault()
+    scrollToLandingSection(sectionId)
+  }
+
   return (
     <div className="landing-page" data-design-seed="sms-landing-established-20260818">
       <header className="landing-nav">
-        <Link to="/" className="landing-brand" aria-label="Inicio del Sistema de Monitoreo Acústico Binaural">
+        <Link
+          to="/"
+          className="landing-brand"
+          aria-label="Inicio del Sistema de Monitoreo Acústico Binaural"
+          onClick={(event) => handleSectionNavigation(event, 'inicio')}
+        >
           <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
           <span className="landing-brand-copy">
-            <span className="landing-brand-name">Sistema de Monitoreo Acústico Binaural</span>
+            <span className="landing-brand-name">
+              <span>Sistema de Monitoreo</span>
+              <span>Acústico Binaural</span>
+            </span>
             <small>Bogotá D.C.</small>
           </span>
         </Link>
 
         <nav aria-label="Navegación de la presentación">
-          <a href="#proyecto">Proyecto</a>
-          <a href="#sistema">Sistema</a>
-          <Link to={ROUTES.map2DData}>Datos abiertos</Link>
+          <a href="#inicio" onClick={(event) => handleSectionNavigation(event, 'inicio')}>Inicio</a>
+          <a href="#mapas" onClick={(event) => handleSectionNavigation(event, 'mapas')}>Mapas</a>
+          <a href="#proyecto" onClick={(event) => handleSectionNavigation(event, 'proyecto')}>Proyecto</a>
+          <a href="#estacion-real" onClick={(event) => handleSectionNavigation(event, 'estacion-real')}>Estación</a>
+          <a href="#sistema" onClick={(event) => handleSectionNavigation(event, 'sistema')}>Sistema</a>
+          <a href="#binaural" onClick={(event) => handleSectionNavigation(event, 'binaural')}>Binaural</a>
+          <a href="#audiencias" onClick={(event) => handleSectionNavigation(event, 'audiencias')}>Usos</a>
+          <a href="#datos" onClick={(event) => handleSectionNavigation(event, 'datos')}>Datos abiertos</a>
         </nav>
 
         <div className="landing-nav-actions">
           <ThemeToggle />
-          <a href="#mapas" className="landing-nav-cta">Explorar mapas</a>
+          <a href="#mapas" className="landing-nav-cta" onClick={(event) => handleSectionNavigation(event, 'mapas')}>Explorar mapas</a>
         </div>
       </header>
 
@@ -92,8 +194,8 @@ export default function Landing() {
             <p className="landing-hero-tagline">Bogotá suena. La medimos.</p>
             <p className="landing-hero-lead">Una red de estaciones convierte el paisaje sonoro de la ciudad en datos abiertos, espaciales y comparables.</p>
             <div className="landing-hero-actions">
-              <a href="#mapas" className="landing-button landing-button--primary">Explorar mapas</a>
-              <a href="#sistema" className="landing-button landing-button--secondary">Conocer el sistema</a>
+              <a href="#mapas" className="landing-button landing-button--primary" onClick={(event) => handleSectionNavigation(event, 'mapas')}>Explorar mapas</a>
+              <a href="#sistema" className="landing-button landing-button--secondary" onClick={(event) => handleSectionNavigation(event, 'sistema')}>Conocer el sistema</a>
             </div>
           </div>
 
@@ -127,8 +229,8 @@ export default function Landing() {
           </div>
         </div>
 
-        <section className="landing-map-section" id="mapas" aria-labelledby="map-title">
-          <div className="landing-section-heading" data-reveal="copy">
+        <section className="landing-map-section" aria-labelledby="map-title">
+          <div className="landing-section-heading" id="mapas" data-reveal="copy">
             <div className="landing-map-heading-copy">
               <h2 id="map-title">Dos formas de leer la misma ciudad</h2>
               <p>Consulta el estado actual en el mapa 2D o explora la intensidad acústica sobre el tejido urbano en 3D.</p>
@@ -137,8 +239,8 @@ export default function Landing() {
           <div className="landing-map-stage" data-reveal="visual"><BogotaMapGateway /></div>
         </section>
 
-        <section className="landing-project" id="proyecto" aria-labelledby="project-title">
-          <div className="landing-project-intro" data-reveal="copy">
+        <section className="landing-project" aria-labelledby="project-title">
+          <div className="landing-project-intro" id="proyecto" data-reveal="copy">
             <h2 id="project-title">El sonido urbano también es información.</h2>
             <p>El sistema convierte fragmentos de audio en evidencia consultable para comprender patrones, contrastar zonas y abrir nuevas preguntas sobre Bogotá.</p>
           </div>
@@ -167,8 +269,8 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-field" id="estacion-real" aria-labelledby="field-title">
-          <div className="landing-field-copy" data-reveal="copy">
+        <section className="landing-field" aria-labelledby="field-title">
+          <div className="landing-field-copy" id="estacion-real" data-reveal="copy">
             <h2 id="field-title">Así se ve una estación real.</h2>
             <p>Esta fotografía corresponde al despliegue del proyecto: una cabeza binaural elevada, alimentación solar y electrónica preparada para capturar y procesar el entorno acústico.</p>
             <dl>
@@ -193,9 +295,9 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-system" id="sistema" aria-labelledby="system-title">
+        <section className="landing-system" aria-labelledby="system-title">
           <div className="landing-system-header">
-            <div className="landing-section-heading landing-section-heading--light" data-reveal="copy">
+            <div className="landing-section-heading landing-section-heading--light" id="sistema" data-reveal="copy">
               <h2 id="system-title">De la calle al dato abierto</h2>
               <p>Una cadena verificable autentica cada estación, protege la ingesta y separa la operación del acceso público.</p>
             </div>
@@ -242,8 +344,8 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-binaural" id="binaural" aria-labelledby="binaural-title">
-          <div className="landing-binaural-copy" data-reveal="copy">
+        <section className="landing-binaural" aria-labelledby="binaural-title">
+          <div className="landing-binaural-copy" id="binaural" data-reveal="copy">
             <h2 id="binaural-title">No solo cuánto ruido. También desde dónde.</h2>
             <p>El nivel equivalente describe la energía. La diferencia interaural y la correlación añaden una lectura espacial del entorno.</p>
             <dl>
@@ -264,8 +366,8 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-audiences" aria-labelledby="audiences-title">
-          <h2 id="audiences-title" data-reveal="copy">Una red, tres maneras de usarla</h2>
+        <section className="landing-audiences" aria-labelledby="audiencias">
+          <h2 id="audiencias" data-reveal="copy">Una red, tres maneras de usarla</h2>
           <div className="landing-audiences-layout">
             <div className="landing-audience-grid" data-reveal="sequence">
               <article className="landing-audience-primary">
@@ -295,8 +397,8 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-open-data" id="datos" aria-labelledby="open-data-title">
-          <div className="landing-open-data-copy" data-reveal="copy">
+        <section className="landing-open-data" aria-labelledby="open-data-title">
+          <div className="landing-open-data-copy" id="datos" data-reveal="copy">
             <h2 id="open-data-title">Los datos también deben circular.</h2>
             <p>Consulta intervalos acotados, filtra por estación y descarga mediciones en CSV desde el portal público.</p>
           </div>
@@ -313,7 +415,10 @@ export default function Landing() {
         <div className="landing-brand landing-brand--footer">
           <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
           <span className="landing-brand-copy">
-            <span className="landing-brand-name">Sistema de Monitoreo Acústico Binaural</span>
+            <span className="landing-brand-name">
+              <span>Sistema de Monitoreo</span>
+              <span>Acústico Binaural</span>
+            </span>
             <small>Bogotá D.C.</small>
           </span>
         </div>

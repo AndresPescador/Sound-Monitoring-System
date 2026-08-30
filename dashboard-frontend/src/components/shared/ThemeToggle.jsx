@@ -17,6 +17,7 @@ export default function ThemeToggle({ className = '' }) {
       className={`theme-toggle ${className}`.trim()}
       onClick={handleClick}
       aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      aria-pressed={isDark}
       title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
     >
       <span className="theme-toggle__icon" aria-hidden="true">

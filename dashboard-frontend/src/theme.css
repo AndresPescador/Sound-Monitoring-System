@@ -340,11 +340,35 @@ body {
   --landing-ink: rgb(var(--theme-ink-rgb));
   --landing-muted: rgb(var(--theme-muted-rgb));
   --landing-blue: #8bb5ff;
+  --landing-blue-rgb: 139 181 255;
   --landing-blue-dark: #b7d2ff;
+  --landing-primary-bg: #1d4ed8;
+  --landing-primary-bg-hover: #2563eb;
   --landing-blue-soft: rgb(var(--theme-blue-soft-rgb));
   --landing-sky: rgb(var(--theme-field-rgb));
   --landing-paper: rgb(var(--theme-paper-rgb));
   --landing-line: rgb(var(--theme-line-rgb));
+  --landing-frame-line: rgb(var(--theme-line-rgb));
+  --landing-surface: rgb(var(--theme-surface-rgb));
+  --landing-surface-alt: rgb(var(--theme-blue-soft-rgb));
+  --landing-card: rgb(var(--theme-paper-rgb));
+  --landing-image-surface: #203a60;
+  --landing-dark-surface: #061021;
+  --landing-on-dark: #f8fbff;
+  --landing-on-dark-muted: #d8e7ff;
+  --landing-soft-blue: #b9d3ff;
+  --landing-feature-word: #b9d3ff;
+  --landing-map-start: #1d4ed8;
+  --landing-map-end: #0b1730;
+  --landing-scroll-track: #0b1730;
+  --landing-scroll-thumb: #5d7fa8;
+  --landing-scroll-thumb-hover: #8bb5ff;
+  --landing-focus: #8bb5ff;
+  --landing-nav-surface: rgb(255 255 255 / 0.08);
+  --landing-nav-ink: #f8fbff;
+  --landing-nav-muted: #b8cae4;
+  --landing-nav-line: rgb(216 231 255 / 0.26);
+  --landing-nav-accent: #a7e7dc;
 }
 
 [data-theme='dark'] .landing-map-section,
