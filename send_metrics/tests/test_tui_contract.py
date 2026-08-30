@@ -10,13 +10,9 @@ SCRIPTS_DIR = PROJECT_DIR / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(PROJECT_DIR))
 
-try:
-    import textual  # noqa: F401
-except ImportError:
-    textual = None
+import textual  # noqa: F401
 
 
-@unittest.skipUnless(textual is not None, "Textual no está instalado en este entorno")
 class TuiContractTests(unittest.IsolatedAsyncioTestCase):
     async def test_first_run_without_alsa_devices_mounts_and_accepts_manual_device(self):
         from textual.widgets import Input, Select

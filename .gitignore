@@ -13,6 +13,9 @@ dashboard-api/.env
 *.pyc
 *.jar
 *.class
+.coverage
+coverage/
+htmlcov/
 
 # ── Caché temporal de escaneos de seguridad ─────────────────────────────────
 sms-security-scan.*/

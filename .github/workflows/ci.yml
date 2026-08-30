@@ -1,0 +1,227 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-service:
+    name: Auth Service tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: auth-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: auth-service/pom.xml
+      - name: Run tests and generate JaCoCo report
+        run: mvn --batch-mode --no-transfer-progress verify
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-jacoco
+          path: auth-service/target/site/jacoco
+          if-no-files-found: ignore
+
+  noise-processing-backend:
+    name: Noise Processing tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: noise-processing-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: noise-processing-backend/pom.xml
+      - name: Run tests and generate JaCoCo report
+        run: mvn --batch-mode --no-transfer-progress verify
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noise-processing-backend-jacoco
+          path: noise-processing-backend/target/site/jacoco
+          if-no-files-found: ignore
+
+  ingestion-api:
+    name: Ingestion API tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ingestion-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: ingestion-api/requirements-dev.txt
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements-dev.txt
+      - name: Run tests and generate coverage
+        run: >-
+          python -m pytest -q
+          --cov=app
+          --cov-report=term-missing
+          --cov-report=xml
+          --cov-report=html
+          --junitxml=test-results.xml
+      - name: Upload Python reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingestion-api-reports
+          path: |
+            ingestion-api/coverage.xml
+            ingestion-api/htmlcov
+            ingestion-api/test-results.xml
+          if-no-files-found: ignore
+
+  dashboard-api:
+    name: Dashboard API tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: dashboard-api/requirements-dev.txt
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements-dev.txt
+      - name: Run tests and generate coverage
+        run: >-
+          python -m pytest -q
+          --cov=app
+          --cov-report=term-missing
+          --cov-report=xml
+          --cov-report=html
+          --junitxml=test-results.xml
+      - name: Upload Python reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-api-reports
+          path: |
+            dashboard-api/coverage.xml
+            dashboard-api/htmlcov
+            dashboard-api/test-results.xml
+          if-no-files-found: ignore
+
+  send-metrics-python:
+    name: Station Python tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: send_metrics
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native audio runtime dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libsndfile1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: send_metrics/requirements-dev.txt
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements-dev.txt
+      - name: Run tests and generate coverage
+        run: >-
+          python -m pytest -q
+          --cov=scripts
+          --cov=tui
+          --cov-report=term-missing
+          --cov-report=xml
+          --cov-report=html
+          --junitxml=test-results.xml
+      - name: Upload Python reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: send-metrics-python-reports
+          path: |
+            send_metrics/coverage.xml
+            send_metrics/htmlcov
+            send_metrics/test-results.xml
+          if-no-files-found: ignore
+
+  dashboard-frontend:
+    name: Dashboard frontend tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: dashboard-frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests and generate coverage
+        run: npm run test:coverage
+      - name: Build production bundle
+        run: npm run build
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-frontend-coverage
+          path: dashboard-frontend/coverage
+          if-no-files-found: ignore
+
+  recorder-cpp:
+    name: Continuous recorder C++ contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            build-essential \
+            cmake \
+            pkg-config \
+            libasound2-dev \
+            libsndfile1-dev \
+            libtomlplusplus-dev
+      - name: Configure
+        run: cmake -S send_metrics/recorder -B /tmp/continuous-recorder-build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build /tmp/continuous-recorder-build --parallel 2
+      - name: Run contract tests
+        run: ctest --test-dir /tmp/continuous-recorder-build --output-on-failure
+
+  compose-config:
+    name: Validate Docker Compose configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose without starting services
+        run: docker compose --env-file docker/.env.example -f docker/docker-compose.yml config --quiet

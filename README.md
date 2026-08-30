@@ -123,6 +123,28 @@ Colecciones Postman para pruebas manuales de los endpoints.
 - `monitoreo_acustico.postman_collection.json` — Ingestion API y Auth Service.
 - `dashboard_api.postman_collection.json` — Dashboard API.
 
+### Pruebas y CI
+
+El workflow de GitHub Actions ejecuta en paralelo las pruebas unitarias, los
+builds y los contratos portables de cada componente. Los entornos del CI
+coinciden con los Dockerfiles: Java 17, Python 3.11 y Node 20.
+
+```bash
+cd auth-service && mvn verify
+cd noise-processing-backend && mvn verify
+cd ingestion-api && pip install -r requirements-dev.txt && python -m pytest
+cd dashboard-api && pip install -r requirements-dev.txt && python -m pytest
+cd send_metrics && pip install -r requirements-dev.txt && python -m pytest
+cd dashboard-frontend && npm ci && npm test && npm run build
+cmake -S send_metrics/recorder -B /tmp/continuous-recorder-build -DBUILD_TESTING=ON
+cmake --build /tmp/continuous-recorder-build
+ctest --test-dir /tmp/continuous-recorder-build --output-on-failure
+```
+
+La cobertura se publica como artefacto del workflow sin umbral bloqueante
+inicial. La integración completa con Docker Compose y PostgreSQL permanece
+reservada para una segunda fase manual o programada.
+
 ---
 
 ## Bases de datos
