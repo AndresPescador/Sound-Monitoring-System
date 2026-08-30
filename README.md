@@ -20,9 +20,6 @@ ambientales reales ni contienen credenciales.
 |---|---|
 | ![Comparación de estaciones sintéticas](docs/media/dashboard/comparacion-estaciones.png) | ![Mapa 3D de la red sintética](docs/media/dashboard/mapa-3d-red-acustica.png) |
 
-La guía para reproducir una sesión de captura aislada está en
-[docs/capture/README.md](docs/capture/README.md).
-
 ---
 
 ## Arquitectura general
