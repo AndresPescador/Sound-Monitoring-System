@@ -3,13 +3,14 @@ import { useLocation, useNavigationType } from 'react-router-dom'
 import { stationPageTitle } from '../../routes'
 
 const PUBLIC_TITLE = 'Monitoreo Acústico'
+const LANDING_TITLE = 'Sistema de Monitoreo Acústico Binaural | Bogotá D.C.'
 
 function isAdminPath(pathname) {
   return pathname === '/admin' || pathname.startsWith('/admin/')
 }
 
 function routeTitle(pathname, heading = '') {
-  if (pathname === '/') return 'Inicio | Monitoreo Acústico'
+  if (pathname === '/') return LANDING_TITLE
   if (pathname === '/mapa-2d') return 'Mapa 2D | Monitoreo Acústico'
   if (pathname.startsWith('/mapa-2d/stations/')) {
     return `${heading ? stationPageTitle(heading) : 'Detalle de estación'} | ${PUBLIC_TITLE}`

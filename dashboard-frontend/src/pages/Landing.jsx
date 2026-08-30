@@ -65,7 +65,10 @@ export default function Landing() {
       <header className="landing-nav">
         <Link to="/" className="landing-brand" aria-label="Inicio del Sistema de Monitoreo Acústico Binaural">
           <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
-          <span>Monitoreo Acústico <small>Bogotá D.C.</small></span>
+          <span className="landing-brand-copy">
+            <span className="landing-brand-name">Sistema de Monitoreo Acústico Binaural</span>
+            <small>Bogotá D.C.</small>
+          </span>
         </Link>
 
         <nav aria-label="Navegación de la presentación">
@@ -76,18 +79,20 @@ export default function Landing() {
 
         <div className="landing-nav-actions">
           <ThemeToggle />
-          <a href="#explorar" className="landing-nav-cta">Explorar mapas</a>
+          <a href="#mapas" className="landing-nav-cta">Explorar mapas</a>
         </div>
       </header>
 
       <main id="main-content" tabIndex={-1}>
-        <section className="landing-hero" data-loop aria-labelledby="landing-title">
+        <section className="landing-hero" id="inicio" data-loop aria-labelledby="landing-title">
           <div className="landing-hero-signal" aria-hidden="true" />
           <div className="landing-hero-copy">
-            <h1 id="landing-title" tabIndex={-1}>Bogotá suena.<br />La medimos.</h1>
+            <p className="landing-hero-kicker">Red binaural de Bogotá</p>
+            <h1 id="landing-title" tabIndex={-1}>Sistema de Monitoreo Acústico Binaural</h1>
+            <p className="landing-hero-tagline">Bogotá suena. La medimos.</p>
             <p className="landing-hero-lead">Una red de estaciones convierte el paisaje sonoro de la ciudad en datos abiertos, espaciales y comparables.</p>
             <div className="landing-hero-actions">
-              <a href="#explorar" className="landing-button landing-button--primary">Explorar mapas</a>
+              <a href="#mapas" className="landing-button landing-button--primary">Explorar mapas</a>
               <a href="#sistema" className="landing-button landing-button--secondary">Conocer el sistema</a>
             </div>
           </div>
@@ -122,8 +127,8 @@ export default function Landing() {
           </div>
         </div>
 
-        <section className="landing-map-section" aria-labelledby="map-title">
-          <div className="landing-section-heading" id="explorar" data-reveal="copy">
+        <section className="landing-map-section" id="mapas" aria-labelledby="map-title">
+          <div className="landing-section-heading" data-reveal="copy">
             <div className="landing-map-heading-copy">
               <h2 id="map-title">Dos formas de leer la misma ciudad</h2>
               <p>Consulta el estado actual en el mapa 2D o explora la intensidad acústica sobre el tejido urbano en 3D.</p>
@@ -237,7 +242,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-binaural" aria-labelledby="binaural-title">
+        <section className="landing-binaural" id="binaural" aria-labelledby="binaural-title">
           <div className="landing-binaural-copy" data-reveal="copy">
             <h2 id="binaural-title">No solo cuánto ruido. También desde dónde.</h2>
             <p>El nivel equivalente describe la energía. La diferencia interaural y la correlación añaden una lectura espacial del entorno.</p>
@@ -290,7 +295,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-open-data" aria-labelledby="open-data-title">
+        <section className="landing-open-data" id="datos" aria-labelledby="open-data-title">
           <div className="landing-open-data-copy" data-reveal="copy">
             <h2 id="open-data-title">Los datos también deben circular.</h2>
             <p>Consulta intervalos acotados, filtra por estación y descarga mediciones en CSV desde el portal público.</p>
@@ -307,7 +312,10 @@ export default function Landing() {
       <footer className="landing-footer">
         <div className="landing-brand landing-brand--footer">
           <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
-          <span>Monitoreo Acústico <small>Bogotá D.C.</small></span>
+          <span className="landing-brand-copy">
+            <span className="landing-brand-name">Sistema de Monitoreo Acústico Binaural</span>
+            <small>Bogotá D.C.</small>
+          </span>
         </div>
         <p>Proyecto de monitoreo ambiental con captura binaural y datos abiertos.</p>
         <nav aria-label="Enlaces finales">

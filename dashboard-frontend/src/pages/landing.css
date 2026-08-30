@@ -31,6 +31,7 @@
 
 html:has(.landing-page) {
   scroll-behavior: smooth;
+  scroll-padding-top: 88px;
   scrollbar-color: #8aa8d4 #edf4ff;
   scrollbar-width: thin;
 }
@@ -72,12 +73,28 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   align-items: center;
   justify-self: start;
   gap: 0.72rem;
+  max-width: 20rem;
   color: var(--landing-ink);
   font-family: "DM Sans", sans-serif;
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.05;
   text-decoration: none;
+}
+
+.landing-brand-copy {
+  display: block;
+  min-width: 0;
+}
+
+.landing-brand-name {
+  display: block;
+  color: var(--landing-ink);
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.16;
+  text-wrap: balance;
 }
 
 .landing-brand small {
@@ -184,21 +201,55 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   animation: landing-copy-enter 820ms cubic-bezier(.16, 1, .3, 1) both;
 }
 
+.landing-hero-kicker {
+  margin: 0 0 1.25rem;
+  color: var(--landing-blue);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .landing-hero h1 {
-  max-width: 13ch;
+  max-width: 20ch;
   margin: 0;
   color: var(--landing-ink);
   font-family: "DM Sans", sans-serif;
-  font-size: clamp(3.5rem, 5.2vw, 5rem);
+  font-size: clamp(3.1rem, 4.8vw, 4.8rem);
   font-weight: 650;
   letter-spacing: -0.04em;
-  line-height: 0.93;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+@media (min-width: 1200px) {
+  .landing-hero {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  }
+
+  .landing-hero h1 {
+    max-width: 20ch;
+    font-size: clamp(2.8rem, 4vw, 4.2rem);
+  }
+}
+
+.landing-hero-tagline {
+  max-width: 30ch;
+  margin: 1.35rem 0 0;
+  color: var(--landing-blue);
+  font-family: "DM Sans", sans-serif;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
   text-wrap: balance;
 }
 
 .landing-hero-lead {
   max-width: 38rem;
-  margin: clamp(1.6rem, 3vw, 2.5rem) 0 0;
+  margin: 0.9rem 0 0;
   color: var(--landing-muted);
   font-size: clamp(1.05rem, 1.45vw, 1.28rem);
   line-height: 1.55;
@@ -441,7 +492,10 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   padding: clamp(5.5rem, 10vw, 10rem) clamp(1.25rem, 4vw, 4.5rem);
 }
 
-#explorar {
+#inicio,
+#mapas,
+#binaural,
+#datos {
   scroll-margin-top: 80px;
 }
 
@@ -1392,7 +1446,8 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   }
 
   .landing-hero h1 {
-    font-size: clamp(3.35rem, 5.8vw, 4.65rem);
+    max-width: 20ch;
+    font-size: clamp(2.9rem, 5.8vw, 4.35rem);
   }
 
   .landing-map-gateway {
@@ -1464,13 +1519,27 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 
 @media (max-width: 767px) {
   .landing-nav {
-    height: 64px;
+    height: 72px;
     padding-inline: 1rem;
   }
 
-  .landing-brand > span:last-child {
-    display: none;
+  .landing-brand {
+    max-width: 12.5rem;
+    gap: 0.5rem;
   }
+
+  .landing-brand-mark {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .landing-brand-name {
+    max-width: 12rem;
+    font-size: 0.69rem;
+    line-height: 1.12;
+  }
+
+  .landing-brand small { font-size: 0.64rem; }
 
   .landing-nav-cta {
     font-size: 0.78rem;
@@ -1489,9 +1558,23 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   }
 
   .landing-hero h1 {
-    max-width: 13ch;
-    font-size: clamp(2.75rem, 11.5vw, 3.3rem);
+    max-width: 20ch;
+    font-size: clamp(2.55rem, 11.5vw, 3.35rem);
     line-height: 0.96;
+  }
+
+  .landing-hero-kicker {
+    margin-bottom: 1rem;
+    font-size: 0.65rem;
+  }
+
+  .landing-hero-tagline {
+    margin-top: 1.1rem;
+    font-size: clamp(1.15rem, 6vw, 1.45rem);
+  }
+
+  .landing-hero-lead {
+    font-size: 1rem;
   }
 
   .landing-hero-media figcaption {
@@ -1726,9 +1809,7 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
     justify-self: start;
   }
 
-  .landing-brand--footer > span:last-child {
-    display: block;
-  }
+  .landing-brand--footer .landing-brand-name { font-size: 0.76rem; }
 }
 
 @media (max-width: 520px) {
