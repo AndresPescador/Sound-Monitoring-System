@@ -243,7 +243,7 @@ Schema: [schema_noise_analytics.sql](schema_noise_analytics.sql)
 ### 1. Clonar el repositorio
 
 ```bash
-git clone [<url-del-repositorio>](https://github.com/AndresPescador/Sound-Monitoring-System.git)
+git clone https://github.com/AndresPescador/Sound-Monitoring-System.git
 cd Sound-Monitoring-System
 ```
 
