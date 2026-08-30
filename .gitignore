@@ -16,6 +16,8 @@ dashboard-api/.env
 .coverage
 coverage/
 htmlcov/
+coverage.xml
+test-results.xml
 
 # ── Caché temporal de escaneos de seguridad ─────────────────────────────────
 sms-security-scan.*/
