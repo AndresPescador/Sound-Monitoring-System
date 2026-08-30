@@ -6,6 +6,25 @@ Captura metricas de ruido ambiental desde estaciones distribuidas (Raspberry Pi 
 
 ---
 
+## Vistas del dashboard
+
+Las imágenes siguientes se generaron el 30 de agosto de 2026 con estaciones y
+mediciones **sintéticas** en un stack Docker efímero. No representan lecturas
+ambientales reales ni contienen credenciales.
+
+| Mapa 2D | Detalle de estación |
+|---|---|
+| ![Mapa 2D con estaciones sintéticas](docs/media/dashboard/mapa-2d-red-estaciones.png) | ![Detalle de una estación sintética](docs/media/dashboard/detalle-estacion.png) |
+
+| Comparación | Mapa 3D |
+|---|---|
+| ![Comparación de estaciones sintéticas](docs/media/dashboard/comparacion-estaciones.png) | ![Mapa 3D de la red sintética](docs/media/dashboard/mapa-3d-red-acustica.png) |
+
+La guía para reproducir una sesión de captura aislada está en
+[docs/capture/README.md](docs/capture/README.md).
+
+---
+
 ## Arquitectura general
 
 ```
@@ -19,13 +38,13 @@ Nginx + Certbot de la VPS (puertos 80/443, TLS y HSTS)
             ├── /ingest/*           → Ingestion API (FastAPI, puerto 8000)
             ├── /processing/admin/* → Noise Processing Backend (puerto 8082)
             └── /dashboard/*        → Dashboard API (FastAPI, puerto 8083)
-
-Dashboard Frontend (React, puerto 3000)
-    └── consulta Dashboard API para graficas y mapa
+            └── /*                  → Dashboard Frontend (React/Nginx, puerto interno 8080)
 
 PostgreSQL — dos bases de datos aisladas
     ├── station_registry   → auth_app (escritura restringida)
     └── noise_analytics    → noise_writer + dashboard_reader (solo lectura)
+
+Redis — rate limiting compartido de Auth Service (sin puerto publicado)
 ```
 
 ---
@@ -94,7 +113,7 @@ Referencia: [dashboard-frontend/README.md](dashboard-frontend/README.md)
 ---
 
 ### send_metrics
-Script Python que corre en cada Raspberry Pi.
+Cliente Python que corre en cada Raspberry Pi.
 
 - Detecta los archivos de metricas generados por `process_audio.py`.
 - Solicita y renueva el token JWT automaticamente.
@@ -111,7 +130,8 @@ Orquestacion completa del sistema con Docker Compose.
 
 - Define todos los servicios: dos instancias de PostgreSQL, Auth Service, Noise Processing Backend, Ingestion API, Dashboard API, Dashboard Frontend y Nginx.
 - Los schemas SQL se aplican automaticamente en el primer arranque.
-- Nginx actua como punto de entrada unico en el puerto 80.
+- Nginx Docker actúa como gateway interno en loopback; el Nginx de la VPS
+  termina TLS en los puertos públicos 80/443.
 
 Referencia: [docker/README.md](docker/README.md)
 
@@ -157,6 +177,8 @@ Gestionada exclusivamente por el Auth Service.
 | `registered_stations` | Estaciones autorizadas con hash del secret (BCrypt) |
 | `api_tokens` | Tokens JWT emitidos, con soporte de revocacion individual |
 | `auth_audit_log` | Registro inmutable de todos los eventos de autenticacion |
+| `admin_users` | Administradores humanos y versión de credenciales |
+| `station_code_counters` | Consecutivos atómicos por localidad |
 
 Schema: [schema_station_registry.sql](schema_station_registry.sql)
 
@@ -166,7 +188,7 @@ Gestionada por el Noise Processing Backend. Consultada por el Dashboard API.
 | Tabla | Descripcion |
 |---|---|
 | `stations` | Metadatos y ubicacion geografica de cada estacion |
-| `acoustic_measurements` | Metricas crudas por fragmento de audio (~2 minutos cada una) |
+| `acoustic_measurements` | Metricas crudas por fragmento de audio (60 s por defecto, configurable) |
 | `hourly_aggregations` | Leq, L10, L50, L90 y estadisticas calculadas por hora y estacion |
 
 Schema: [schema_noise_analytics.sql](schema_noise_analytics.sql)
@@ -199,7 +221,7 @@ Schema: [schema_noise_analytics.sql](schema_noise_analytics.sql)
 | ingestion-api | Python 3.11, FastAPI, Pydantic, httpx |
 | dashboard-api | Python 3.11, FastAPI, SQLAlchemy (async), asyncpg |
 | dashboard-frontend | React 18, Vite 5, Tailwind CSS 3, Recharts, Leaflet |
-| send_metrics | Python 3.9+, requests |
+| send_metrics | Python 3.9+, httpx |
 | Infraestructura | Docker, Docker Compose, Nginx, PostgreSQL 16 |
 
 ---
@@ -234,6 +256,9 @@ Editar `.env` y completar al menos:
 |---|---|
 | `POSTGRES_NOISE_PASSWORD` | Contrasena de la BD de metricas |
 | `POSTGRES_AUTH_PASSWORD` | Contrasena de la BD de autenticacion |
+| `NOISE_PROCESSOR_DB_PASSWORD` | Contrasena exclusiva de `noise_writer` |
+| `DASHBOARD_DB_PASSWORD` | Contrasena exclusiva de `dashboard_reader` |
+| `AUTH_DB_PASSWORD` | Contrasena exclusiva de `auth_app` |
 | `STATION_JWT_SECRET` | Clave exclusiva para tokens de estaciones |
 | `ADMIN_JWT_SECRET` | Clave independiente para sesiones administrativas |
 | `CORS_ALLOWED_ORIGIN` | Origen HTTPS exacto del frontend |
@@ -250,9 +275,11 @@ La primera vez puede tardar entre 5 y 10 minutos mientras se descargan las image
 
 ```bash
 docker compose ps
-curl http://localhost/auth/health
-curl http://localhost/ingest/health
-curl http://localhost/processing/health
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/auth/health
+curl http://127.0.0.1:8080/ingest/health
+curl http://127.0.0.1:8080/processing/health
+curl http://127.0.0.1:8080/dashboard/health
 ```
 
 ### 5. Crear el acceso administrativo y registrar una estacion
@@ -280,6 +307,7 @@ Sound-Monitoring-System/
 ├── dashboard-frontend/            # Interfaz web (React + Vite)
 ├── send_metrics/                  # Cliente de envio para Raspberry Pi (Python)
 ├── docker/                        # Docker Compose, Nginx y variables de entorno
+├── docs/                          # Arquitectura, medios y guías operativas
 ├── api-testing/                   # Colecciones Postman
 ├── schema_noise_analytics.sql     # Schema de la BD de metricas
 └── schema_station_registry.sql    # Schema de la BD de autenticacion
@@ -290,8 +318,8 @@ Sound-Monitoring-System/
 ## Flujo completo de datos
 
 ```
-1. process_audio.py (Raspberry Pi)
-      Graba fragmentos de ~2 minutos, calcula metricas acusticas,
+1. continuous-recorder + process_audio.py (Raspberry Pi)
+      Graba fragmentos WAV de 60 segundos por defecto, calcula metricas acusticas,
       guarda el resultado como archivo .txt en formato JSON.
 
 2. send_metrics.py (Raspberry Pi)

@@ -13,9 +13,9 @@ Interfaz web del Sistema de Monitoreo Acústico Binaural — Bogotá D.C.
 | Tailwind CSS | 3 | Estilos utilitarios |
 | Recharts | 2 | Gráficas acústicas |
 | Leaflet + react-leaflet | 1.9 / 4 | Mapa interactivo |
-| Axios | 1.7.9 | HTTP (versión segura — evitar 1.14.x y 0.30.4) |
+| Axios | 1.19.0 | Cliente HTTP |
 | date-fns | 3 | Formateo de fechas |
-| React Router | 6 | Navegación SPA |
+| React Router | 7 | Navegación SPA |
 
 ---
 
@@ -30,6 +30,9 @@ Interfaz web del Sistema de Monitoreo Acústico Binaural — Bogotá D.C.
 | `/mapa-2d/data` | Portal de datos abiertos de la experiencia 2D |
 | `/mapa-3d` | Inicio independiente de la experiencia 3D |
 | `/admin/stations` | Gestión administrativa y registro de estaciones |
+| `/admin/login` | Inicio de sesión del panel administrativo |
+| `/admin/profile` | Perfil y cambio de contraseña del administrador |
+| `/admin/users` | Gestión de administradores (solo superadministrador) |
 
 Las rutas históricas `/stations/:code`, `/compare`, `/data` y `/urban-3d` redirigen a sus equivalentes canónicos para conservar enlaces existentes.
 
@@ -106,19 +109,9 @@ docker build --build-arg VITE_API_URL=http://192.168.1.100/dashboard -t dashboar
 
 ---
 
-## Agregar el frontend al Docker Compose
+## Docker Compose
 
-En `docker/docker-compose.yml`:
-
-```yaml
-dashboard-frontend:
-  build:
-    context: ../dashboard-frontend
-    dockerfile: Dockerfile
-    args:
-      VITE_API_URL: http://${SERVER_IP}/dashboard
-  container_name: dashboard-frontend
-  ports:
-    - "3000:80"
-  restart: unless-stopped
-```
+El frontend ya forma parte de `docker/docker-compose.yml`. Se construye con
+`VITE_API_URL` y `VITE_MAPTILER_KEY`, escucha internamente en el puerto 8080 y
+no publica un puerto propio en el host: Nginx Docker lo sirve mediante la ruta
+`/`, mientras el gateway solo se expone en `127.0.0.1:${NGINX_PORT}`.

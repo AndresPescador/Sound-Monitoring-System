@@ -41,7 +41,16 @@ noise-processing-backend/
 |---|---|---|---|
 | `POST` | `/processing/measurements` | Recibe y persiste métricas acústicas | Solo red interna |
 | `POST` | `/admin/stations` | Registra estación en noise_analytics | JWT ADMIN/SUPER_ADMIN |
+| `GET` | `/admin/stations` | Lista estaciones, incluidas las inactivas | JWT ADMIN/SUPER_ADMIN |
+| `GET` | `/admin/stations/{code}` | Consulta el detalle administrativo de una estación | JWT ADMIN/SUPER_ADMIN |
+| `PUT` | `/admin/stations/{code}` | Actualiza descripción, dirección y coordenadas | JWT ADMIN/SUPER_ADMIN |
+| `PATCH` | `/admin/stations/{code}/status` | Activa o desactiva la estación en `noise_analytics` | JWT ADMIN/SUPER_ADMIN |
+| `DELETE` | `/admin/stations/{code}` | Elimina estación, mediciones y agregaciones | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/health` | Health check | Pública |
+
+> **Advertencia:** el borrado administrativo es irreversible y elimina las
+> mediciones y agregaciones asociadas. El estado debe coordinarse también con
+> Auth Service; este backend no puede actualizar `station_registry`.
 
 ---
 

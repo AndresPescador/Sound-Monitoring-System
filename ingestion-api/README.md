@@ -93,6 +93,7 @@ Ingestion API
   │  1. Pydantic valida el JSON (HTTP 422 si falla)
   │  2. Extrae el token del header Authorization
   │  3. Llama al Auth Service → obtiene station_code (HTTP 401/503 si falla)
+  │     y rechaza con 403 un stationCode opcional que no coincida con el JWT
   │  4. Reenvía JSON + station_code al Processing Backend (HTTP 503 si falla)
   │  5. Devuelve HTTP 201 a la estación
   ▼
@@ -107,5 +108,6 @@ Red privada `service_internal` → Noise Processing Backend
 |---|---|
 | `201 Created` | Métricas recibidas y reenviadas correctamente |
 | `401 Unauthorized` | Token ausente, inválido o expirado |
+| `403 Forbidden` | El `stationCode` declarado no corresponde a la estación autenticada |
 | `422 Unprocessable Entity` | JSON con formato incorrecto |
 | `503 Service Unavailable` | Auth Service o Processing Backend no disponibles |

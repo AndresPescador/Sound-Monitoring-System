@@ -2,6 +2,9 @@
 
 Esta carpeta contiene los programas que se ejecutan en cada Raspberry Pi. La Raspberry procesa los archivos `.wav`, genera métricas acústicas y las envía al servidor central.
 
+La topología completa, rutas públicas y despliegue del servidor se documentan
+en el [README raíz](../README.md) y [docker/README.md](../docker/README.md).
+
 ## 1. Organización de la carpeta
 
 La estructura esperada es:

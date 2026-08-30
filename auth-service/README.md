@@ -45,9 +45,16 @@ auth-service/
 | `GET` | `/admin/me` | Consultar sesión actual | JWT ADMIN/SUPER_ADMIN |
 | `POST` | `/admin/change-password` | Cambiar password y revocar sesiones | JWT ADMIN/SUPER_ADMIN |
 | `POST` | `/admin/admins` | Crear administrador normal | JWT SUPER_ADMIN |
+| `GET` | `/admin/admins` | Listar administradores | JWT SUPER_ADMIN |
 | `POST` | `/admin/stations` | Registrar nueva estación | JWT ADMIN/SUPER_ADMIN |
 | `POST` | `/admin/stations/{code}/rotate-secret` | Rotar secret y tokens | JWT ADMIN/SUPER_ADMIN |
+| `DELETE` | `/admin/stations/{code}/token` | Revocar tokens sin cambiar el secret | JWT ADMIN/SUPER_ADMIN |
+| `PATCH` | `/admin/stations/{code}/status` | Activar o desactivar una estación | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/auth/health` | Health check | Pública |
+
+En ejecución directa las rutas administrativas empiezan por `/admin`. El
+gateway Docker las publica como `/auth/admin/*`; `/admin/validate` permanece
+interno.
 
 ---
 

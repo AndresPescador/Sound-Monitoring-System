@@ -33,7 +33,8 @@ dashboard-api/
 |---|---|---|
 | `GET` | `/stations` | Mapa de Bogotá (marcadores con color por nivel) |
 | `GET` | `/stations/{code}/summary` | Tarjeta de detalle de estación |
-| `GET` | `/stations/{code}/measurements` | Gráfica de línea (serie temporal cruda) |
+| `GET` | `/stations/{code}/measurements` | Serie visual adaptativa: agrega ventanas cuando el rango excede el límite |
+| `GET` | `/stations/{code}/measurements/raw` | Mediciones exactas paginadas para descarga o análisis detallado |
 | `GET` | `/stations/{code}/hourly` | Gráfica de banda L10/L50/L90 |
 | `GET` | `/stations/{code}/daily-profile` | Gráfica de barras 24 horas |
 | `GET` | `/stations/{code}/binaural` | Gráfica ILD y correlación interaural |
@@ -54,10 +55,10 @@ dashboard-api/
 | `to` | datetime ISO | ahora | Fin del rango |
 | `limit` | int | 1500 | Máximo de puntos visuales en `/measurements`, `/binaural` y `/spectral`; si se supera, el backend agrupa el rango completo en ventanas estadísticas |
 | `metric` | string | `leq_dbfs` | Métrica a graficar (en `/measurements`) |
-| `cursor` | datetime ISO | — | Cursor temporal para paginar `/measurements/raw` |
+| `cursor` | datetime ISO | — | Cursor temporal para paginar `/stations/{code}/measurements/raw` |
 | `stations` | string | todas activas | Códigos separados por coma (en `/compare/measurements` y `/compare/measurements/raw`) |
 | `max_points` | int | 1500 | Máximo de buckets comunes (en `/compare/measurements`) |
-| `raw_limit` | int | 10000 | Máximo de puntos exactos por estación (en `/compare/measurements/raw`) |
+| `raw_limit` | int | 10000 | Máximo total de puntos exactos repartidos entre estaciones (en `/compare/measurements/raw`) |
 
 ---
 
@@ -73,7 +74,10 @@ dashboard-api/
 
 Las respuestas de series visuales incluyen `total_count`, `returned_count`, `is_aggregated` y `resolution_seconds`. Cuando el rango supera el máximo visual, se conserva todo el intervalo y cada punto representa una ventana con promedio, mínimo, máximo y `source_count`.
 
-`/stations/{code}/measurements/raw` devuelve mediciones exactas por páginas. Usa `limit` (máximo 5000) y el `next_cursor` de la respuesta para solicitar la página siguiente. La descarga completa debe recorrer las páginas hasta que `has_more` sea `false`.
+`/stations/{code}/measurements/raw` devuelve mediciones exactas por páginas. Usa
+`limit` (máximo 1000) y el `next_cursor` de la respuesta para solicitar la
+página siguiente. La descarga completa debe recorrer las páginas hasta que
+`has_more` sea `false`.
 
 `/compare/measurements` devuelve únicamente `data`, con los mismos buckets temporales para todas las estaciones y sus estadísticas (`value`, `value_min`, `value_max`, `source_count`). Esto permite que la gráfica de líneas aparezca sin esperar al ScatterChart.
 

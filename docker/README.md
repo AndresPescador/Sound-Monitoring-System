@@ -150,6 +150,9 @@ curl http://127.0.0.1:8080/processing/health
 
 # Ingestion API (a través de Nginx)
 curl http://127.0.0.1:8080/ingest/health
+
+# Dashboard API (a través de Nginx)
+curl http://127.0.0.1:8080/dashboard/health
 ```
 
 Todos deben devolver `{"status": "ok", ...}`.
@@ -213,7 +216,11 @@ siguiente será `04`.
 
 ### Paso 3 — Configurar la Raspberry Pi
 
-En la Raspberry Pi, copiar el `secret` del Paso 1 al `.env` de la estación (aún por definir cuando se desarrolle el módulo de envío de datos).
+En la Raspberry Pi ejecuta el instalador de
+[`send_metrics`](../send_metrics/README.md). La configuración principal se
+guarda en `~/.config/sound-monitor/station.toml` con permisos 0600; `.env`
+queda como compatibilidad para desarrollo local. El secret devuelto por Auth se
+muestra una sola vez y no debe guardarse en el repositorio, logs ni capturas.
 
 ---
 

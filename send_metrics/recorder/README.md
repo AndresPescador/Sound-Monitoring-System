@@ -2,6 +2,8 @@
 
 `continuous-recorder` reemplaza la parte de captura de la aplicación JUCE. Solo captura y publica WAV: el análisis y el envío siguen siendo responsabilidad de `../scripts/process_audio.py` y `../scripts/send_metrics.py`.
 
+La guía operativa de la estación está en el [README del componente padre](../README.md).
+
 ## Formato y comportamiento
 
 - Linux/Raspberry Pi, ALSA, C++17.

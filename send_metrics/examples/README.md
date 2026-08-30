@@ -19,3 +19,6 @@ python examples/generate_sample_metrics.py \
 No incluye `stationCode`, tokens ni secretos: `send_metrics.py` añade el código
 de estación configurado al enviar. No copies un `index.json` de prueba sobre la
 cola de una estación que esté operando.
+
+Estos archivos son adecuados únicamente para pruebas locales; para instalar una
+estación consulta el [README de send_metrics](../README.md).
