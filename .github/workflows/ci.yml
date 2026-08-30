@@ -253,6 +253,7 @@ jobs:
           fetch-depth: 0
 
       - name: Package the release and deployment manifest
+        id: package-release
         env:
           BASE_SHA: ${{ github.event.before }}
           COMMIT_SHA: ${{ github.sha }}
@@ -349,8 +350,8 @@ jobs:
           gzip --no-name --stdout "$archive_tar" > "$archive"
 
           checksum="$(sha256sum "$archive" | awk '{print $1}')"
-          printf 'RELEASE_ARCHIVE=%s\n' "$archive" >> "$GITHUB_ENV"
-          printf 'RELEASE_CHECKSUM=%s\n' "$checksum" >> "$GITHUB_ENV"
+          printf 'archive=%s\n' "$archive" >> "$GITHUB_OUTPUT"
+          printf 'checksum=%s\n' "$checksum" >> "$GITHUB_OUTPUT"
 
       - name: Configure SSH transport
         env:
@@ -370,6 +371,8 @@ jobs:
       - name: Transfer and deploy the verified release
         env:
           COMMIT_SHA: ${{ github.sha }}
+          RELEASE_ARCHIVE: ${{ steps.package-release.outputs.archive }}
+          RELEASE_CHECKSUM: ${{ steps.package-release.outputs.checksum }}
           VPS_HOST: ${{ vars.VPS_HOST }}
           VPS_PORT: ${{ vars.VPS_PORT }}
           VPS_DEPLOY_USER: ${{ vars.VPS_DEPLOY_USER }}
@@ -380,6 +383,8 @@ jobs:
           [[ -n "$VPS_PORT" ]] || { echo 'Missing production variable VPS_PORT.' >&2; exit 1; }
           [[ -n "$VPS_DEPLOY_USER" ]] || { echo 'Missing production variable VPS_DEPLOY_USER.' >&2; exit 1; }
           [[ "$VPS_DEPLOY_PATH" == '/opt/sound-monitoring' ]] || { echo 'VPS_DEPLOY_PATH must be /opt/sound-monitoring.' >&2; exit 1; }
+          [[ -n "$RELEASE_ARCHIVE" && -f "$RELEASE_ARCHIVE" ]] || { echo 'Release archive was not created.' >&2; exit 1; }
+          [[ "$RELEASE_CHECKSUM" =~ ^[0-9a-f]{64}$ ]] || { echo 'Release archive checksum is invalid.' >&2; exit 1; }
 
           ssh_options=(
             -i "$RUNNER_TEMP/ssh/id_ed25519"
