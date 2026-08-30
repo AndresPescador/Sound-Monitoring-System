@@ -248,6 +248,10 @@ docker compose down -v
 En producción, Nginx + Certbot de la VPS recibe HTTPS y reenvía al gateway en
 `127.0.0.1:8080`. Consulta [VPS_DEPLOYMENT.md](VPS_DEPLOYMENT.md).
 
+Para activar despliegues continuos desde GitHub Actions sin transferir el
+archivo `.env` ni tocar los volúmenes de datos, consulta
+[CD_DEPLOYMENT.md](CD_DEPLOYMENT.md).
+
 | Ruta | Servicio destino | Descripción |
 |---|---|---|
 | `POST /ingest/ingest` | Ingestion API | Métricas desde estaciones |

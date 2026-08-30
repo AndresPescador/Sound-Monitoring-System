@@ -11,7 +11,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Los PRs nuevos pueden cancelar CI obsoleto. Un push a main no se cancela
+  # porque podría interrumpir un despliegue de producción ya iniciado.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   auth-service:
@@ -225,3 +227,170 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Compose without starting services
         run: docker compose --env-file docker/.env.example -f docker/docker-compose.yml config --quiet
+
+  deploy-production:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    needs:
+      - auth-service
+      - noise-processing-backend
+      - ingestion-api
+      - dashboard-api
+      - send-metrics-python
+      - dashboard-frontend
+      - recorder-cpp
+      - compose-config
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 35
+    environment:
+      name: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package the release and deployment manifest
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          manifest="$RUNNER_TEMP/DEPLOY_MANIFEST"
+          archive_tar="$RUNNER_TEMP/sound-monitoring-release.tar"
+          archive="$RUNNER_TEMP/sound-monitoring-release-${COMMIT_SHA}.tar.gz"
+
+          declare -A selected_services=()
+          database_change=false
+          requires_manual_vps_setup=false
+
+          add_all_application_services() {
+            selected_services[auth-service]=1
+            selected_services[noise-processing]=1
+            selected_services[ingestion-api]=1
+            selected_services[dashboard-api]=1
+            selected_services[dashboard-frontend]=1
+            selected_services[nginx]=1
+          }
+
+          if [[ "$BASE_SHA" =~ ^0+$ ]] || ! [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            changed_paths="$(git ls-tree -r --name-only "$COMMIT_SHA")"
+          else
+            changed_paths="$(git diff --name-only "$BASE_SHA" "$COMMIT_SHA")"
+          fi
+
+          while IFS= read -r changed_path; do
+            [[ -z "$changed_path" ]] && continue
+            case "$changed_path" in
+              schema_*.sql|sql/*)
+                database_change=true
+                ;;
+              docker/deploy/sound-monitoring-deploy)
+                requires_manual_vps_setup=true
+                ;;
+              README.md|AGENTS.md|.gitignore|.github/*|api-testing/*|docs/*|*/README.md|*/tests/*|*/src/test/*|*/requirements-dev.txt)
+                ;;
+              send_metrics/*)
+                ;;
+              auth-service/*)
+                selected_services[auth-service]=1
+                ;;
+              noise-processing-backend/*)
+                selected_services[noise-processing]=1
+                ;;
+              ingestion-api/*)
+                selected_services[ingestion-api]=1
+                ;;
+              dashboard-api/*)
+                selected_services[dashboard-api]=1
+                ;;
+              dashboard-frontend/*)
+                selected_services[dashboard-frontend]=1
+                ;;
+              docker/nginx/nginx.conf)
+                selected_services[nginx]=1
+                ;;
+              docker/docker-compose.yml)
+                add_all_application_services
+                ;;
+              docker/.env.example|docker/README.md|docker/CD_DEPLOYMENT.md|docker/VPS_DEPLOYMENT.md|docker/SECURITY_ROTATION.md|docker/DATABASE_ROLES.md|docker/deploy/bootstrap-vps.sh|docker/nginx/*.example|docker/nginx/certbot-renewal-hook.sh)
+                ;;
+              *)
+                add_all_application_services
+                ;;
+            esac
+          done <<< "$changed_paths"
+
+          ordered_services=(auth-service noise-processing ingestion-api dashboard-api dashboard-frontend nginx)
+          services=()
+          for service in "${ordered_services[@]}"; do
+            [[ -n "${selected_services[$service]:-}" ]] && services+=("$service")
+          done
+
+          if [[ ${#services[@]} -eq 0 ]]; then
+            services_csv=none
+          else
+            services_csv="$(IFS=,; echo "${services[*]}")"
+          fi
+
+          {
+            printf 'commit_sha=%s\n' "$COMMIT_SHA"
+            printf 'database_change=%s\n' "$database_change"
+            printf 'requires_manual_vps_setup=%s\n' "$requires_manual_vps_setup"
+            printf 'deployment_entrypoint_sha=%s\n' "$(sha256sum docker/deploy/sound-monitoring-deploy | awk '{print $1}')"
+            printf 'services=%s\n' "$services_csv"
+          } > "$manifest"
+
+          git archive --format=tar --output="$archive_tar" "$COMMIT_SHA"
+          tar --append --file="$archive_tar" --directory="$RUNNER_TEMP" DEPLOY_MANIFEST
+          gzip --no-name --stdout "$archive_tar" > "$archive"
+
+          checksum="$(sha256sum "$archive" | awk '{print $1}')"
+          printf 'RELEASE_ARCHIVE=%s\n' "$archive" >> "$GITHUB_ENV"
+          printf 'RELEASE_CHECKSUM=%s\n' "$checksum" >> "$GITHUB_ENV"
+
+      - name: Configure SSH transport
+        env:
+          VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_DEPLOY_KEY" ]] || { echo 'Missing production secret VPS_DEPLOY_KEY.' >&2; exit 1; }
+          [[ -n "$VPS_KNOWN_HOSTS" ]] || { echo 'Missing production secret VPS_KNOWN_HOSTS.' >&2; exit 1; }
+
+          install -d -m 700 "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$VPS_DEPLOY_KEY" > "$RUNNER_TEMP/ssh/id_ed25519"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/id_ed25519"
+          chmod 600 "$RUNNER_TEMP/ssh/known_hosts"
+
+      - name: Transfer and deploy the verified release
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_PORT: ${{ vars.VPS_PORT }}
+          VPS_DEPLOY_USER: ${{ vars.VPS_DEPLOY_USER }}
+          VPS_DEPLOY_PATH: ${{ vars.VPS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          [[ -n "$VPS_HOST" ]] || { echo 'Missing production variable VPS_HOST.' >&2; exit 1; }
+          [[ -n "$VPS_PORT" ]] || { echo 'Missing production variable VPS_PORT.' >&2; exit 1; }
+          [[ -n "$VPS_DEPLOY_USER" ]] || { echo 'Missing production variable VPS_DEPLOY_USER.' >&2; exit 1; }
+          [[ "$VPS_DEPLOY_PATH" == '/opt/sound-monitoring' ]] || { echo 'VPS_DEPLOY_PATH must be /opt/sound-monitoring.' >&2; exit 1; }
+
+          ssh_options=(
+            -i "$RUNNER_TEMP/ssh/id_ed25519"
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts"
+            -p "$VPS_PORT"
+          )
+          remote_target="${VPS_DEPLOY_USER}@${VPS_HOST}"
+          remote_archive="/tmp/sound-monitoring-release-${COMMIT_SHA}.tar.gz"
+
+          scp "${ssh_options[@]}" "$RELEASE_ARCHIVE" "${remote_target}:${remote_archive}"
+          ssh "${ssh_options[@]}" "$remote_target" \
+            "sudo -n /usr/local/sbin/sound-monitoring-deploy '$COMMIT_SHA' '$remote_archive' '$RELEASE_CHECKSUM'"

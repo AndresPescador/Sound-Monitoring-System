@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+# Root-owned deployment entrypoint for GitHub Actions. It accepts only a
+# validated release archive and never reads or prints the production .env.
+set -Eeuo pipefail
+
+APP_ROOT="/opt/sound-monitoring"
+RELEASE_ROOT="$APP_ROOT/releases"
+STATE_ROOT="$RELEASE_ROOT/.state"
+ENV_FILE="$APP_ROOT/docker/.env"
+PROJECT_NAME="docker"
+HEALTH_BASE_URL="http://127.0.0.1:8080"
+
+log() {
+  printf '[sound-monitoring-deploy] %s\n' "$*" >&2
+}
+
+die() {
+  log "ERROR: $*"
+  exit 1
+}
+
+usage() {
+  die "usage: $0 <commit-sha> <archive-path> <sha256>"
+}
+
+[[ ${EUID} -eq 0 ]] || die "must run as root via sudo"
+[[ $# -eq 3 ]] || usage
+
+commit_sha="$1"
+archive_path="$2"
+expected_checksum="$3"
+
+[[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] || die "invalid commit SHA"
+[[ "$expected_checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid archive checksum"
+[[ "$archive_path" == "/tmp/sound-monitoring-release-${commit_sha}.tar.gz" ]] || die "unexpected archive path"
+[[ -r "$archive_path" ]] || die "release archive is not readable"
+[[ -f "$ENV_FILE" ]] || die "production environment file is missing"
+
+actual_checksum="$(sha256sum "$archive_path" | awk '{print $1}')"
+[[ "$actual_checksum" == "$expected_checksum" ]] || die "archive checksum mismatch"
+
+install -d -m 0755 "$RELEASE_ROOT"
+install -d -m 0700 "$STATE_ROOT"
+
+current_file="$STATE_ROOT/current"
+previous_file="$STATE_ROOT/previous"
+current_release=""
+if [[ -s "$current_file" ]]; then
+  current_release="$(<"$current_file")"
+fi
+
+valid_release_name() {
+  [[ "$1" == "bootstrap-current" || "$1" =~ ^[0-9a-f]{40}$ ]]
+}
+
+if [[ -n "$current_release" ]]; then
+  valid_release_name "$current_release" || die "invalid stored active release"
+  [[ -d "$RELEASE_ROOT/$current_release" ]] || die "stored active release is missing"
+fi
+
+archive_has_safe_paths() {
+  local entry
+  while IFS= read -r entry; do
+    case "$entry" in
+      /*|..|../*|*/..|*/../*|./..|./../*)
+        return 1
+        ;;
+    esac
+  done < <(tar -tzf "$archive_path")
+}
+
+archive_has_safe_paths || die "archive contains an unsafe path"
+
+release_dir="$RELEASE_ROOT/$commit_sha"
+if [[ ! -d "$release_dir" ]]; then
+  incoming_dir="$(mktemp -d "$RELEASE_ROOT/.incoming-${commit_sha}.XXXXXX")"
+  cleanup_incoming() {
+    rm -rf "$incoming_dir"
+  }
+  trap cleanup_incoming EXIT
+
+  tar -xzf "$archive_path" \
+    --no-same-owner \
+    --no-same-permissions \
+    --delay-directory-restore \
+    -C "$incoming_dir"
+
+  [[ -f "$incoming_dir/DEPLOY_MANIFEST" ]] || die "release archive has no deployment manifest"
+  [[ -f "$incoming_dir/docker/docker-compose.yml" ]] || die "release archive has no Compose file"
+  mv "$incoming_dir" "$release_dir"
+  trap - EXIT
+fi
+
+manifest="$release_dir/DEPLOY_MANIFEST"
+manifest_value() {
+  local key="$1"
+  awk -F= -v expected_key="$key" '$1 == expected_key { print $2; exit }' "$manifest"
+}
+
+manifest_commit="$(manifest_value commit_sha)"
+database_change="$(manifest_value database_change)"
+requires_manual_vps_setup="$(manifest_value requires_manual_vps_setup)"
+expected_entrypoint_checksum="$(manifest_value deployment_entrypoint_sha)"
+services_csv="$(manifest_value services)"
+
+[[ "$manifest_commit" == "$commit_sha" ]] || die "manifest commit SHA does not match archive"
+[[ "$database_change" == "true" || "$database_change" == "false" ]] || die "invalid database change flag"
+[[ "$requires_manual_vps_setup" == "true" || "$requires_manual_vps_setup" == "false" ]] || die "invalid VPS setup flag"
+[[ "$expected_entrypoint_checksum" =~ ^[0-9a-f]{64}$ ]] || die "invalid deployment entrypoint checksum"
+[[ -n "$services_csv" ]] || die "deployment manifest has no service list"
+
+installed_entrypoint_checksum="$(sha256sum "$0" | awk '{print $1}')"
+[[ "$installed_entrypoint_checksum" == "$expected_entrypoint_checksum" ]] || die "installed deployment entrypoint differs from this release; run bootstrap-vps.sh manually before retrying"
+
+if [[ "$database_change" == "true" ]]; then
+  die "database or schema files changed; apply the versioned migration manually before deploying this commit"
+fi
+
+declare -a services=()
+if [[ "$services_csv" != "none" ]]; then
+  IFS=',' read -r -a services <<< "$services_csv"
+fi
+
+is_allowed_service() {
+  case "$1" in
+    auth-service|noise-processing|ingestion-api|dashboard-api|dashboard-frontend|nginx)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+for service in "${services[@]}"; do
+  is_allowed_service "$service" || die "manifest requested an unsupported service"
+done
+
+compose_for_release() {
+  local selected_release="$1"
+  shift
+  docker compose \
+    --project-name "$PROJECT_NAME" \
+    --env-file "$ENV_FILE" \
+    --file "$RELEASE_ROOT/$selected_release/docker/docker-compose.yml" \
+    "$@"
+}
+
+health_check() {
+  local endpoint attempt
+  local endpoints=(/health /auth/health /processing/health /ingest/health /dashboard/health /)
+
+  for endpoint in "${endpoints[@]}"; do
+    for attempt in $(seq 1 15); do
+      if curl --fail --silent --show-error --max-time 15 \
+        --output /dev/null "$HEALTH_BASE_URL$endpoint"; then
+        break
+      fi
+      [[ "$attempt" -eq 15 ]] && return 1
+      sleep 2
+    done
+  done
+}
+
+build_targets=()
+for service in "${services[@]}"; do
+  [[ "$service" != "nginx" ]] && build_targets+=("$service")
+done
+
+deploy_services() {
+  local selected_release="$1"
+
+  compose_for_release "$selected_release" config --quiet
+  if [[ ${#build_targets[@]} -gt 0 ]]; then
+    compose_for_release "$selected_release" build "${build_targets[@]}"
+  fi
+  if [[ ${#services[@]} -gt 0 ]]; then
+    compose_for_release "$selected_release" up -d --no-deps "${services[@]}"
+  fi
+}
+
+rollback() {
+  [[ -n "$current_release" ]] || {
+    log "No previous release is available for rollback."
+    return 1
+  }
+
+  log "Rolling back to $current_release"
+  deploy_services "$current_release" && health_check
+}
+
+if [[ ${#services[@]} -gt 0 ]]; then
+  log "Deploying services: ${services[*]}"
+  if ! deploy_services "$commit_sha"; then
+    log "Build or service start failed before release activation."
+    rollback || log "Rollback could not be completed."
+    exit 1
+  fi
+
+  if ! health_check; then
+    log "Post-deployment health checks failed."
+    rollback || log "Rollback could not be completed."
+    exit 1
+  fi
+else
+  log "No deployable VPS service changed; recording the validated release."
+fi
+
+if [[ -n "$current_release" && "$current_release" != "$commit_sha" ]]; then
+  printf '%s\n' "$current_release" > "$previous_file"
+fi
+printf '%s\n' "$commit_sha" > "$current_file"
+rm -f "$archive_path"
+log "Deployment completed for $commit_sha"
