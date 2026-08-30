@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1420" viewBox="0 0 2400 1420" role="img" aria-labelledby="title desc">
+  <title id="title">Arquitectura multicapa del sistema distribuido de monitoreo acústico</title>
+  <desc id="desc">Flujo desde una estación de campo con Raspberry Pi 4 hacia Nginx, los servicios de ingesta, autenticación, procesamiento, las bases de datos PostgreSQL y el dashboard web.</desc>
+  <defs>
+    <marker id="arrow-dark" markerWidth="18" markerHeight="18" refX="16" refY="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L18,9 L0,18 Z" fill="#3e5d73"/>
+    </marker>
+    <marker id="arrow-teal" markerWidth="18" markerHeight="18" refX="16" refY="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L18,9 L0,18 Z" fill="#1595a4"/>
+    </marker>
+    <style>
+      .bg { fill: #f7f9fa; }
+      .zone { fill: #eef4f7; fill-opacity: .82; stroke: #b5c9d3; stroke-width: 3; stroke-dasharray: 18 14; }
+      .zone-label { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 23px; font-weight: 700; letter-spacing: 1px; fill: #60798a; }
+      .eyebrow { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 25px; font-weight: 700; letter-spacing: 2px; fill: #1595a4; }
+      .title { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 48px; font-weight: 700; fill: #20384d; }
+      .subtitle { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 25px; fill: #6d8494; }
+      .node { fill: #ffffff; stroke: #3e5d73; stroke-width: 5; }
+      .node-teal { fill: #ffffff; stroke: #1595a4; stroke-width: 5; }
+      .node-orange { fill: #ffffff; stroke: #d8863b; stroke-width: 5; }
+      .db-shape { fill: #fff5e9; stroke: #d8863b; stroke-width: 5; }
+      .db-curve { fill: none; stroke: #d8863b; stroke-width: 4; }
+      .node-title { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 28px; font-weight: 700; fill: #20384d; }
+      .node-title-small { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 25px; font-weight: 700; fill: #20384d; }
+      .node-body { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 23px; fill: #708898; }
+      .db-title { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 25px; font-weight: 700; text-anchor: middle; fill: #20384d; }
+      .db-body { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 23px; text-anchor: middle; fill: #708898; }
+      .route { fill: none; stroke: #3e5d73; stroke-width: 4; marker-end: url(#arrow-dark); }
+      .route-teal { fill: none; stroke: #1595a4; stroke-width: 4; marker-end: url(#arrow-teal); }
+      .route-label { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 18px; fill: #708898; paint-order: stroke; stroke: #eef4f7; stroke-width: 6px; stroke-linejoin: round; }
+      .note { fill: #ffffff; stroke: #b5c9d3; stroke-width: 2; }
+      .note-text { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 20px; font-weight: 700; fill: #3e5262; }
+      .footnote { font-family: Arial, 'Liberation Sans', sans-serif; font-size: 18px; fill: #708898; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="2400" height="1420"/>
+
+  <text class="eyebrow" x="115" y="70">ARQUITECTURA DEL SISTEMA</text>
+  <text class="title" x="115" y="128">Monitoreo acústico distribuido</text>
+  <text class="subtitle" x="115" y="174">Flujo de adquisición, autenticación, procesamiento, persistencia y consulta</text>
+
+  <rect class="zone" x="100" y="240" width="420" height="650" rx="2"/>
+  <rect class="zone" x="570" y="240" width="1220" height="820" rx="2"/>
+  <rect class="zone" x="1850" y="240" width="450" height="820" rx="2"/>
+  <rect class="zone" x="100" y="1110" width="1690" height="260" rx="2"/>
+
+  <rect fill="#f7f9fa" x="120" y="230" width="105" height="30"/>
+  <text class="zone-label" x="140" y="260">CAMPO</text>
+  <rect fill="#f7f9fa" x="600" y="230" width="285" height="30"/>
+  <text class="zone-label" x="610" y="260">SERVICIOS CENTRALES</text>
+  <rect fill="#f7f9fa" x="1880" y="230" width="95" height="30"/>
+  <text class="zone-label" x="1885" y="260">DATOS</text>
+  <rect fill="#f7f9fa" x="120" y="1100" width="200" height="30"/>
+  <text class="zone-label" x="140" y="1130">VISUALIZACIÓN</text>
+
+  <rect class="node-teal" x="150" y="410" width="310" height="220" rx="14"/>
+  <text class="node-title" x="175" y="455">Estación de campo</text>
+  <text class="node-body" x="175" y="495">Raspberry Pi 4 · 2 canales</text>
+  <text class="node-body" x="175" y="535">captura WAV y métricas</text>
+  <text class="node-body" x="175" y="575">segmentos de 60 s</text>
+
+  <rect class="node" x="650" y="440" width="280" height="170" rx="14"/>
+  <text class="node-title" x="675" y="490">Nginx</text>
+  <text class="node-body" x="675" y="530">gateway de entrada</text>
+  <text class="node-body" x="675" y="570">rutas y proxy</text>
+
+  <rect class="node-orange" x="1020" y="335" width="350" height="205" rx="14"/>
+  <text class="node-title" x="1045" y="385">Ingestion API</text>
+  <text class="node-body" x="1045" y="425">FastAPI · Pydantic</text>
+  <text class="node-body" x="1045" y="465">validación de payload</text>
+  <text class="node-body" x="1045" y="505">reenvío de métricas</text>
+
+  <rect class="node" x="1450" y="305" width="290" height="180" rx="14"/>
+  <text class="node-title" x="1475" y="355">Auth Service</text>
+  <text class="node-body" x="1475" y="395">JWT de estación</text>
+  <text class="node-body" x="1475" y="435">registro y validación</text>
+
+  <rect class="node" x="1000" y="690" width="435" height="200" rx="14"/>
+  <text class="node-title-small" x="1025" y="740">Noise Processing Backend</text>
+  <text class="node-body" x="1025" y="785">inserción de mediciones</text>
+  <text class="node-body" x="1025" y="825">agregación horaria</text>
+
+  <rect class="node-teal" x="1450" y="565" width="320" height="170" rx="14"/>
+  <text class="node-title" x="1475" y="615">Dashboard API</text>
+  <text class="node-body" x="1475" y="655">FastAPI · solo lectura</text>
+  <text class="node-body" x="1475" y="695">series y agregaciones</text>
+
+  <path class="db-shape" d="M1930 360 C1930 342 2070 328 2250 360 V480 C2250 502 2070 520 1930 480 Z"/>
+  <ellipse class="db-shape" cx="2090" cy="360" rx="160" ry="32"/>
+  <path class="db-curve" d="M1930 480 C1930 502 2070 520 2250 480"/>
+  <text class="db-title" x="2090" y="410">station_registry</text>
+  <text class="db-body" x="2090" y="450">credenciales</text>
+  <text class="db-body" x="2090" y="490">tokens y auditoría</text>
+
+  <path class="db-shape" d="M1910 675 C1910 655 2060 643 2250 675 V820 C2250 842 2060 860 1910 820 Z"/>
+  <ellipse class="db-shape" cx="2080" cy="675" rx="170" ry="32"/>
+  <path class="db-curve" d="M1910 820 C1910 842 2060 860 2250 820"/>
+  <text class="db-title" x="2080" y="730">noise_analytics</text>
+  <text class="db-body" x="2080" y="770">mediciones</text>
+  <text class="db-body" x="2080" y="810">agregaciones horarias</text>
+
+  <rect class="node" x="170" y="1150" width="310" height="150" rx="14"/>
+  <text class="node-title" x="195" y="1200">Navegador</text>
+  <text class="node-body" x="195" y="1240">usuario final</text>
+
+  <rect class="node-teal" x="650" y="1120" width="380" height="180" rx="14"/>
+  <text class="node-title" x="675" y="1170">Dashboard web</text>
+  <text class="node-body" x="675" y="1210">React · mapas y gráficas</text>
+
+  <path class="route" d="M460 520 H650"/>
+  <text class="route-label" x="455" y="480">HTTP/JSON + JWT</text>
+
+  <path class="route" d="M930 485 L1020 435"/>
+  <text class="route-label" x="900" y="420">ruta /ingest</text>
+
+  <path class="route" d="M1370 410 L1450 370"/>
+  <text class="route-label" x="1335" y="365">validación JWT</text>
+
+  <path class="route" d="M1740 390 L1930 400"/>
+  <text class="route-label" x="1765" y="320">registro y tokens</text>
+
+  <path class="route" d="M1195 540 V690"/>
+  <text class="route-label" x="1220" y="625">métricas válidas</text>
+
+  <path class="route" d="M1435 800 H1790 V750 H1910"/>
+  <text class="route-label" x="1535" y="850">escritura</text>
+
+  <path class="route" d="M1770 675 H1910"/>
+  <text class="route-label" x="1790" y="645">solo lectura</text>
+
+  <path class="route" d="M480 1225 H650"/>
+  <text class="route-label" x="500" y="1195">consulta web</text>
+
+  <path class="route-teal" d="M1030 1210 V1000 H790 V610"/>
+  <text class="route-label" x="1040" y="1170">proxy Nginx</text>
+
+  <rect class="note" x="125" y="930" width="390" height="60" rx="12"/>
+  <text class="note-text" x="150" y="968">Procesamiento local antes del envío</text>
+
+  <rect class="note" x="1550" y="930" width="220" height="60" rx="12"/>
+  <text class="note-text" x="1575" y="968">Bases aisladas</text>
+
+</svg>

@@ -4,13 +4,15 @@ Sistema de Monitoreo Acustico Binaural para Bogota D.C.
 
 Captura metricas de ruido ambiental desde estaciones distribuidas (Raspberry Pi con microfono estereo), las transmite a un servidor central donde son validadas, almacenadas y agregadas, y las presenta en un dashboard web interactivo con mapas y graficas.
 
+Repositorio: [github.com/AndresPescador/Sound-Monitoring-System](https://github.com/AndresPescador/Sound-Monitoring-System)
+
 ---
 
 ## Vistas del dashboard
 
-Las imágenes siguientes se generaron el 30 de agosto de 2026 con estaciones y
-mediciones **sintéticas** en un stack Docker efímero. No representan lecturas
-ambientales reales ni contienen credenciales.
+Estas vistas muestran las principales capacidades del dashboard: ubicación de
+estaciones, detalle de métricas, comparación entre puntos de monitoreo y
+visualización tridimensional de la red acústica.
 
 | Mapa 2D | Detalle de estación |
 |---|---|
@@ -23,6 +25,11 @@ ambientales reales ni contienen credenciales.
 ---
 
 ## Arquitectura general
+
+![Diagrama de arquitectura del sistema](docs/media/architecture/arquitectura-sistema.svg)
+
+El diagrama resume el recorrido de las métricas desde las estaciones de campo
+hasta los servicios, las bases de datos aisladas y el dashboard web.
 
 ```
 Raspberry Pi (estacion de campo)
