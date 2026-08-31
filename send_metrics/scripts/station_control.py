@@ -13,8 +13,9 @@ from typing import Any, Callable, Iterable, Optional
 
 import httpx
 
+from failure_state import is_permanent, load_failure_records, save_failure_records
 from index_lock import index_lock
-from runtime_status import atomic_write_json, read_json_snapshot
+from runtime_status import atomic_write_json
 from station_config import StationConfig
 
 
@@ -351,32 +352,63 @@ def queue_summary(config: StationConfig) -> dict[str, Any]:
             current_index = []
         if current_index != indexed:
             atomic_write_json(index_path, indexed)
-    failed = read_json_snapshot(failed_path)
-    exhausted = sorted(
-        name for name, count in failed.items()
+    failed, legacy = load_failure_records(failed_path)
+    if legacy and failed:
+        save_failure_records(failed_path, failed)
+    active_failed = {
+        name: record
+        for name, record in failed.items()
         if name in indexed
-        and isinstance(count, int)
-        and count >= config.max_retries
+    }
+    if active_failed != failed:
+        failed = active_failed
+        save_failure_records(failed_path, failed)
+    exhausted = sorted(
+        name for name, record in failed.items()
+        if name in indexed and is_permanent(record)
+    )
+    temporary = sorted(
+        name for name, record in failed.items()
+        if name in indexed and not is_permanent(record)
     )
     return {
         "total": len(indexed),
         "pending": sum(1 for name in indexed if name not in exhausted),
         "exhausted": len(exhausted),
         "exhausted_files": exhausted,
+        "permanent_failures": len(exhausted),
+        "temporary_failures": len(temporary),
+        "retry_alerts": sum(
+            1
+            for name in temporary
+            if isinstance(failed.get(name), dict)
+            and failed[name].get("attempts", 0) >= config.max_retries
+        ),
+        "temporary_attempts": sum(
+            failed[name].get("attempts", 0)
+            for name in temporary
+            if isinstance(failed.get(name), dict)
+        ),
     }
 
 
 def reactivate_exhausted(config: StationConfig) -> int:
     failed_path = config.runtime_dir / "failed_files.json"
-    with index_lock(failed_path):
-        failed = read_json_snapshot(failed_path)
-        retained = {
-            name: count
-            for name, count in failed.items()
-            if not isinstance(count, int) or count < config.max_retries
-        }
-        removed = len(failed) - len(retained)
-        atomic_write_json(failed_path, retained)
+    failed, _legacy = load_failure_records(failed_path)
+    active_files = {
+        path.name for path in config.metrics_output_dir.glob("*.txt")
+    }
+    retained = {
+        name: record
+        for name, record in failed.items()
+        if name in active_files and not is_permanent(record)
+    }
+    removed = sum(
+        1
+        for name, record in failed.items()
+        if name in active_files and is_permanent(record)
+    )
+    save_failure_records(failed_path, retained)
     return removed
 
 

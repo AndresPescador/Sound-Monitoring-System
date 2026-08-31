@@ -235,7 +235,7 @@ class ConfigurationScreen(Screen[Optional[set[str]]]):
             with Grid(id="advanced-grid"):
                 yield Label("Intervalo de envío (s)")
                 yield Input(value=str(self.config.send_interval_seconds), type="integer", id="send-interval")
-                yield Label("Máximo de reintentos")
+                yield Label("Umbral de alerta (reintentos)")
                 yield Input(value=str(self.config.max_retries), type="integer", id="max-retries")
                 yield Label("Backlog por ciclo")
                 yield Input(value=str(self.config.max_backlog), type="integer", id="max-backlog")
@@ -514,7 +514,15 @@ class SoundMonitorApp(App[bool]):
         try:
             queue = queue_summary(config)
         except (OSError, ValueError):
-            queue = {"total": 0, "pending": 0, "exhausted": 0, "exhausted_files": []}
+            queue = {
+                "total": 0,
+                "pending": 0,
+                "exhausted": 0,
+                "exhausted_files": [],
+                "temporary_failures": 0,
+                "permanent_failures": 0,
+                "retry_alerts": 0,
+            }
         try:
             disk = shutil.disk_usage(config.recordings_dir)
             free_gib = disk.free / (1024 ** 3)
@@ -577,23 +585,35 @@ class SoundMonitorApp(App[bool]):
             "[bold #5eead4]ENVÍO[/]\n"
             f"Estado: [b]{sender.get('state', 'sin estado')}[/b] "
             f"({services.get('send-metrics.service', 'desconocido')})\n"
-            f"Pendientes: {queue['pending']}\n"
-            f"Pausados: {queue['exhausted']}\n"
+            f"Pendientes/recuperables: {queue.get('pending', 0)}\n"
+            f"Reintentos temporales: {queue.get('temporary_failures', sender.get('temporary_failures', 0))} "
+            f"(alertas: {queue.get('retry_alerts', sender.get('retry_alerts', 0))})\n"
+            f"Pausados permanentes: {queue.get('permanent_failures', queue.get('exhausted', 0))}\n"
+            f"Conectividad: {sender.get('transport_state', 'desconocida')}\n"
+            f"Próximo intento: {sender.get('next_retry_at') or '—'}\n"
+            f"Último error: {sender.get('last_error') or '—'}\n"
             f"Último: {sender.get('last_sent_file') or '—'}\n"
             f"Resultado: {sender.get('last_outcome') or '—'}"
         )
+        sender_state = sender.get("state")
         component_states_ok = (
             rec_state == "recording"
             and processor.get("state") in {"watching", "processing"}
-            and sender.get("state") in {"idle", "sending"}
+            and sender_state in {"idle", "sending", "waiting"}
         )
-        health = (
-            "OPERATIVA"
-            if all(value == "active" for value in services.values())
+        core_health_ok = (
+            all(value == "active" for value in services.values())
             and component_states_ok
             and free_gib >= 1.0
             and not processor.get("last_error")
-            else "REVISAR"
+        )
+        transport_state = sender.get("transport_state", "unknown")
+        health = (
+            "REVISAR"
+            if not core_health_ok
+            else "SIN CONEXIÓN"
+            if transport_state == "offline"
+            else "OPERATIVA"
         )
         self.query_one("#summary-line", Static).update(
             f"Estación {config.station_code or 'sin configurar'} · Salud: {health} · "
@@ -606,7 +626,8 @@ class SoundMonitorApp(App[bool]):
             f"Servidor: {config.server_url or 'No configurado'}\n"
             f"Audio: {config.device or 'No configurado'} · {config.sample_rate} Hz · "
             f"{config.channels} · {config.segment_seconds}s\n"
-            f"Envío: cada {config.send_interval_seconds}s · {config.max_retries} reintentos · "
+            f"Envío: cada {config.send_interval_seconds}s · umbral de alerta "
+            f"{config.max_retries} reintentos · "
             f"backlog {config.max_backlog}\n"
             f"Archivo: {self.config_path}"
         )
@@ -692,7 +713,8 @@ class SoundMonitorApp(App[bool]):
             self.push_screen(
                 ConfirmScreen(
                     "Reactivar archivos fallidos",
-                    "Los archivos agotados volverán a enviarse. Confirme que el problema ya fue corregido.",
+                    "Solo los archivos pausados por errores permanentes volverán a enviarse. "
+                    "Los fallos temporales ya se reintentan automáticamente.",
                 ),
                 lambda confirmed: self._retry_failed() if confirmed else None,
             )

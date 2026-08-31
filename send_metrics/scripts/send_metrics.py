@@ -32,6 +32,14 @@ from typing import Optional
 import httpx
 
 from index_lock import index_lock
+from failure_state import (
+    PERMANENT,
+    TEMPORARY,
+    is_permanent,
+    load_failure_records,
+    save_failure_records,
+    update_failure,
+)
 from runtime_status import StatusPublisher
 from station_config import load_station_config
 
@@ -69,6 +77,11 @@ SENDER_STATUS = StatusPublisher(
     last_outcome="",
     pending=0,
     exhausted=0,
+    total=0,
+    temporary_failures=0,
+    permanent_failures=0,
+    transport_state="unknown",
+    next_retry_at="",
 )
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -108,6 +121,47 @@ class CachedToken:
 
     value: str
     expires_at: datetime
+
+
+@dataclass
+class DeliveryBackoff:
+    """Backoff del transporte para evitar golpear el servidor durante una caída."""
+
+    initial_seconds: int
+    max_seconds: int
+    failures: int = 0
+    next_retry_at: Optional[datetime] = None
+    last_error: str = ""
+    delay_seconds: int = 0
+
+    def is_waiting(self) -> bool:
+        return self.next_retry_at is not None and datetime.now(timezone.utc) < self.next_retry_at
+
+    def register_failure(self, message: str = "") -> None:
+        self.failures += 1
+        self.delay_seconds = min(
+            self.max_seconds,
+            self.initial_seconds
+            if self.delay_seconds <= 0
+            else self.delay_seconds * 2,
+        )
+        self.next_retry_at = datetime.now(timezone.utc) + timedelta(seconds=self.delay_seconds)
+        self.last_error = message
+
+    def reset(self) -> None:
+        self.failures = 0
+        self.next_retry_at = None
+        self.last_error = ""
+        self.delay_seconds = 0
+
+    def next_retry_text(self) -> str:
+        return self.next_retry_at.isoformat() if self.next_retry_at else ""
+
+    def wait_seconds(self) -> int:
+        if not self.next_retry_at:
+            return 0
+        remaining = (self.next_retry_at - datetime.now(timezone.utc)).total_seconds()
+        return max(0, int(remaining) + 1)
 
 
 class SendOutcome(str, Enum):
@@ -403,6 +457,15 @@ class TokenManager:
         except OSError as exc:
             logger.warning(f"No se pudo eliminar el token local rechazado: {exc}")
 
+    def retry_wait_seconds(self) -> int:
+        """Espera restante cuando no hay un token válido para continuar."""
+        if self.next_refresh_at is None:
+            return 0
+        if self.cached_token is not None and self.cached_token.expires_at > datetime.now(timezone.utc):
+            return 0
+        remaining = (self.next_refresh_at - datetime.now(timezone.utc)).total_seconds()
+        return max(0, int(remaining) + 1)
+
 
 # =============================================================================
 # GESTIÓN DE INDEX.JSON (lectura + escritura)
@@ -541,33 +604,26 @@ def validate_metrics_payload(metrics: object, filename: str) -> None:
 # =============================================================================
 
 def load_failed_files() -> dict:
-    if not FAILED_FILES_FILE.exists():
-        return {}
-    try:
-        with index_lock(FAILED_FILES_FILE):
-            failed = json.loads(FAILED_FILES_FILE.read_text(encoding="utf-8"))
-        if not isinstance(failed, dict):
-            raise ValueError("failed_files.json debe contener un objeto")
-        return {
-            filename: count
-            for filename, count in failed.items()
-            if isinstance(filename, str) and isinstance(count, int) and count >= 0
-        }
-    except (OSError, json.JSONDecodeError, ValueError, TypeError):
-        logger.warning("No se pudo leer failed_files.json; se iniciará sin contadores.")
-        return {}
+    """Carga fallos normalizados y migra el mapa numérico legacy a v2."""
+    failed, legacy = load_failure_records(FAILED_FILES_FILE)
+    if FAILED_FILES_FILE.exists() and not failed:
+        try:
+            raw = json.loads(FAILED_FILES_FILE.read_text(encoding="utf-8"))
+            if raw not in ({}, {"version": 2, "files": {}}):
+                logger.warning(
+                    "No se pudo leer failed_files.json; se iniciará sin contadores."
+                )
+        except (OSError, json.JSONDecodeError, TypeError):
+            logger.warning("No se pudo leer failed_files.json; se iniciará sin contadores.")
+    if legacy and failed:
+        save_failure_records(FAILED_FILES_FILE, failed)
+    return failed
 
 
 def save_failed_files(failed: dict):
-    tmp_path = FAILED_FILES_FILE.with_suffix(".tmp")
     try:
-        with index_lock(FAILED_FILES_FILE):
-            tmp_path.write_text(
-                json.dumps(failed, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            tmp_path.replace(FAILED_FILES_FILE)
-    except OSError as exc:
+        save_failure_records(FAILED_FILES_FILE, failed)
+    except (OSError, TypeError, ValueError) as exc:
         logger.error(f"No se pudo guardar failed_files.json: {exc}")
 
 
@@ -577,12 +633,12 @@ def save_failed_files(failed: dict):
 
 def get_pending_files(index: list[str], failed: dict) -> list[str]:
     """
-    Archivos pendientes = todos los del index que no superaron MAX_RETRIES.
+    Archivos pendientes = todos los del index que no tienen fallo permanente.
     Ya no hay sent_files.json: si el archivo existe en el index es porque
     no fue enviado aún (se elimina del index tras envío exitoso).
     """
-    exhausted = {f for f, count in failed.items() if count >= MAX_RETRIES}
-    pending = [f for f in index if f not in exhausted]
+    paused = {f for f, record in failed.items() if is_permanent(record)}
+    pending = [f for f in index if f not in paused]
     if len(pending) > MAX_BACKLOG:
         logger.warning(
             f"{len(pending)} archivos pendientes. Enviando los primeros {MAX_BACKLOG}."
@@ -700,43 +756,143 @@ def send_file(filename: str, token: str) -> SendOutcome:
 # CICLO PRINCIPAL
 # =============================================================================
 
-def run_cycle(token_manager: TokenManager, failed: dict) -> dict:
+def _failure_counts(index: list[str], failed: dict) -> tuple[int, int, int]:
+    active = set(index)
+    temporary = sum(
+        1 for filename, record in failed.items()
+        if filename in active and not is_permanent(record)
+    )
+    permanent = sum(
+        1 for filename, record in failed.items()
+        if filename in active and is_permanent(record)
+    )
+    recoverable = len(index) - permanent
+    return recoverable, temporary, permanent
+
+
+def _retry_alerts(index: list[str], failed: dict) -> int:
+    """Cuenta fallos temporales que superaron el umbral informativo."""
+    active = set(index)
+    return sum(
+        1
+        for filename, record in failed.items()
+        if filename in active
+        and not is_permanent(record)
+        and isinstance(record, dict)
+        and record.get("attempts", 0) >= MAX_RETRIES
+    )
+
+
+def _token_retry_at(token_manager: TokenManager) -> str:
+    return (
+        token_manager.next_refresh_at.isoformat()
+        if token_manager.next_refresh_at is not None
+        else ""
+    )
+
+
+def _publish_sender_status(
+    index: list[str],
+    failed: dict,
+    *,
+    state: str,
+    transport_state: str,
+    current_file: str = "",
+    last_sent_file: Optional[str] = None,
+    last_outcome: Optional[str] = None,
+    last_error: Optional[str] = None,
+    next_retry_at: str = "",
+) -> None:
+    recoverable, temporary, permanent = _failure_counts(index, failed)
+    changes = {
+        "state": state,
+        "transport_state": transport_state,
+        "current_file": current_file,
+        "pending": recoverable,
+        "total": len(index),
+        "temporary_failures": temporary,
+        "permanent_failures": permanent,
+        "retry_alerts": _retry_alerts(index, failed),
+        # Campo conservado para snapshots/TUI antiguos.
+        "exhausted": permanent,
+        "next_retry_at": next_retry_at,
+    }
+    if last_outcome is not None:
+        changes["last_outcome"] = last_outcome
+    if last_sent_file is not None:
+        changes["last_sent_file"] = last_sent_file
+    if last_error is not None:
+        changes["last_error"] = last_error
+    SENDER_STATUS.publish(**changes)
+
+
+def run_cycle(
+    token_manager: TokenManager,
+    failed: dict,
+    delivery_backoff: Optional[DeliveryBackoff] = None,
+) -> dict:
     index = read_index()
     # failed_files.json también es estado derivado de la cola durable. Podía
     # conservar entradas de métricas ya eliminadas y mostrar fallos fantasma.
     active_files = set(index)
     pruned_failed = {
-        filename: count
-        for filename, count in failed.items()
+        filename: record
+        for filename, record in failed.items()
         if filename in active_files
     }
     if pruned_failed != failed:
         failed = pruned_failed
         save_failed_files(failed)
-    exhausted_count = sum(1 for count in failed.values() if count >= MAX_RETRIES)
-    SENDER_STATUS.publish(
-        state="idle",
-        current_file="",
-        pending=len(index),
-        exhausted=exhausted_count,
-    )
+
+    if delivery_backoff is not None and delivery_backoff.is_waiting():
+        _publish_sender_status(
+            index,
+            failed,
+            state="waiting",
+            transport_state="offline",
+            next_retry_at=delivery_backoff.next_retry_text(),
+            last_error=delivery_backoff.last_error,
+        )
+        return failed
+
     if not index:
+        if delivery_backoff is not None:
+            delivery_backoff.reset()
+        _publish_sender_status(
+            index,
+            failed,
+            state="idle",
+            transport_state="online",
+        )
         logger.debug("index.json vacío o no disponible. Esperando archivos.")
         return failed
 
     pending = get_pending_files(index, failed)
     if not pending:
+        _publish_sender_status(
+            index,
+            failed,
+            state="idle",
+            transport_state="online",
+        )
         logger.debug("No hay archivos pendientes de enviar.")
         return failed
 
     logger.info(f"Archivos pendientes: {len(pending)}")
+    transport_waiting = False
+    transport_error = ""
+    payload_error = ""
+    last_outcome = ""
 
     for filename in pending:
-        SENDER_STATUS.publish(
+        _publish_sender_status(
+            index,
+            failed,
             state="sending",
+            transport_state=(
+                "recovering" if delivery_backoff and delivery_backoff.failures else "online"
+            ),
             current_file=filename,
-            pending=len(index),
-            exhausted=exhausted_count,
             last_error="",
         )
         try:
@@ -745,11 +901,16 @@ def run_cycle(token_manager: TokenManager, failed: dict) -> dict:
             # No contar el archivo como fallido: el problema es de
             # autenticación/conectividad y no del payload local.
             logger.error(f"No se pudo obtener el token; se reintentará después: {exc}")
-            SENDER_STATUS.publish(
+            transport_waiting = True
+            transport_error = str(exc)
+            _publish_sender_status(
+                index,
+                failed,
                 state="waiting",
-                current_file="",
+                transport_state="offline",
                 last_outcome="auth_error",
                 last_error=str(exc),
+                next_retry_at=_token_retry_at(token_manager),
             )
             break
 
@@ -765,6 +926,17 @@ def run_cycle(token_manager: TokenManager, failed: dict) -> dict:
                     "El token fue rechazado y no se pudo renovar; "
                     f"se reintentará después: {exc}"
                 )
+                transport_waiting = True
+                transport_error = str(exc)
+                _publish_sender_status(
+                    index,
+                    failed,
+                    state="waiting",
+                    transport_state="offline",
+                    last_outcome="auth_error",
+                    last_error=str(exc),
+                    next_retry_at=_token_retry_at(token_manager),
+                )
                 break
 
             outcome = send_file(filename, refreshed_token)
@@ -772,47 +944,96 @@ def run_cycle(token_manager: TokenManager, failed: dict) -> dict:
                 token_manager.invalidate()
                 logger.error(
                     "El token recién renovado también fue rechazado; "
-                    "se reintentará en el siguiente ciclo."
+                    "se reintentará con backoff de transporte."
                 )
-                break
+                # Un 401 no implica que el payload esté corrupto. Si incluso
+                # un JWT recién renovado es rechazado, conservar la métrica
+                # como temporal evita perder la recuperación automática.
+                outcome = SendOutcome.RETRY
 
         if outcome in {SendOutcome.SENT, SendOutcome.CLEANUP_PENDING}:
             failed.pop(filename, None)
-            SENDER_STATUS.publish(
+            if delivery_backoff is not None:
+                delivery_backoff.reset()
+            _publish_sender_status(
+                index,
+                failed,
                 state="sending",
-                current_file="",
+                transport_state="online",
                 last_sent_file=filename,
                 last_outcome=outcome.value,
-                last_error="",
             )
+            last_outcome = outcome.value
         elif outcome == SendOutcome.PERMANENT_FAILURE:
             # Se conserva el archivo y el registro para diagnóstico, pero no
             # se vuelve a intentar automáticamente un payload inválido.
-            failed[filename] = MAX_RETRIES
-            logger.error(f"Archivo {filename} marcado como fallo permanente.")
-        else:
-            failed[filename] = failed.get(filename, 0) + 1
-            if failed[filename] >= MAX_RETRIES:
-                logger.error(
-                    f"Archivo {filename} agotó {MAX_RETRIES} intentos temporales. "
-                    "Se pausará hasta intervención manual."
-                )
-
-        if outcome not in {SendOutcome.SENT, SendOutcome.CLEANUP_PENDING}:
-            SENDER_STATUS.publish(
-                state="waiting",
-                current_file="",
-                last_outcome=outcome.value,
-                last_error=f"No se pudo enviar {filename}.",
+            payload_error = "Payload inválido o rechazado permanentemente."
+            record = update_failure(
+                failed,
+                filename,
+                PERMANENT,
+                payload_error,
             )
+            last_outcome = outcome.value
+            _publish_sender_status(
+                index,
+                failed,
+                state="sending",
+                transport_state="online",
+                last_outcome=last_outcome,
+                last_error=payload_error,
+            )
+            logger.error(
+                f"Archivo {filename} marcado como fallo permanente "
+                f"(intento {record['attempts']})."
+            )
+        else:
+            error_message = f"No se pudo enviar {filename}; se reintentará automáticamente."
+            update_failure(failed, filename, TEMPORARY, error_message)
+            if delivery_backoff is not None:
+                delivery_backoff.register_failure(error_message)
+            transport_waiting = True
+            transport_error = error_message
+            last_outcome = outcome.value
+            _publish_sender_status(
+                index,
+                failed,
+                state="waiting",
+                transport_state="offline",
+                last_outcome=outcome.value,
+                last_error=error_message,
+                next_retry_at=(
+                    delivery_backoff.next_retry_text()
+                    if delivery_backoff is not None
+                    else ""
+                ),
+            )
+            # Un fallo de transporte suele afectar a todos los archivos. Los
+            # restantes permanecen intactos y se intentarán en el próximo ciclo.
+            break
 
     save_failed_files(failed)
     remaining = read_index()
-    SENDER_STATUS.publish(
-        state="idle",
-        current_file="",
-        pending=len(remaining),
-        exhausted=sum(1 for count in failed.values() if count >= MAX_RETRIES),
+    # El archivo puede haber sido confirmado y eliminado entre ciclos; no
+    # conservar estados de fallos que ya no tienen métrica durable.
+    remaining_set = set(remaining)
+    failed = {
+        filename: record
+        for filename, record in failed.items()
+        if filename in remaining_set
+    }
+    _publish_sender_status(
+        remaining,
+        failed,
+        state="waiting" if transport_waiting else "idle",
+        transport_state="offline" if transport_waiting else "online",
+        last_outcome=last_outcome or None,
+        last_error=transport_error if transport_waiting else payload_error,
+        next_retry_at=(
+            delivery_backoff.next_retry_text()
+            if transport_waiting and delivery_backoff is not None
+            else _token_retry_at(token_manager) if transport_waiting else ""
+        ),
     )
     return failed
 
@@ -821,8 +1042,16 @@ def show_status():
     index   = read_index()
     failed  = load_failed_files()
     pending = get_pending_files(index, failed)
-    exhausted = {f for f, c in failed.items() if c >= MAX_RETRIES}
-    eligible_count = sum(1 for filename in index if filename not in exhausted)
+    active = set(index)
+    permanent = {
+        filename for filename, record in failed.items()
+        if filename in active and is_permanent(record)
+    }
+    temporary = {
+        filename for filename, record in failed.items()
+        if filename in active and not is_permanent(record)
+    }
+    eligible_count = len(index) - len(permanent)
 
     print(f"\n── Estado del módulo de envío ──────────────────")
     print(f"  Estación:           {STATION_CODE}")
@@ -832,7 +1061,9 @@ def show_status():
     print(f"  Pendientes:         {eligible_count}")
     if eligible_count > len(pending):
         print(f"  En este ciclo:      {len(pending)} (límite MAX_BACKLOG)")
-    print(f"  Fallidos (agotados):{len(exhausted)}")
+    print(f"  Fallos temporales:  {len(temporary)} (se reintentan automáticamente)")
+    print(f"  Alertas de umbral:  {_retry_alerts(index, failed)}")
+    print(f"  Pausados permanentes:{len(permanent)}")
     print(f"  Token:              {'guardado' if TOKEN_FILE.exists() else 'no existe'}")
     print(f"────────────────────────────────────────────────\n")
 
@@ -863,17 +1094,30 @@ def main():
     token_manager = TokenManager()
 
     if args.once:
-        run_cycle(token_manager, failed)
+        delivery_backoff = DeliveryBackoff(
+            AUTH_RETRY_INITIAL_SECONDS,
+            AUTH_RETRY_MAX_SECONDS,
+        )
+        run_cycle(token_manager, failed, delivery_backoff)
         logger.info("Modo --once completado.")
         SENDER_STATUS.publish(state="stopped", current_file="")
         return
 
     logger.info(f"Modo continuo — intervalo: {SEND_INTERVAL_SECONDS}s. Ctrl+C para detener.")
     SENDER_STATUS.publish(state="idle", last_error="")
+    delivery_backoff = DeliveryBackoff(
+        AUTH_RETRY_INITIAL_SECONDS,
+        AUTH_RETRY_MAX_SECONDS,
+    )
     try:
         while True:
-            failed = run_cycle(token_manager, failed)
-            time.sleep(SEND_INTERVAL_SECONDS)
+            failed = run_cycle(token_manager, failed, delivery_backoff)
+            delay = max(
+                SEND_INTERVAL_SECONDS,
+                delivery_backoff.wait_seconds(),
+                token_manager.retry_wait_seconds(),
+            )
+            time.sleep(delay)
     except KeyboardInterrupt:
         logger.info("Módulo detenido por el usuario.")
         save_failed_files(failed)

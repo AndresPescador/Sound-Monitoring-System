@@ -30,7 +30,7 @@ send_metrics/
 └── runtime/                  # Datos generados; ignorado por Git
     ├── audio_stats/          # JSON de métricas con extensión .txt
     ├── token.json            # JWT de la estación
-    ├── failed_files.json     # Contadores de fallos
+    ├── failed_files.json     # Estado versionado de fallos
     ├── send_metrics.log
     └── audio_processing_log.log
 ```
@@ -229,16 +229,20 @@ La regla de `/etc/sudoers.d/sound-monitor` solo autoriza a la TUI a ejecutar `st
 - Los eventos de archivos son avisos y no la fuente de verdad: el procesador vuelve a escanear los WAV finales cada 15 segundos y deduplica los detectados por ambas vías.
 - La cola se procesa en orden lexicográfico, que coincide con el orden temporal si los nombres mantienen el formato de grabación.
 - `MAX_BACKLOG` limita los archivos enviados por ciclo.
-- Los errores temporales de red se reintentan hasta `MAX_RETRIES` y después quedan pausados en `failed_files.json`, sin borrarse.
+- Los errores temporales de red se conservan en la cola y se reintentan indefinidamente con backoff progresivo: comienza en 30 segundos y llega como máximo a 900 segundos. El ciclo se detiene en el primer fallo de transporte para no saturar la Raspberry ni el servidor.
+- `MAX_RETRIES` ya no bloquea los errores temporales: es únicamente un umbral informativo para alertas y diagnóstico.
+- `failed_files.json` usa el formato versionado `{"version": 2, "files": {...}}`. Los registros tienen `attempts`, `kind` (`temporary` o `permanent`), `last_error` y `updated_at`. El formato antiguo `{"archivo.txt": 3}` se migra y se considera temporal.
+- Los errores permanentes (payload inválido, ruta o timestamp inválidos y rechazos definitivos HTTP) se conservan localmente y quedan pausados para diagnóstico. No se eliminan automáticamente.
+- Cuando el servidor vuelve a estar accesible, el emisor retoma automáticamente el envío de todas las métricas temporales pendientes; no hace falta acudir físicamente a la estación.
 - Los payloads inválidos se conservan para diagnóstico y no se reintentan automáticamente.
-- El JWT se renueva preventivamente con `TOKEN_RENEWAL_MARGIN_SECONDS` (24 horas por defecto). Si Auth no responde, el token aún vigente sigue usándose y la renovación aplica backoff exponencial, respetando `Retry-After` cuando exista.
+- El JWT se renueva preventivamente con `TOKEN_RENEWAL_MARGIN_SECONDS` (24 horas por defecto). Si Auth no responde, el token aún vigente sigue usándose y la renovación aplica backoff exponencial, respetando `Retry-After` cuando exista. `AUTH_RETRY_INITIAL_SECONDS` y `AUTH_RETRY_MAX_SECONDS` también controlan el backoff del transporte de métricas.
 - Si se recibe `401`, se descarta la caché, se solicita un token nuevo y se reintenta esa misma métrica en el ciclo actual. Si Auth sigue caído, la estación conserva la cola y se recupera sola al volver el servicio.
 - Para probar una expiración de dos minutos, configura temporalmente `TOKEN_RENEWAL_MARGIN_SECONDS=0` en la Raspberry y elimina su `runtime/token.json` antes de iniciar el emisor, para que no reutilice un JWT antiguo.
 - `process_audio.py` y `send_metrics.py` bloquean conjuntamente `index.json` para evitar que una actualización sobrescriba la otra.
 - Cuando existe `station.toml`, las variables heredadas del entorno no sustituyen sus valores. Esto impide que los servicios usen rutas diferentes accidentalmente; `.env` solo se consulta si no existe el TOML.
 - Cada log rota al alcanzar `LOG_MAX_BYTES` (5 MiB por defecto) y conserva `LOG_BACKUP_COUNT` archivos históricos (5 por defecto). Con esos valores, cada script usa como máximo aproximadamente 30 MiB en logs locales.
 
-Para reactivar archivos después de corregir el problema, use **Controles → Reactivar fallidos** en `sound-monitor`. La TUI pausa brevemente el emisor, actualiza el registro bajo bloqueo y vuelve a iniciarlo.
+Para reactivar archivos después de corregir el problema, use **Controles → Reactivar fallidos** en `sound-monitor`. Esta acción solo libera archivos pausados por errores permanentes; las métricas con fallos temporales no necesitan intervención manual. La TUI pausa brevemente el emisor, actualiza el registro bajo bloqueo y vuelve a iniciarlo.
 
 ## 8. Dependencias
 
@@ -265,7 +269,7 @@ Para reactivar archivos después de corregir el problema, use **Controles → Re
 | No conecta al servidor | Revisar `SERVER_URL`, red local y `systemctl status send-metrics` |
 | `pulse: Connection refused` al validar Bluetooth | Confirmar `systemctl --user status pipewire-pulse`, que exista `/run/user/$(id -u)/pulse/native` y volver a ejecutar el instalador actualizado |
 | Error `401` | Confirmar estación activa, `STATION_CODE` y `STATION_SECRET` |
-| Archivos en `failed_files.json` | Revisar `runtime/send_metrics.log` antes de reactivar los archivos |
+| Archivos permanentes en `failed_files.json` | Revisar `runtime/send_metrics.log` antes de reactivar los archivos |
 | `sound-monitor` no existe | Reejecutar `setup/install_station.sh` |
 | La TUI no controla servicios | Validar `/etc/sudoers.d/sound-monitor` y revisar `sudo -n -l` |
 | No aparece al iniciar el escritorio | Confirmar autologin y `~/.config/autostart/sound-monitor.desktop` |

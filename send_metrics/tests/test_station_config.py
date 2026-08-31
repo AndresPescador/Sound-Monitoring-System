@@ -232,13 +232,40 @@ class StationConfigTests(unittest.TestCase):
             root = Path(directory)
             config = self.configured(root)
             config.runtime_dir.mkdir(parents=True)
+            config.metrics_output_dir.mkdir(parents=True)
+            (config.metrics_output_dir / "a.txt").touch()
+            (config.metrics_output_dir / "b.txt").touch()
             failed_path = config.runtime_dir / "failed_files.json"
-            failed_path.write_text(json.dumps({"a.txt": 3, "b.txt": 1}), encoding="utf-8")
+            failed_path.write_text(
+                json.dumps(
+                    {
+                        "version": 2,
+                        "files": {
+                            "a.txt": {"attempts": 3, "kind": "permanent"},
+                            "b.txt": {"attempts": 1, "kind": "temporary"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
 
             removed = reactivate_exhausted(config)
 
             self.assertEqual(removed, 1)
-            self.assertEqual(read_json_snapshot(failed_path), {"b.txt": 1})
+            self.assertEqual(
+                read_json_snapshot(failed_path),
+                {
+                    "version": 2,
+                    "files": {
+                        "b.txt": {
+                            "attempts": 1,
+                            "kind": "temporary",
+                            "last_error": "",
+                            "updated_at": "",
+                        }
+                    },
+                },
+            )
 
     def test_queue_summary_reconciles_stale_index_from_metric_files(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -265,7 +292,15 @@ class StationConfigTests(unittest.TestCase):
             config.runtime_dir.mkdir(parents=True, exist_ok=True)
             (config.metrics_output_dir / "active.txt").write_text("{}", encoding="utf-8")
             (config.runtime_dir / "failed_files.json").write_text(
-                json.dumps({"missing.txt": 3, "active.txt": 3}),
+                json.dumps(
+                    {
+                        "version": 2,
+                        "files": {
+                            "missing.txt": {"attempts": 3, "kind": "permanent"},
+                            "active.txt": {"attempts": 3, "kind": "permanent"},
+                        },
+                    }
+                ),
                 encoding="utf-8",
             )
 
