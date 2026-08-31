@@ -27,8 +27,7 @@ visualización tridimensional de la red acústica.
 ## TUI de la estación Raspberry Pi
 
 La interfaz de la estación concentra las acciones operativas, la configuración
-y el retorno al estado de monitoreo. Estas demostraciones visuales no incluyen
-audio, música ni narración.
+y el retorno al estado de monitoreo.
 
 ### Matriz de acciones
 
