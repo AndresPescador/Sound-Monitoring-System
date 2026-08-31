@@ -30,9 +30,17 @@ La interfaz de la estación concentra las acciones operativas, la configuración
 y el retorno al estado de monitoreo. Estas demostraciones visuales no incluyen
 audio, música ni narración.
 
-| Matriz de acciones | Configuración | Retorno operativo |
-|---|---|---|
-| ![Matriz de acciones de la TUI](docs/media/tui/gif/tui-action-matrix-selector.gif) | ![Edición de configuración en la TUI](docs/media/tui/gif/tui-configuration-edit.gif) | ![Confirmación y retorno operativo de la TUI](docs/media/tui/gif/tui-confirmation-return.gif) |
+### Matriz de acciones
+
+![Matriz de acciones de la TUI](docs/media/tui/gif/tui-action-matrix-selector.gif)
+
+### Configuración
+
+![Edición de configuración en la TUI](docs/media/tui/gif/tui-configuration-edit.gif)
+
+### Retorno operativo
+
+![Confirmación y retorno operativo de la TUI](docs/media/tui/gif/tui-confirmation-return.gif)
 
 Consulta la [galería completa de la TUI](docs/tui-demo.md), que incluye los
 seis GIF y sus MP4 fuente.
