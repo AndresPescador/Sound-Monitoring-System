@@ -1,20 +1,29 @@
 import { useState } from 'react'
 import { updateStation, updateStationNameAuth } from '../../api/admin'
 import { Field, Modal } from './ModalComponents'
+import StationLocationPicker from './StationLocationPicker'
 
 export function EditStationModal({ station, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: station.name || '',
     description: station.description || '',
     address: station.address || '',
-    latitude: station.latitude || '',
-    longitude: station.longitude || '',
+    latitude: station.latitude ?? '',
+    longitude: station.longitude ?? '',
   })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const handleChange = (event) => {
     setForm(previous => ({ ...previous, [event.target.name]: event.target.value }))
+  }
+
+  const handleMapPick = (latitude, longitude) => {
+    setForm(previous => ({
+      ...previous,
+      latitude: latitude.toFixed(6),
+      longitude: longitude.toFixed(6),
+    }))
   }
 
   const handleSubmit = async (event) => {
@@ -45,6 +54,9 @@ export function EditStationModal({ station, onClose, onSaved }) {
         <div className="admin-form-grid">
           <Field label="Nombre de la estación" name="name" value={form.name} onChange={handleChange} required maxLength={150} disabled={saving} />
           <Field label="Código de estación" name="stationCode" value={station.stationCode} readOnly disabled />
+          <div className="admin-field--wide">
+            <StationLocationPicker latitude={form.latitude} longitude={form.longitude} onPick={handleMapPick} />
+          </div>
           <Field label="Dirección" name="address" value={form.address} onChange={handleChange} disabled={saving} />
           <div aria-hidden="true" />
           <Field
