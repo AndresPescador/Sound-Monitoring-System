@@ -38,11 +38,15 @@ describe('CreateStationModal', () => {
     updateStationNameAuth.mockReset()
   })
 
-  it('guía la identidad y actualiza las coordenadas desde el mapa', () => {
-    renderModal()
+  it('completa una localidad de Bogotá con Tab y actualiza las coordenadas desde el mapa', () => {
+    const { container } = renderModal()
 
-    fireEvent.change(screen.getByLabelText('Localidad *'), { target: { value: 'Fontibon' } })
+    const localityInput = screen.getByLabelText('Localidad *')
+    fireEvent.change(localityInput, { target: { value: 'Fonti' } })
 
+    expect(container.querySelector('.admin-locality-autocomplete__ghost')).toHaveTextContent('Fontibón')
+    expect(screen.getByText('Sugerencia: Fontibón. Presiona Tab para completarla.')).toBeInTheDocument()
+    fireEvent.keyDown(localityInput, { key: 'Tab' })
     expect(screen.getByLabelText('Localidad *')).toHaveValue('Fontibón')
     expect(screen.getByText('Fontibón es una localidad de Bogotá.')).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre de la estación *')).toHaveValue('Estación Fontibón')

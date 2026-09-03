@@ -48,7 +48,6 @@ export function Field({
   readOnly = false,
   step,
   maxLength,
-  list,
   hint,
   error,
 }) {
@@ -73,7 +72,6 @@ export function Field({
         readOnly={readOnly}
         step={step}
         maxLength={maxLength}
-        list={list}
         aria-describedby={[hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined}
         aria-invalid={error ? true : undefined}
       />

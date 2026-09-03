@@ -13,6 +13,56 @@ const matchingBogotaLocality = locality => {
   return slug ? BOGOTA_LOCALITIES.find(item => localitySlug(item.value) === slug) : undefined
 }
 
+const suggestedBogotaLocality = locality => {
+  const slug = localitySlug(locality || '')
+  if (!slug) return undefined
+  return BOGOTA_LOCALITIES.find(item => localitySlug(item.value).startsWith(slug))
+}
+
+function LocalityAutocomplete({ value, onChange, onBlur, onKeyDown, suggestion, disabled, error }) {
+  const inputId = useId()
+  const hintId = useId()
+  const errorId = useId()
+  const recognizedLocality = matchingBogotaLocality(value)
+  const hasSuggestion = suggestion && suggestion.value !== value
+  const hint = hasSuggestion
+    ? `Sugerencia: ${suggestion.value}. Presiona Tab para completarla.`
+    : value.trim()
+      ? recognizedLocality
+        ? `${recognizedLocality.value} es una localidad de Bogotá.`
+        : 'Se registrará como otra localidad y se generará su código interno.'
+      : 'Escribe una localidad. Tab completa una sugerencia de Bogotá.'
+
+  return (
+    <div className="admin-field">
+      <label htmlFor={inputId}>Localidad *</label>
+      <div className="admin-locality-autocomplete">
+        {hasSuggestion && <span className="admin-locality-autocomplete__ghost" aria-hidden="true">{suggestion.value}</span>}
+        <input
+          id={inputId}
+          className="admin-input"
+          type="text"
+          name="locality"
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          onKeyDown={onKeyDown}
+          placeholder="Escribe una localidad, por ejemplo Fontibón o Sopo"
+          required
+          maxLength={100}
+          disabled={disabled}
+          autoComplete="off"
+          aria-autocomplete={hasSuggestion ? 'both' : 'none'}
+          aria-describedby={[hintId, error ? errorId : null].filter(Boolean).join(' ')}
+          aria-invalid={error ? true : undefined}
+        />
+      </div>
+      <p id={hintId} className="admin-field__hint" aria-live="polite">{hint}</p>
+      {error && <p id={errorId} className="admin-field__error">{error}</p>}
+    </div>
+  )
+}
+
 const coordinatesAreValid = (latitude, longitude) => {
   if (String(latitude).trim() === '' || String(longitude).trim() === '') return false
   const parsedLatitude = Number(latitude)
@@ -36,14 +86,13 @@ const initialForm = pendingRegistration => {
 
 export function CreateStationModal({ onClose, onCreated, pendingRegistration, onPendingChange }) {
   const [form, setForm] = useState(() => initialForm(pendingRegistration))
-  const localityListId = useId()
   const [currentStep, setCurrentStep] = useState(pendingRegistration ? 2 : 1)
   const [submissionStep, setSubmissionStep] = useState('')
   const [error, setError] = useState('')
   const [touched, setTouched] = useState({})
 
   const locality = form.locality
-  const recognizedLocality = matchingBogotaLocality(locality)
+  const localitySuggestion = suggestedBogotaLocality(locality)
   const codePreview = pendingRegistration?.stationCode || stationCodePreview(locality)
   const identityErrors = useMemo(() => ({
     locality: !locality.trim()
@@ -65,9 +114,7 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
   const handleFieldChange = event => updateForm({ [event.target.name]: event.target.value })
   const handleBlur = field => setTouched(previous => ({ ...previous, [field]: true }))
 
-  const handleLocalityChange = event => {
-    const typedLocality = event.target.value
-    const nextLocality = matchingBogotaLocality(typedLocality)?.value || typedLocality
+  const updateLocality = nextLocality => {
     setForm(previous => {
       return {
         ...previous,
@@ -76,6 +123,17 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
           ? defaultName(nextLocality) : previous.name,
       }
     })
+  }
+
+  const handleLocalityChange = event => {
+    const typedLocality = event.target.value
+    updateLocality(matchingBogotaLocality(typedLocality)?.value || typedLocality)
+  }
+
+  const handleLocalityKeyDown = event => {
+    if (event.key !== 'Tab' || !localitySuggestion || localitySuggestion.value === locality) return
+    event.preventDefault()
+    updateLocality(localitySuggestion.value)
   }
 
   const handleMapPick = (latitude, longitude) => {
@@ -169,27 +227,15 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
               <p>Estos datos se mostrarán en el mapa y en el panel de control.</p>
             </div>
             <div className="admin-form-grid">
-              <Field
-                label="Localidad *"
-                name="locality"
+              <LocalityAutocomplete
                 value={form.locality}
                 onChange={handleLocalityChange}
                 onBlur={() => handleBlur('locality')}
-                list={localityListId}
-                placeholder="Escribe una localidad, por ejemplo Fontibón o Sopo"
-                required
-                maxLength={100}
+                onKeyDown={handleLocalityKeyDown}
+                suggestion={localitySuggestion}
                 disabled={isSubmitting || Boolean(pendingRegistration)}
-                hint={recognizedLocality
-                  ? `${recognizedLocality.value} es una localidad de Bogotá.`
-                  : locality.trim()
-                    ? 'Se registrará como otra localidad y se generará su código interno.'
-                    : 'Escribe una localidad o elige una sugerencia de Bogotá.'}
                 error={touched.locality ? identityErrors.locality : ''}
               />
-              <datalist id={localityListId}>
-                {BOGOTA_LOCALITIES.map(item => <option key={item.value} value={item.value} />)}
-              </datalist>
               <div className="admin-station-code-card">
                 <span className="admin-station-code-card__label">Código interno</span>
                 <output>{codePreview || 'Se generará al indicar la localidad'}</output>

@@ -774,6 +774,26 @@
 
 .admin-input[aria-invalid='true'] { border-color: var(--admin-danger); }
 
+.admin-locality-autocomplete { position: relative; border-radius: 12px; background: var(--admin-paper); }
+.admin-locality-autocomplete__ghost {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0.68rem 0.78rem;
+  border: 1px solid transparent;
+  color: color-mix(in srgb, var(--admin-muted) 62%, transparent);
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.admin-locality-autocomplete .admin-input { position: relative; z-index: 1; background: transparent; }
+.admin-locality-autocomplete .admin-input:focus { background: transparent; }
+
 .admin-form__actions {
   display: flex;
   justify-content: flex-end;
