@@ -240,7 +240,9 @@ jobs:
       - dashboard-frontend
       - recorder-cpp
       - compose-config
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main'
     timeout-minutes: 35
     environment:
       name: production
