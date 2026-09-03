@@ -54,7 +54,6 @@ class AdminAuthServiceTest {
     void registerStationUsesClientNameAndCustomLocality() throws Exception {
         RegisterStationRequest request = new ObjectMapper().readValue("""
                 {
-                  "stationCode": "ST-CONTROLADO-POR-CLIENTE-99",
                   "name": "  Estación Chía  ",
                   "locality": "  Chía  "
                 }
