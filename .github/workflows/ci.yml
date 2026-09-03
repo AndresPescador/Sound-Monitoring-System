@@ -259,6 +259,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.before }}
           COMMIT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -326,6 +327,13 @@ jobs:
                 ;;
             esac
           done <<< "$changed_paths"
+
+          # Una ejecución manual es una operación de recuperación: debe alinear
+          # todos los servicios con el SHA validado, incluso si el diff asociado
+          # al evento no identifica correctamente los componentes afectados.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            add_all_application_services
+          fi
 
           ordered_services=(auth-service noise-processing ingestion-api dashboard-api dashboard-frontend nginx)
           services=()
