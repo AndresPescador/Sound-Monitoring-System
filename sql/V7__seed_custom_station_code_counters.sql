@@ -1,15 +1,8 @@
--- Ejecutar como propietario administrativo de station_registry antes de desplegar
--- la versión de Auth que genera códigos automáticamente.
+-- Ejecutar como propietario administrativo de station_registry.
+-- Repara instalaciones que aplicaron V6 antes de admitir localidades libres.
+-- Es idempotente: nunca reduce un consecutivo ya reservado.
 
 BEGIN;
-
-CREATE TABLE IF NOT EXISTS station_code_counters (
-    locality_slug   VARCHAR(100)    PRIMARY KEY,
-    last_number     INTEGER         NOT NULL DEFAULT 0,
-    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT chk_station_code_counters_last_number CHECK (last_number >= 0)
-);
 
 WITH existing_maximums AS (
     SELECT
@@ -28,9 +21,5 @@ SET last_number = GREATEST(
         EXCLUDED.last_number
     ),
     updated_at = NOW();
-
-GRANT SELECT, INSERT, UPDATE ON TABLE station_code_counters TO auth_app;
-
-COMMENT ON TABLE station_code_counters IS 'Último consecutivo asignado por localidad para generar station_code sin colisiones.';
 
 COMMIT;

@@ -146,8 +146,11 @@ docker run -p 8081:8081 --env-file .env auth-service
 ```
 
 Antes de desplegar este contrato sobre una base existente se debe aplicar
-`sql/V6__station_code_counters.sql`. La migración inicia cada contador con el
-mayor sufijo numérico ya registrado y no reduce los contadores al borrar datos.
+`sql/V6__station_code_counters.sql`. Si V6 ya se aplicó antes de admitir
+localidades libres, aplica además `sql/V7__seed_custom_station_code_counters.sql`.
+Ambas migraciones inician o actualizan cada contador con el mayor sufijo
+numérico registrado, incluidas las localidades personalizadas, y no reducen los
+contadores al borrar datos.
 
 ## Flujo de autenticación de una estación
 

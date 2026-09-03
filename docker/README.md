@@ -212,9 +212,11 @@ solo esta llamada; no vuelvas a registrar la estación en Auth.
 ### Migración requerida en instalaciones existentes
 
 Antes de reconstruir Auth, aplica `sql/V6__station_code_counters.sql` sobre
-`station_registry` con su usuario propietario. La migración toma el mayor número
-existente por localidad, por lo que no reutiliza códigos como `01` o `03` y el
-siguiente será `04`.
+`station_registry` con su usuario propietario. Si esa migración ya se aplicó
+antes de habilitar localidades libres, aplica también
+`sql/V7__seed_custom_station_code_counters.sql`. Las migraciones toman el mayor
+número existente por localidad, incluidas las personalizadas, por lo que no se
+reutilizan códigos como `01` o `03` y el siguiente será `04`.
 
 ### Paso 3 — Configurar la Raspberry Pi
 
