@@ -39,6 +39,9 @@ export const rotateStationSecret = (stationCode) =>
 export const changeStationStatusAuth = (stationCode, active) =>
   adminClient.patch(`/auth/admin/stations/${stationCode}/status`, { active })
 
+export const updateStationNameAuth = (stationCode, name) =>
+  adminClient.put(`/auth/admin/stations/${stationCode}/name`, { name })
+
 // Revoca tokens sin cambiar el secret
 export const revokeStationTokens = (stationCode) =>
   adminClient.delete(`/auth/admin/stations/${stationCode}/token`)
@@ -53,7 +56,7 @@ export const listStationsAdmin = () =>
 export const getStationAdmin = (stationCode) =>
   adminClient.get(`/processing/admin/stations/${stationCode}`)
 
-// Registra la estación en Noise Processing; el backend genera el nombre (llamar DESPUÉS de registerStationAuth)
+// Registra la estación en Noise Processing con el nombre recibido de Auth (llamar DESPUÉS de registerStationAuth)
 export const registerStationProcessing = (data) =>
   adminClient.post('/processing/admin/stations', data)
 

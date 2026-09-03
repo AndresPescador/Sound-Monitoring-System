@@ -29,9 +29,9 @@ public class StationAdminService {
 
         Station station = new Station();
         station.setStationCode(request.getStationCode());
-        station.setName("Estación " + request.getStationCode());
+        station.setName(request.getName().trim());
         station.setDescription(request.getDescription());
-        station.setLocality(request.getLocality());
+        station.setLocality(request.getLocality().trim());
         station.setAddress(request.getAddress());
         station.setLatitude(request.getLatitude());
         station.setLongitude(request.getLongitude());
@@ -67,6 +67,7 @@ public class StationAdminService {
         Station station = stationRepository.findByStationCode(stationCode)
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
 
+        station.setName(request.getName().trim());
         station.setDescription(request.getDescription());
         station.setAddress(request.getAddress());
         station.setLatitude(request.getLatitude());

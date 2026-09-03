@@ -129,8 +129,8 @@ public class AdminAuthController {
 
     /**
      * POST /admin/stations
-     * Registra una estación para una localidad oficial. Auth asigna el código y
-     * el nombre; devuelve el secret UNA SOLA VEZ.
+     * Registra una estación. Auth asigna el código desde la localidad y
+     * devuelve el secret UNA SOLA VEZ.
      */
     @PostMapping("/stations")
     public ResponseEntity<RegisterStationResponse> registerStation(
@@ -201,5 +201,18 @@ public class AdminAuthController {
                 "stationCode", stationCode,
                 "active", active
         ));
+    }
+
+    /** Actualiza solamente el nombre público de una estación. */
+    @PutMapping("/stations/{stationCode}/name")
+    public ResponseEntity<Map<String, String>> updateStationName(
+            @PathVariable String stationCode,
+            @Valid @RequestBody UpdateStationNameRequest body,
+            HttpServletRequest request
+    ) {
+        String username = tokenValidator.requireAdmin(request);
+        String ip = tokenValidator.extractIp(request);
+        adminAuthService.updateStationName(stationCode, body, username, ip);
+        return ResponseEntity.ok(Map.of("message", "Nombre actualizado.", "stationCode", stationCode));
     }
 }

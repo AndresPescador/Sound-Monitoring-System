@@ -1,7 +1,6 @@
 package com.monitoreo.auth.service;
 
 import com.monitoreo.auth.config.JwtConfig;
-import com.monitoreo.auth.domain.BogotaLocality;
 import com.monitoreo.auth.dto.*;
 import com.monitoreo.auth.entity.AdminUser;
 import com.monitoreo.auth.entity.AuthAuditLog;
@@ -210,17 +209,17 @@ public class AdminAuthService {
     @Transactional
     public RegisterStationResponse registerStation(RegisterStationRequest request,
                                                     String adminUsername, String ipAddress) {
-        BogotaLocality locality = BogotaLocality.from(request.getLocality());
-        String stationCode = stationCodeAllocator.nextCode(locality.slug());
+        String locality = LocalitySlug.displayName(request.getLocality());
+        String stationCode = stationCodeAllocator.nextCode(LocalitySlug.from(locality));
 
         String secret     = UUID.randomUUID().toString().replace("-", "");
         String secretHash = passwordEncoder.encode(secret);
 
         RegisteredStation station = new RegisteredStation();
         station.setStationCode(stationCode);
-        station.setName("Estación " + stationCode);
+        station.setName(request.getName().trim());
         station.setDescription(request.getDescription());
-        station.setLocality(locality.officialName());
+        station.setLocality(locality);
         station.setSecretHash(secretHash);
         stationRepository.save(station);
 
@@ -326,6 +325,25 @@ public class AdminAuthService {
 
         log.info("Estación '{}' {} por admin '{}'",
                 stationCode, active ? "activada" : "desactivada", adminUsername);
+    }
+
+    @Transactional
+    public void updateStationName(String stationCode, UpdateStationNameRequest request,
+                                  String adminUsername, String ipAddress) {
+        RegisteredStation station = stationRepository
+                .findByStationCode(stationCode)
+                .orElseThrow(() -> new StationNotFoundException(stationCode));
+
+        station.setName(request.getName().trim());
+        stationRepository.save(station);
+
+        AdminUser admin = adminUserRepository
+                .findByUsernameAndActiveTrue(adminUsername)
+                .orElseThrow(() -> new AdminNotFoundException(adminUsername));
+        auditLogRepository.save(buildAuditLog(
+                station, admin, "STATION_UPDATED", true, "Nombre actualizado", ipAddress
+        ));
+        log.info("Nombre actualizado para estación '{}' por admin '{}'", stationCode, adminUsername);
     }
 
     // =========================================================================

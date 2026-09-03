@@ -40,16 +40,21 @@ export function Field({
   name,
   value,
   onChange,
+  onBlur,
   placeholder,
   required,
   type = 'text',
   disabled = false,
   readOnly = false,
   step,
+  maxLength,
+  list,
   hint,
+  error,
 }) {
   const inputId = useId()
   const hintId = useId()
+  const errorId = useId()
 
   return (
     <div className="admin-field">
@@ -61,21 +66,27 @@ export function Field({
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
         placeholder={placeholder}
         required={required}
         disabled={disabled}
         readOnly={readOnly}
         step={step}
-        aria-describedby={hint ? hintId : undefined}
+        maxLength={maxLength}
+        list={list}
+        aria-describedby={[hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined}
+        aria-invalid={error ? true : undefined}
       />
       {hint && <p id={hintId} className="admin-field__hint">{hint}</p>}
+      {error && <p id={errorId} className="admin-field__error">{error}</p>}
     </div>
   )
 }
 
-export function SelectField({ label, name, value, onChange, options, required, disabled = false, hint }) {
+export function SelectField({ label, name, value, onChange, onBlur, options, required, disabled = false, hint, error }) {
   const inputId = useId()
   const hintId = useId()
+  const errorId = useId()
 
   return (
     <div className="admin-field">
@@ -86,9 +97,11 @@ export function SelectField({ label, name, value, onChange, options, required, d
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
         required={required}
         disabled={disabled}
-        aria-describedby={hint ? hintId : undefined}
+        aria-describedby={[hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined}
+        aria-invalid={error ? true : undefined}
       >
         <option value="">Selecciona una localidad</option>
         {options.map(option => (
@@ -96,6 +109,7 @@ export function SelectField({ label, name, value, onChange, options, required, d
         ))}
       </select>
       {hint && <p id={hintId} className="admin-field__hint">{hint}</p>}
+      {error && <p id={errorId} className="admin-field__error">{error}</p>}
     </div>
   )
 }

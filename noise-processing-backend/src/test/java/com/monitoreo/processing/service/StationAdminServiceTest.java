@@ -31,7 +31,7 @@ class StationAdminServiceTest {
     @InjectMocks private StationAdminService service;
 
     @Test
-    void registerStationGeneratesStandardNameAndIgnoresLegacyName() throws Exception {
+    void registerStationPersistsPublicName() throws Exception {
         RegisterStationRequest request = new ObjectMapper().readValue("""
                 {
                   "stationCode": "ST-CHAPINERO-01",
@@ -47,12 +47,12 @@ class StationAdminServiceTest {
 
         ArgumentCaptor<Station> stationCaptor = ArgumentCaptor.forClass(Station.class);
         verify(stationRepository).save(stationCaptor.capture());
-        assertEquals("Estación ST-CHAPINERO-01", stationCaptor.getValue().getName());
-        assertEquals("Estación ST-CHAPINERO-01", response.getName());
+        assertEquals("Nombre controlado por el cliente", stationCaptor.getValue().getName());
+        assertEquals("Nombre controlado por el cliente", response.getName());
     }
 
     @Test
-    void updateStationPreservesNameAndLocalityAndIgnoresLegacyValues() throws Exception {
+    void updateStationChangesNameAndPreservesLocalityAndCode() throws Exception {
         Station station = new Station();
         station.setStationCode("ST-EXISTENTE-01");
         station.setName("Nombre histórico");
@@ -61,7 +61,7 @@ class StationAdminServiceTest {
         station.setLongitude(-74.03);
         UpdateStationRequest request = new ObjectMapper().readValue("""
                 {
-                  "name": "Nombre que no debe aplicarse",
+                  "name": "Nombre actualizado",
                   "locality": "Chapinero",
                   "description": "Actualizada",
                   "address": "Calle 1",
@@ -73,15 +73,15 @@ class StationAdminServiceTest {
 
         StationAdminResponse response = service.updateStation("ST-EXISTENTE-01", request);
 
-        assertEquals("Nombre histórico", station.getName());
-        assertEquals("Nombre histórico", response.getName());
+        assertEquals("Nombre actualizado", station.getName());
+        assertEquals("Nombre actualizado", response.getName());
         assertEquals("Usaquén", response.getLocality());
     }
 
     @Test
     void refusesDuplicateStationCodes() throws Exception {
         RegisterStationRequest request = new ObjectMapper().readValue("""
-                {"stationCode":"ST-EXISTENTE-01","locality":"Chapinero"}
+                {"stationCode":"ST-EXISTENTE-01","name":"Estación existente","locality":"Chapinero"}
                 """, RegisterStationRequest.class);
         when(stationRepository.existsByStationCode("ST-EXISTENTE-01")).thenReturn(true);
 

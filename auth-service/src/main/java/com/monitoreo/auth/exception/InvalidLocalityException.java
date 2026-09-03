@@ -2,6 +2,10 @@ package com.monitoreo.auth.exception;
 
 public class InvalidLocalityException extends RuntimeException {
     public InvalidLocalityException() {
-        super("La localidad debe pertenecer al catálogo oficial de Bogotá.");
+        super("La localidad no es válida.");
+    }
+
+    public InvalidLocalityException(String message) {
+        super(message);
     }
 }

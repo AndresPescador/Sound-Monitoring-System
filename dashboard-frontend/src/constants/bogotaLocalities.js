@@ -21,7 +21,19 @@ export const BOGOTA_LOCALITIES = [
   ['Usme', 'USME'],
 ].map(([label, slug]) => ({ label, value: label, slug }))
 
+export const CUSTOM_LOCALITY_VALUE = '__custom__'
+
+export const localitySlug = (localityName) => (
+  localityName
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toUpperCase()
+)
+
 export const stationCodePreview = (localityName) => {
-  const locality = BOGOTA_LOCALITIES.find(item => item.value === localityName)
-  return locality ? `ST-${locality.slug}-##` : ''
+  const slug = localitySlug(localityName || '')
+  return slug && slug.length <= 44 ? `ST-${slug}-##` : ''
 }

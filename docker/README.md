@@ -170,19 +170,20 @@ curl -X POST https://soundmonitoring.systems/auth/admin/stations \
   -H "Authorization: Bearer <JWT_ADMIN>" \
   -H "Content-Type: application/json" \
   -d '{
+    "name": "Estación Chapinero",
     "locality": "Chapinero"
   }'
 ```
 
-Auth normaliza la localidad y asigna atómicamente el siguiente código disponible.
-El código y el nombre no se reciben desde el cliente y quedan inmutables junto con
-la localidad.
+Auth guarda el nombre público y usa una versión normalizada de la localidad para
+asignar atómicamente el siguiente código disponible. El código queda inmutable;
+las localidades de Bogotá son sugeridas en el panel, pero se admiten localidades libres.
 
 Respuesta — **guarda el `secret`, no se puede recuperar después**:
 ```json
 {
   "stationCode": "ST-CHAPINERO-01",
-  "name": "Estación ST-CHAPINERO-01",
+  "name": "Estación Chapinero",
   "locality": "Chapinero",
   "secret": "abc123def456..."
 }
@@ -198,6 +199,7 @@ curl -X POST https://soundmonitoring.systems/processing/admin/stations \
   -H "Content-Type: application/json" \
   -d '{
     "stationCode": "ST-CHAPINERO-01",
+    "name": "Estación Chapinero",
     "locality": "Chapinero",
     "latitude": 4.6486,
     "longitude": -74.1057

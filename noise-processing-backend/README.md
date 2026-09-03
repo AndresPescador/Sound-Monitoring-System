@@ -43,7 +43,7 @@ noise-processing-backend/
 | `POST` | `/admin/stations` | Registra estación en noise_analytics | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/admin/stations` | Lista estaciones, incluidas las inactivas | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/admin/stations/{code}` | Consulta el detalle administrativo de una estación | JWT ADMIN/SUPER_ADMIN |
-| `PUT` | `/admin/stations/{code}` | Actualiza descripción, dirección y coordenadas | JWT ADMIN/SUPER_ADMIN |
+| `PUT` | `/admin/stations/{code}` | Actualiza nombre, descripción, dirección y coordenadas | JWT ADMIN/SUPER_ADMIN |
 | `PATCH` | `/admin/stations/{code}/status` | Activa o desactiva la estación en `noise_analytics` | JWT ADMIN/SUPER_ADMIN |
 | `DELETE` | `/admin/stations/{code}` | Elimina estación, mediciones y agregaciones | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/health` | Health check | Pública |
@@ -107,18 +107,18 @@ El administrador debe registrar cada estación en DOS pasos independientes:
 Paso 1 — Auth Service:
 POST /admin/stations  →  http://auth-service:8081
 Header: Authorization: Bearer <JWT administrativo>
-Body: { "locality": "Chapinero", "description": "..." }
-← Auth devuelve el stationCode, la localidad canónica y el nombre generados
+Body: { "name": "Estación Chapinero", "locality": "Chapinero", "description": "..." }
+← Auth devuelve el stationCode generado, la localidad indicada y el nombre público elegido
 ← Guarda el secret devuelto para configurar la Raspberry Pi
 
 Paso 2 — Noise Processing Backend:
 POST /admin/stations  →  http://noise-processing-backend:8082
 Header: Authorization: Bearer <JWT administrativo>
-Body: { "stationCode": "ST-CHAPINERO-01", "locality": "...",
+Body: { "stationCode": "ST-CHAPINERO-01", "name": "Estación Chapinero", "locality": "...",
         "latitude": 4.6486, "longitude": -74.1057 }
 ← Se copian exactamente stationCode y locality devueltos por Auth
-← Las ediciones posteriores solo admiten descripción, dirección y coordenadas;
-  código, nombre y localidad quedan inmutables
+← Las ediciones posteriores admiten nombre, descripción, dirección y coordenadas;
+  código y localidad quedan inmutables
 ```
 
 ---

@@ -162,9 +162,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\"\n}"
+              "raw": "{\n  \"name\": \"Estación Chapinero - pruebas\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\"\n}"
             },
-            "description": "Envía únicamente la localidad y la descripción. Auth asigna el código, normaliza la localidad y registra la estación en station_registry.\nGuarda automáticamente station_code, station_locality y secret para los pasos siguientes.\n\nESTE SECRET SOLO SE MUESTRA UNA VEZ — guardarlo bien."
+            "description": "Envía el nombre público, la localidad y la descripción. Auth asigna el código a partir del slug normalizado de la localidad y registra la estación en station_registry.\nGuarda automáticamente station_code, station_locality y secret para los pasos siguientes.\n\nESTE SECRET SOLO SE MUESTRA UNA VEZ — guardarlo bien."
           },
           "event": [{
             "listen": "test",
@@ -177,7 +177,7 @@
                 "    pm.collectionVariables.set('secret', json.secret);",
                 "    pm.collectionVariables.set('station_code', json.stationCode);",
                 "    pm.collectionVariables.set('station_locality', json.locality);",
-                "    pm.test('Nombre estandarizado', () => pm.expect(json.name).to.eql(`Estación ${pm.collectionVariables.get('station_code')}`));",
+                "    pm.test('Nombre público conservado', () => pm.expect(json.name).to.eql('Estación Chapinero - pruebas'));",
                 "    pm.test('Secret recibido', () => pm.expect(json.secret).to.be.a('string').and.not.empty);",
                 "}"
               ]
@@ -195,7 +195,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"locality\": \"{{station_locality}}\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
+              "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"name\": \"Estación Chapinero - pruebas\",\n  \"locality\": \"{{station_locality}}\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
             },
             "description": "Registra en noise_analytics exactamente el station_code y la localidad canónica devueltos por Auth.\nDebe ejecutarse DESPUÉS del paso 2; si falla, se reintenta solo esta llamada."
           },
@@ -412,7 +412,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"stationCode\": \"ST-FAKE-99\",\n  \"locality\": \"Test\"\n}"
+              "raw": "{\n  \"name\": \"Estación de prueba\",\n  \"locality\": \"Test\"\n}"
             },
             "description": "Intenta registrar una estación sin Authorization Bearer.\nDebe devolver HTTP 401."
           },

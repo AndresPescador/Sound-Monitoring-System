@@ -715,6 +715,14 @@
   line-height: 1.35;
 }
 
+.admin-field__error {
+  margin: -0.08rem 0 0;
+  color: var(--admin-danger);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .admin-input,
 .admin-textarea {
   width: 100%;
@@ -763,6 +771,8 @@
   cursor: not-allowed;
   opacity: 0.58;
 }
+
+.admin-input[aria-invalid='true'] { border-color: var(--admin-danger); }
 
 .admin-form__actions {
   display: flex;
@@ -1034,6 +1044,40 @@
 .admin-modal__close:hover { background: var(--admin-field); color: var(--admin-ink); }
 .admin-modal__body { padding: 1.25rem; }
 
+.admin-station-wizard { display: grid; gap: 1.25rem; }
+.admin-station-wizard__intro h3, .admin-station-wizard__step-heading h3, .admin-location-picker__heading h3 { margin: 0; color: var(--admin-ink); font-family: "DM Sans", sans-serif; font-size: 1rem; font-weight: 700; }
+.admin-station-wizard__intro > p:not(.admin-station-wizard__eyebrow), .admin-station-wizard__step-heading p, .admin-location-picker__heading p { max-width: 62ch; margin: 0.3rem 0 0; color: var(--admin-muted); font-size: 0.82rem; line-height: 1.45; }
+.admin-station-wizard__eyebrow { margin: 0 0 0.38rem; color: var(--admin-blue); font-family: "DM Sans", sans-serif; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.admin-station-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; padding: 0; margin: 0; list-style: none; }
+.admin-station-steps li { min-width: 0; display: flex; align-items: center; gap: 0.65rem; padding: 0.7rem; border: 1px solid var(--admin-line); border-radius: 12px; color: var(--admin-muted); background: var(--admin-paper); }
+.admin-station-steps li > span { width: 1.7rem; height: 1.7rem; display: grid; flex: 0 0 auto; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-family: "DM Sans", sans-serif; font-size: 0.76rem; font-weight: 700; }
+.admin-station-steps strong, .admin-station-steps small { display: block; }
+.admin-station-steps strong { color: inherit; font-family: "DM Sans", sans-serif; font-size: 0.78rem; }
+.admin-station-steps small { margin-top: 0.08rem; font-size: 0.68rem; }
+.admin-station-steps .is-current { border-color: var(--admin-blue); color: var(--admin-blue-dark); background: color-mix(in srgb, var(--admin-blue) 8%, var(--admin-white)); }
+.admin-station-steps .is-complete { color: var(--admin-success); }
+.admin-station-wizard__step { display: grid; gap: 1rem; }
+
+.admin-station-code-card { min-width: 0; display: grid; align-content: start; gap: 0.38rem; padding: 0.85rem 0.95rem; border: 1px solid var(--admin-line); border-radius: 12px; background: var(--admin-field); }
+.admin-station-code-card__label { color: var(--admin-muted); font-family: "DM Sans", sans-serif; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.admin-station-code-card output { overflow-wrap: anywhere; color: var(--admin-ink); font-family: "DM Sans", sans-serif; font-size: 0.92rem; font-weight: 700; }
+.admin-station-code-card p { margin: 0; color: var(--admin-muted); font-size: 0.73rem; line-height: 1.4; }
+
+.admin-station-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.28rem 0.75rem; padding: 0.85rem 0.95rem; border: 1px solid var(--admin-line); border-radius: 12px; background: var(--admin-field); font-size: 0.76rem; }
+.admin-station-summary span { color: var(--admin-muted); }
+.admin-station-summary strong { min-width: 0; overflow-wrap: anywhere; color: var(--admin-ink); font-family: "DM Sans", sans-serif; }
+
+.admin-location-picker { display: grid; gap: 0.65rem; }
+.admin-location-picker__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.admin-location-picker__status { flex: 0 0 auto; padding: 0.3rem 0.48rem; border-radius: 999px; background: color-mix(in srgb, var(--admin-blue) 10%, var(--admin-white)); color: var(--admin-blue-dark); font-family: "DM Sans", sans-serif; font-size: 0.68rem; font-weight: 700; }
+.admin-location-picker__map { height: 260px; overflow: hidden; border: 1px solid var(--admin-line); border-radius: 14px; background: var(--admin-field); }
+.admin-station-coordinates { gap: 0.8rem; }
+.admin-station-details { padding: 0.15rem 0 0; }
+.admin-station-details summary { padding: 0.55rem 0; color: var(--admin-blue-dark); font-family: "DM Sans", sans-serif; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.admin-station-details[open] summary { margin-bottom: 0.85rem; }
+.admin-station-wizard__actions { position: sticky; z-index: 1; bottom: 0; display: flex; justify-content: flex-end; gap: 0.55rem; padding: 0.85rem 0 0.1rem; border-top: 1px solid var(--admin-line); background: color-mix(in srgb, var(--admin-white) 94%, transparent); backdrop-filter: blur(10px); }
+
 .admin-secret {
   display: grid;
   gap: 1rem;
@@ -1237,6 +1281,14 @@
   .admin-login__footer { align-items: flex-start; flex-direction: column; }
   .admin-modal-backdrop { align-items: flex-start; padding: 0.75rem; }
   .admin-modal { max-height: calc(100dvh - 1.5rem); }
+  .admin-station-steps { gap: 0.45rem; }
+  .admin-station-steps li { gap: 0.45rem; padding: 0.58rem; }
+  .admin-station-steps small { display: none; }
+  .admin-location-picker__heading { align-items: stretch; flex-direction: column; }
+  .admin-location-picker__status { align-self: flex-start; }
+  .admin-location-picker__map { height: 220px; }
+  .admin-station-wizard__actions { flex-wrap: wrap; }
+  .admin-station-wizard__actions .admin-button:last-child { flex: 1 1 100%; }
   .admin-secret__value { flex-direction: column; }
 }
 

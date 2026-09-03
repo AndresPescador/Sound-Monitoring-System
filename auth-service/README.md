@@ -47,6 +47,7 @@ auth-service/
 | `POST` | `/admin/admins` | Crear administrador normal | JWT SUPER_ADMIN |
 | `GET` | `/admin/admins` | Listar administradores | JWT SUPER_ADMIN |
 | `POST` | `/admin/stations` | Registrar nueva estación | JWT ADMIN/SUPER_ADMIN |
+| `PUT` | `/admin/stations/{code}/name` | Actualizar nombre público | JWT ADMIN/SUPER_ADMIN |
 | `POST` | `/admin/stations/{code}/rotate-secret` | Rotar secret y tokens | JWT ADMIN/SUPER_ADMIN |
 | `DELETE` | `/admin/stations/{code}/token` | Revocar tokens sin cambiar el secret | JWT ADMIN/SUPER_ADMIN |
 | `PATCH` | `/admin/stations/{code}/status` | Activar o desactivar una estación | JWT ADMIN/SUPER_ADMIN |
@@ -129,16 +130,16 @@ docker run -p 8081:8081 --env-file .env auth-service
 ```
 1. Un administrador autenticado llama POST /admin/stations
    Header: Authorization: Bearer <JWT administrativo>
-   Body: { "locality": "Chapinero", "description": "..." }
+   Body: { "name": "Estación Chapinero", "locality": "Chapinero", "description": "..." }
 
-2. Auth Service normaliza la localidad contra el catálogo oficial, incrementa
-   atómicamente su contador y asigna el código siguiente, por ejemplo
-   "ST-CHAPINERO-04". También genera el nombre inmutable
-   "Estación ST-CHAPINERO-04" y un secret aleatorio del que guarda solo el hash.
-   stationCode y name enviados por clientes antiguos se ignoran.
+2. Auth Service conserva el nombre público elegido y normaliza la localidad a un
+   slug para incrementar atómicamente su contador y asignar el código siguiente,
+   por ejemplo "ST-CHAPINERO-04". Las localidades de Bogotá son sugeridas por el
+   panel, pero se aceptan localidades personalizadas como "Chía" → "ST-CHIA-01".
+   El código es inmutable y Auth genera un secret aleatorio del que guarda solo el hash.
 
 3. Respuesta devuelve el secret en texto plano UNA SOLA VEZ:
-   { "stationCode": "ST-CHAPINERO-01", "name": "Estación ST-CHAPINERO-01",
+   { "stationCode": "ST-CHAPINERO-01", "name": "Estación Chapinero",
      "locality": "Chapinero", "secret": "abc123..." }
 
 4. Admin configura el secret en la Raspberry Pi (.env de la estación)

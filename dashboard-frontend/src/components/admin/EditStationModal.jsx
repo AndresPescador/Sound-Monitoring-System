@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { updateStation } from '../../api/admin'
+import { updateStation, updateStationNameAuth } from '../../api/admin'
 import { Field, Modal } from './ModalComponents'
 
 export function EditStationModal({ station, onClose, onSaved }) {
   const [form, setForm] = useState({
+    name: station.name || '',
     description: station.description || '',
     address: station.address || '',
     latitude: station.latitude || '',
@@ -21,14 +22,18 @@ export function EditStationModal({ station, onClose, onSaved }) {
     setError('')
     setSaving(true)
     try {
-      await updateStation(station.stationCode, {
+      const payload = {
         ...form,
         latitude: parseFloat(form.latitude),
         longitude: parseFloat(form.longitude),
-      })
+      }
+      await Promise.all([
+        updateStationNameAuth(station.stationCode, form.name.trim()),
+        updateStation(station.stationCode, payload),
+      ])
       onSaved()
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudieron guardar los cambios.')
+      setError(err.response?.data?.error || 'No se pudieron sincronizar los cambios en ambos servicios. Inténtalo nuevamente.')
     } finally {
       setSaving(false)
     }
@@ -38,6 +43,8 @@ export function EditStationModal({ station, onClose, onSaved }) {
     <Modal title={`Editar ${station.stationCode}`} onClose={saving ? null : onClose}>
       <form onSubmit={handleSubmit} className="admin-form">
         <div className="admin-form-grid">
+          <Field label="Nombre de la estación" name="name" value={form.name} onChange={handleChange} required maxLength={150} disabled={saving} />
+          <Field label="Código de estación" name="stationCode" value={station.stationCode} readOnly disabled />
           <Field label="Dirección" name="address" value={form.address} onChange={handleChange} disabled={saving} />
           <div aria-hidden="true" />
           <Field

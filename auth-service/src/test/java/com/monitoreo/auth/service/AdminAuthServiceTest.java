@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.monitoreo.auth.config.JwtConfig;
 import com.monitoreo.auth.dto.RegisterStationRequest;
 import com.monitoreo.auth.dto.RegisterStationResponse;
+import com.monitoreo.auth.dto.UpdateStationNameRequest;
 import com.monitoreo.auth.dto.AdminLoginResponse;
 import com.monitoreo.auth.dto.AdminLoginRequest;
 import com.monitoreo.auth.dto.AdminChangePasswordRequest;
@@ -50,18 +51,18 @@ class AdminAuthServiceTest {
     @InjectMocks private AdminAuthService service;
 
     @Test
-    void registerStationGeneratesCodeAndNameAndIgnoresLegacyClientValues() throws Exception {
+    void registerStationUsesClientNameAndCustomLocality() throws Exception {
         RegisterStationRequest request = new ObjectMapper().readValue("""
                 {
                   "stationCode": "ST-CONTROLADO-POR-CLIENTE-99",
-                  "name": "Nombre controlado por el cliente",
-                  "locality": "  san cristobal  "
+                  "name": "  Estación Chía  ",
+                  "locality": "  Chía  "
                 }
                 """, RegisterStationRequest.class);
         AdminUser admin = new AdminUser();
         admin.setUsername("admin");
 
-        when(stationCodeAllocator.nextCode("SAN-CRISTOBAL")).thenReturn("ST-SAN-CRISTOBAL-04");
+        when(stationCodeAllocator.nextCode("CHIA")).thenReturn("ST-CHIA-04");
         when(passwordEncoder.encode(anyString())).thenReturn("secret-hash");
         when(adminUserRepository.findByUsernameAndActiveTrue("admin")).thenReturn(Optional.of(admin));
 
@@ -69,12 +70,12 @@ class AdminAuthServiceTest {
 
         ArgumentCaptor<RegisteredStation> stationCaptor = ArgumentCaptor.forClass(RegisteredStation.class);
         verify(stationRepository).save(stationCaptor.capture());
-        assertEquals("ST-SAN-CRISTOBAL-04", stationCaptor.getValue().getStationCode());
-        assertEquals("Estación ST-SAN-CRISTOBAL-04", stationCaptor.getValue().getName());
-        assertEquals("San Cristóbal", stationCaptor.getValue().getLocality());
-        assertEquals("ST-SAN-CRISTOBAL-04", response.getStationCode());
-        assertEquals("Estación ST-SAN-CRISTOBAL-04", response.getName());
-        assertEquals("San Cristóbal", response.getLocality());
+        assertEquals("ST-CHIA-04", stationCaptor.getValue().getStationCode());
+        assertEquals("Estación Chía", stationCaptor.getValue().getName());
+        assertEquals("Chía", stationCaptor.getValue().getLocality());
+        assertEquals("ST-CHIA-04", response.getStationCode());
+        assertEquals("Estación Chía", response.getName());
+        assertEquals("Chía", response.getLocality());
     }
 
     @Test
@@ -171,6 +172,24 @@ class AdminAuthServiceTest {
         service.revokeStationTokens("ST-TEST-01", "admin", "198.51.100.10");
 
         assertEquals("original-hash", station.getSecretHash());
+        verify(auditLogRepository).save(any(com.monitoreo.auth.entity.AuthAuditLog.class));
+    }
+
+    @Test
+    void updatesOnlyThePublicNameWithoutChangingCredentials() throws Exception {
+        RegisteredStation station = registeredStation();
+        station.setName("Estación anterior");
+        AdminUser admin = admin("admin");
+        UpdateStationNameRequest request = new ObjectMapper().readValue(
+                "{\"name\":\"  Estación Chía  \"}", UpdateStationNameRequest.class);
+        when(stationRepository.findByStationCode("ST-TEST-01")).thenReturn(Optional.of(station));
+        when(adminUserRepository.findByUsernameAndActiveTrue("admin")).thenReturn(Optional.of(admin));
+
+        service.updateStationName("ST-TEST-01", request, "admin", "198.51.100.10");
+
+        assertEquals("Estación Chía", station.getName());
+        assertEquals("original-hash", station.getSecretHash());
+        verify(stationRepository).save(station);
         verify(auditLogRepository).save(any(com.monitoreo.auth.entity.AuthAuditLog.class));
     }
 

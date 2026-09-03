@@ -4,11 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -23,6 +25,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StationAlreadyExistsException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(StationAlreadyExistsException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+        Map<String, String> fields = ex.getBindingResult().getFieldErrors().stream()
+                .collect(Collectors.toMap(
+                        error -> error.getField(),
+                        error -> error.getDefaultMessage() == null ? "inválido" : error.getDefaultMessage(),
+                        (first, ignored) -> first
+                ));
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "status", HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                "error", "Datos inválidos.",
+                "fields", fields,
+                "timestamp", OffsetDateTime.now().toString()
+        ));
     }
 
     @ExceptionHandler(Exception.class)
