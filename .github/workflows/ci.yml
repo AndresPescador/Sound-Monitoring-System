@@ -328,10 +328,11 @@ jobs:
             esac
           done <<< "$changed_paths"
 
-          # Una ejecución manual es una operación de recuperación: debe alinear
-          # todos los servicios con el SHA validado, incluso si el diff asociado
-          # al evento no identifica correctamente los componentes afectados.
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+          # Una ejecución manual o una actualización ya instalada del entrypoint
+          # es una operación de recuperación: debe alinear todos los servicios
+          # con el SHA validado, incluso si el diff no identifica correctamente
+          # los componentes afectados.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" || "$requires_manual_vps_setup" == "true" ]]; then
             add_all_application_services
           fi
 

@@ -9,6 +9,8 @@ STATE_ROOT="$RELEASE_ROOT/.state"
 ENV_FILE="$APP_ROOT/docker/.env"
 PROJECT_NAME="docker"
 HEALTH_BASE_URL="http://127.0.0.1:8080"
+HEALTH_CHECK_ATTEMPTS=45
+HEALTH_CHECK_DELAY_SECONDS=2
 
 log() {
   printf '[sound-monitoring-deploy] %s\n' "$*" >&2
@@ -151,13 +153,13 @@ health_check() {
   local endpoints=(/health /auth/health /processing/health /ingest/health /dashboard/health /)
 
   for endpoint in "${endpoints[@]}"; do
-    for attempt in $(seq 1 15); do
+    for attempt in $(seq 1 "$HEALTH_CHECK_ATTEMPTS"); do
       if curl --fail --silent --show-error --max-time 15 \
         --output /dev/null "$HEALTH_BASE_URL$endpoint"; then
         break
       fi
-      [[ "$attempt" -eq 15 ]] && return 1
-      sleep 2
+      [[ "$attempt" -eq "$HEALTH_CHECK_ATTEMPTS" ]] && return 1
+      sleep "$HEALTH_CHECK_DELAY_SECONDS"
     done
   done
 }
