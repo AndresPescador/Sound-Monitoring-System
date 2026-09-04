@@ -21,21 +21,25 @@ class StationCodeAllocatorTest {
 
     @Test
     void formatsWithAtLeastTwoDigitsAndUsesOneAtomicStatement() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("CHAPINERO")))
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class),
+                eq("^ST-CHAPINERO-([0-9]+)$"), eq("^ST-CHAPINERO-([0-9]+)$"), eq("CHAPINERO")))
                 .thenReturn(4);
 
         String code = new StationCodeAllocator(jdbcTemplate).nextCode("CHAPINERO");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        verify(jdbcTemplate).queryForObject(sql.capture(), eq(Integer.class), eq("CHAPINERO"));
+        verify(jdbcTemplate).queryForObject(sql.capture(), eq(Integer.class),
+                eq("^ST-CHAPINERO-([0-9]+)$"), eq("^ST-CHAPINERO-([0-9]+)$"), eq("CHAPINERO"));
         assertEquals("ST-CHAPINERO-04", code);
         assertTrue(sql.getValue().contains("ON CONFLICT"));
         assertTrue(sql.getValue().contains("RETURNING last_number"));
+        assertTrue(sql.getValue().contains("registered_stations"));
     }
 
     @Test
     void keepsThreeDigitsAfterNinetyNine() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("SUBA")))
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class),
+                eq("^ST-SUBA-([0-9]+)$"), eq("^ST-SUBA-([0-9]+)$"), eq("SUBA")))
                 .thenReturn(100);
 
         assertEquals("ST-SUBA-100", new StationCodeAllocator(jdbcTemplate).nextCode("SUBA"));
