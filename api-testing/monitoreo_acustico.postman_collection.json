@@ -214,7 +214,32 @@
           }]
         },
         {
-          "name": "4. Obtener token JWT de estación",
+          "name": "4. Actualizar localidad y ubicación coordinadamente",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/auth/admin/stations/{{station_code}}",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Estación Chapinero - pruebas\",\n  \"locality\": \"Teusaquillo\",\n  \"description\": \"Metadatos actualizados coordinadamente\",\n  \"address\": \"Calle 53 # 13-40\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
+            },
+            "description": "Auth guarda la identidad y entrega el snapshot a Processing. Responde 200 si ambos servicios sincronizan de inmediato, o 202 si queda un reintento pendiente. station_code, secret y tokens no cambian."
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Actualización aceptada (200 o 202)', () => pm.expect(pm.response.code).to.be.oneOf([200, 202]));",
+                "pm.test('Código técnico conservado', () => pm.expect(pm.response.json().stationCode).to.eql(pm.collectionVariables.get('station_code')));"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "5. Obtener token JWT de estación",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/auth/token",

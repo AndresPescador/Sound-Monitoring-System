@@ -3,6 +3,8 @@ package com.monitoreo.auth.controller;
 import com.monitoreo.auth.dto.*;
 import com.monitoreo.auth.security.AdminTokenValidator;
 import com.monitoreo.auth.service.AdminAuthService;
+import com.monitoreo.auth.service.StationMetadataSyncService;
+import com.monitoreo.auth.entity.StationMetadataSync;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
     private final AdminTokenValidator tokenValidator;
+    private final StationMetadataSyncService metadataSyncService;
 
     // =========================================================================
     // AUTENTICACIÓN
@@ -214,5 +217,41 @@ public class AdminAuthController {
         String ip = tokenValidator.extractIp(request);
         adminAuthService.updateStationName(stationCode, body, username, ip);
         return ResponseEntity.ok(Map.of("message", "Nombre actualizado.", "stationCode", stationCode));
+    }
+
+    /** Actualización coordinada de identidad y ubicación hacia Processing. */
+    @PutMapping("/stations/{stationCode}")
+    public ResponseEntity<StationMetadataUpdateResponse> updateStationMetadata(
+            @PathVariable String stationCode,
+            @Valid @RequestBody UpdateStationMetadataRequest body,
+            HttpServletRequest request
+    ) {
+        String username = tokenValidator.requireAdmin(request);
+        StationMetadataSync operation = adminAuthService.updateStationMetadata(
+                stationCode, body, username, tokenValidator.extractIp(request));
+        boolean synchronizedNow = metadataSyncService.syncNow(operation.getId());
+        String status = synchronizedNow ? "COMPLETED" : "PENDING";
+        StationMetadataUpdateResponse response = new StationMetadataUpdateResponse(
+                stationCode, operation.getMetadataVersion(), status,
+                synchronizedNow ? "Cambios sincronizados correctamente."
+                        : "Cambios guardados; la sincronización con Processing está pendiente.");
+        return ResponseEntity.status(synchronizedNow ? HttpStatus.OK : HttpStatus.ACCEPTED).body(response);
+    }
+
+    @GetMapping("/stations/sync-status")
+    public ResponseEntity<List<StationSyncStatusResponse>> syncStatuses(HttpServletRequest request) {
+        tokenValidator.requireAdmin(request);
+        return ResponseEntity.ok(metadataSyncService.openStatuses());
+    }
+
+    @PostMapping("/stations/{stationCode}/sync/retry")
+    public ResponseEntity<StationMetadataUpdateResponse> retryStationSync(
+            @PathVariable String stationCode, HttpServletRequest request) {
+        tokenValidator.requireAdmin(request);
+        boolean synchronizedNow = metadataSyncService.retryStation(stationCode);
+        return ResponseEntity.status(synchronizedNow ? HttpStatus.OK : HttpStatus.ACCEPTED)
+                .body(new StationMetadataUpdateResponse(stationCode, 0,
+                        synchronizedNow ? "COMPLETED" : "PENDING",
+                        synchronizedNow ? "Sincronización completada." : "Sincronización reprogramada."));
     }
 }

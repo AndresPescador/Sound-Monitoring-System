@@ -1,11 +1,18 @@
 import { useState } from 'react'
-import { updateStation, updateStationNameAuth } from '../../api/admin'
+import { updateStationMetadata } from '../../api/admin'
 import { Field, Modal } from './ModalComponents'
 import StationLocationPicker from './StationLocationPicker'
+import { BOGOTA_LOCALITIES, localitySlug } from '../../constants/bogotaLocalities'
+
+const matchingBogotaLocality = locality => {
+  const slug = localitySlug(locality || '')
+  return slug ? BOGOTA_LOCALITIES.find(item => localitySlug(item.value) === slug) : undefined
+}
 
 export function EditStationModal({ station, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: station.name || '',
+    locality: station.locality || '',
     description: station.description || '',
     address: station.address || '',
     latitude: station.latitude ?? '',
@@ -36,11 +43,8 @@ export function EditStationModal({ station, onClose, onSaved }) {
         latitude: parseFloat(form.latitude),
         longitude: parseFloat(form.longitude),
       }
-      await Promise.all([
-        updateStationNameAuth(station.stationCode, form.name.trim()),
-        updateStation(station.stationCode, payload),
-      ])
-      onSaved()
+      const response = await updateStationMetadata(station.stationCode, payload)
+      onSaved(response.data)
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudieron sincronizar los cambios en ambos servicios. Inténtalo nuevamente.')
     } finally {
@@ -54,6 +58,29 @@ export function EditStationModal({ station, onClose, onSaved }) {
         <div className="admin-form-grid">
           <Field label="Nombre de la estación" name="name" value={form.name} onChange={handleChange} required maxLength={150} disabled={saving} />
           <Field label="Código de estación" name="stationCode" value={station.stationCode} readOnly disabled />
+          <div className="admin-field">
+            <label htmlFor="edit-station-locality">Localidad</label>
+            <input
+              id="edit-station-locality"
+              className="admin-input"
+              name="locality"
+              value={form.locality}
+              onChange={event => setForm(previous => ({
+                ...previous,
+                locality: matchingBogotaLocality(event.target.value)?.value || event.target.value,
+              }))}
+              list="edit-station-localities"
+              required
+              maxLength={100}
+              disabled={saving}
+              placeholder="Ej. Fontibón"
+            />
+            <datalist id="edit-station-localities">
+              {BOGOTA_LOCALITIES.map(item => <option key={item.value} value={item.value} />)}
+            </datalist>
+            <p className="admin-field__hint">Cambiarla no modifica el código técnico de la estación.</p>
+          </div>
+          <div aria-hidden="true" />
           <div className="admin-field--wide">
             <StationLocationPicker latitude={form.latitude} longitude={form.longitude} onPick={handleMapPick} />
           </div>

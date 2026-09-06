@@ -5,6 +5,7 @@ import com.monitoreo.auth.config.JwtConfig;
 import com.monitoreo.auth.dto.RegisterStationRequest;
 import com.monitoreo.auth.dto.RegisterStationResponse;
 import com.monitoreo.auth.dto.UpdateStationNameRequest;
+import com.monitoreo.auth.dto.UpdateStationMetadataRequest;
 import com.monitoreo.auth.dto.AdminLoginResponse;
 import com.monitoreo.auth.dto.AdminLoginRequest;
 import com.monitoreo.auth.dto.AdminChangePasswordRequest;
@@ -14,6 +15,8 @@ import com.monitoreo.auth.repository.AdminUserRepository;
 import com.monitoreo.auth.repository.ApiTokenRepository;
 import com.monitoreo.auth.repository.AuthAuditLogRepository;
 import com.monitoreo.auth.repository.RegisteredStationRepository;
+import com.monitoreo.auth.repository.StationMetadataSyncRepository;
+import com.monitoreo.auth.entity.StationMetadataSync;
 import io.jsonwebtoken.Claims;
 import com.monitoreo.auth.exception.InvalidCredentialsException;
 import org.junit.jupiter.api.Test;
@@ -46,6 +49,7 @@ class AdminAuthServiceTest {
     @Mock private JwtConfig jwtConfig;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private StationCodeAllocator stationCodeAllocator;
+    @Mock private StationMetadataSyncRepository metadataSyncRepository;
     @Mock private Claims claims;
 
     @InjectMocks private AdminAuthService service;
@@ -189,6 +193,31 @@ class AdminAuthServiceTest {
         assertEquals("Estación Chía", station.getName());
         assertEquals("original-hash", station.getSecretHash());
         verify(stationRepository).save(station);
+        verify(auditLogRepository).save(any(com.monitoreo.auth.entity.AuthAuditLog.class));
+    }
+
+    @Test
+    void createsVersionedOutboxWhenUpdatingStationMetadata() throws Exception {
+        RegisteredStation station = registeredStation();
+        station.setName("Estación anterior");
+        station.setLocality("Chapinero");
+        station.setMetadataVersion(3);
+        AdminUser admin = admin("admin");
+        UpdateStationMetadataRequest request = new ObjectMapper().readValue("""
+                {"name":" Estación nueva ","locality":" Teusaquillo ","description":"Punto",
+                 "address":"Calle 1","latitude":4.65,"longitude":-74.06}
+                """, UpdateStationMetadataRequest.class);
+        when(stationRepository.findByStationCode("ST-TEST-01")).thenReturn(Optional.of(station));
+        when(adminUserRepository.findByUsernameAndActiveTrue("admin")).thenReturn(Optional.of(admin));
+
+        StationMetadataSync operation = service.updateStationMetadata(
+                "ST-TEST-01", request, "admin", "198.51.100.10");
+
+        assertEquals(4, station.getMetadataVersion());
+        assertEquals("Teusaquillo", station.getLocality());
+        assertEquals("Estación nueva", operation.getName());
+        assertEquals("PENDING", operation.getStatus());
+        verify(metadataSyncRepository).save(operation);
         verify(auditLogRepository).save(any(com.monitoreo.auth.entity.AuthAuditLog.class));
     }
 

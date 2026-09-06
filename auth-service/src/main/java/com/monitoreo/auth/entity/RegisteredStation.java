@@ -29,6 +29,10 @@ public class RegisteredStation {
     @Column(name = "locality", nullable = false, length = 100)
     private String locality;
 
+    /** Versión que ordena las actualizaciones de metadatos enviadas a Processing. */
+    @Column(name = "metadata_version", nullable = false)
+    private long metadataVersion = 0;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

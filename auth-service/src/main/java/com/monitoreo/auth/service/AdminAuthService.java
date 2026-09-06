@@ -5,6 +5,7 @@ import com.monitoreo.auth.dto.*;
 import com.monitoreo.auth.entity.AdminUser;
 import com.monitoreo.auth.entity.AuthAuditLog;
 import com.monitoreo.auth.entity.RegisteredStation;
+import com.monitoreo.auth.entity.StationMetadataSync;
 import com.monitoreo.auth.exception.AdminNotFoundException;
 import com.monitoreo.auth.exception.InvalidCredentialsException;
 import com.monitoreo.auth.exception.StationNotFoundException;
@@ -13,6 +14,7 @@ import com.monitoreo.auth.repository.AdminUserRepository;
 import com.monitoreo.auth.repository.ApiTokenRepository;
 import com.monitoreo.auth.repository.AuthAuditLogRepository;
 import com.monitoreo.auth.repository.RegisteredStationRepository;
+import com.monitoreo.auth.repository.StationMetadataSyncRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +41,8 @@ public class AdminAuthService {
     private final JwtConfig jwtConfig;
     private final PasswordEncoder passwordEncoder;
     private final StationCodeAllocator stationCodeAllocator;
+    private final StationMetadataSyncRepository metadataSyncRepository;
+    private static final List<String> OPEN_SYNC_STATUSES = List.of("PENDING", "RETRYING", "FAILED");
 
     // =========================================================================
     // AUTENTICACIÓN DE ADMINISTRADORES
@@ -344,6 +348,52 @@ public class AdminAuthService {
                 station, admin, "STATION_UPDATED", true, "Nombre actualizado", ipAddress
         ));
         log.info("Nombre actualizado para estación '{}' por admin '{}'", stationCode, adminUsername);
+    }
+
+    /**
+     * Actualiza la identidad local y deja, dentro de la misma transacción, el
+     * snapshot que debe aplicarse en noise_analytics. La entrega HTTP ocurre
+     * después del commit por medio de StationMetadataSyncService.
+     */
+    @Transactional
+    public StationMetadataSync updateStationMetadata(String stationCode,
+                                                       UpdateStationMetadataRequest request,
+                                                       String adminUsername, String ipAddress) {
+        RegisteredStation station = stationRepository.findByStationCode(stationCode)
+                .orElseThrow(() -> new StationNotFoundException(stationCode));
+        AdminUser admin = adminUserRepository.findByUsernameAndActiveTrue(adminUsername)
+                .orElseThrow(() -> new AdminNotFoundException(adminUsername));
+
+        String oldLocality = station.getLocality();
+        String locality = LocalitySlug.displayName(request.getLocality());
+        long version = station.getMetadataVersion() + 1;
+        station.setName(request.getName().trim());
+        station.setLocality(locality);
+        station.setMetadataVersion(version);
+        stationRepository.save(station);
+
+        // Un snapshot nuevo vuelve irrelevante cualquier reintento anterior.
+        // Processing también rechaza versiones antiguas como segunda barrera.
+        metadataSyncRepository.findByStationCodeAndStatusIn(stationCode, OPEN_SYNC_STATUSES)
+                .forEach(previous -> previous.setStatus("SUPERSEDED"));
+
+        StationMetadataSync operation = new StationMetadataSync();
+        operation.setStationCode(stationCode);
+        operation.setMetadataVersion(version);
+        operation.setName(station.getName());
+        operation.setLocality(locality);
+        operation.setDescription(request.getDescription());
+        operation.setAddress(request.getAddress());
+        operation.setLatitude(request.getLatitude());
+        operation.setLongitude(request.getLongitude());
+        metadataSyncRepository.save(operation);
+
+        auditLogRepository.save(buildAuditLog(station, admin, "STATION_UPDATED", true,
+                "Metadatos actualizados. Localidad: " + oldLocality + " -> " + locality,
+                ipAddress));
+        log.info("Metadatos de estación '{}' actualizados por admin '{}' (versión {})",
+                stationCode, adminUsername, version);
+        return operation;
     }
 
     // =========================================================================

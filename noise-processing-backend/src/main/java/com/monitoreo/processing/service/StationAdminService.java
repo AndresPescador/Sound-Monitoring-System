@@ -78,6 +78,29 @@ public class StationAdminService {
         return new StationAdminResponse(station);
     }
 
+    /** Aplica un snapshot de Auth únicamente si no es más antiguo que el actual. */
+    @Transactional
+    public void synchronizeMetadata(String stationCode, InternalStationMetadataSyncRequest request) {
+        Station station = stationRepository.findByStationCode(stationCode)
+                .orElseThrow(() -> new StationNotFoundException(stationCode));
+        long incomingVersion = request.getMetadataVersion();
+        if (incomingVersion < station.getMetadataVersion()) {
+            log.info("Se descartó versión antigua {} para estación {}", incomingVersion, stationCode);
+            return;
+        }
+        if (incomingVersion == station.getMetadataVersion()) return;
+
+        station.setName(request.getName().trim());
+        station.setLocality(request.getLocality().trim());
+        station.setDescription(request.getDescription());
+        station.setAddress(request.getAddress());
+        station.setLatitude(request.getLatitude());
+        station.setLongitude(request.getLongitude());
+        station.setMetadataVersion(incomingVersion);
+        stationRepository.save(station);
+        log.info("Metadatos sincronizados para estación {} (versión {})", stationCode, incomingVersion);
+    }
+
     @Transactional
     public StationAdminResponse changeStatus(String stationCode, boolean active) {
         Station station = stationRepository.findByStationCode(stationCode)

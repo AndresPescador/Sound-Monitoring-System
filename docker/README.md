@@ -218,6 +218,13 @@ antes de habilitar localidades libres, aplica también
 número existente por localidad, incluidas las personalizadas, por lo que no se
 reutilizan códigos como `01` o `03` y el siguiente será `04`.
 
+Para habilitar la edición coordinada de localidad y ubicación, aplica también
+`sql/V8__station_metadata_sync_auth.sql` en `station_registry` y
+`sql/V9__station_metadata_version_noise.sql` en `noise_analytics`, siempre con
+el usuario propietario de cada base. Configure además
+`STATION_METADATA_SYNC_TOKEN` con un valor aleatorio diferente de los JWT antes
+de reconstruir Auth y Noise Processing.
+
 ### Paso 3 — Configurar la Raspberry Pi
 
 En la Raspberry Pi ejecuta el instalador de

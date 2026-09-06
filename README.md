@@ -205,6 +205,7 @@ Gestionada exclusivamente por el Auth Service.
 | `auth_audit_log` | Registro inmutable de todos los eventos de autenticacion |
 | `admin_users` | Administradores humanos y versión de credenciales |
 | `station_code_counters` | Consecutivos atómicos por localidad |
+| `station_metadata_sync` | Outbox de sincronización durable de metadatos hacia Processing |
 
 Schema: [schema_station_registry.sql](schema_station_registry.sql)
 

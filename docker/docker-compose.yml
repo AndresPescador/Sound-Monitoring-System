@@ -163,6 +163,8 @@ services:
       TRUSTED_PROXY_CIDRS:       ${AUTH_GATEWAY_SUBNET:-172.28.10.0/24}
       AUTH_TOKEN_RATE_LIMIT:     ${AUTH_TOKEN_RATE_LIMIT:-30}
       ADMIN_LOGIN_RATE_LIMIT:    ${ADMIN_LOGIN_RATE_LIMIT:-10}
+      PROCESSING_METADATA_SYNC_URL: http://noise-processing:8082/internal/stations/%s/metadata
+      STATION_METADATA_SYNC_TOKEN: ${STATION_METADATA_SYNC_TOKEN}
       PORT:                      8081
       SPRINGDOC_SWAGGER_UI_ENABLED: "false"
       SPRINGDOC_API_DOCS_ENABLED:   "false"
@@ -203,6 +205,7 @@ services:
       DB_PASSWORD:              ${NOISE_PROCESSOR_DB_PASSWORD}
       PORT:                     8082
       AUTH_ADMIN_VALIDATE_URL:  http://auth-service:8081/admin/validate
+      STATION_METADATA_SYNC_TOKEN: ${STATION_METADATA_SYNC_TOKEN}
       SPRINGDOC_SWAGGER_UI_ENABLED: "false"
       SPRINGDOC_API_DOCS_ENABLED:   "false"
       MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health"

@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS stations (
 
     -- Ubicación geográfica
     locality        VARCHAR(100)    NOT NULL,   -- Localidad de Bogotá
+    metadata_version BIGINT          NOT NULL DEFAULT 0,
     address         VARCHAR(255),
     latitude        DOUBLE PRECISION NOT NULL,
     longitude       DOUBLE PRECISION NOT NULL,

@@ -42,6 +42,15 @@ export const changeStationStatusAuth = (stationCode, active) =>
 export const updateStationNameAuth = (stationCode, name) =>
   adminClient.put(`/auth/admin/stations/${stationCode}/name`, { name })
 
+export const updateStationMetadata = (stationCode, data) =>
+  adminClient.put(`/auth/admin/stations/${stationCode}`, data)
+
+export const getStationSyncStatuses = () =>
+  adminClient.get('/auth/admin/stations/sync-status')
+
+export const retryStationSync = (stationCode) =>
+  adminClient.post(`/auth/admin/stations/${stationCode}/sync/retry`)
+
 // Revoca tokens sin cambiar el secret
 export const revokeStationTokens = (stationCode) =>
   adminClient.delete(`/auth/admin/stations/${stationCode}/token`)
@@ -59,9 +68,6 @@ export const getStationAdmin = (stationCode) =>
 // Registra la estación en Noise Processing con el nombre recibido de Auth (llamar DESPUÉS de registerStationAuth)
 export const registerStationProcessing = (data) =>
   adminClient.post('/processing/admin/stations', data)
-
-export const updateStation = (stationCode, data) =>
-  adminClient.put(`/processing/admin/stations/${stationCode}`, data)
 
 // Cambia el estado en Noise Processing (sincronizar con Auth)
 export const changeStationStatusProcessing = (stationCode, active) =>

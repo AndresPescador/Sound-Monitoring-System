@@ -5,6 +5,7 @@ import com.monitoreo.processing.dto.RegisterStationRequest;
 import com.monitoreo.processing.dto.RegisterStationResponse;
 import com.monitoreo.processing.dto.StationAdminResponse;
 import com.monitoreo.processing.dto.UpdateStationRequest;
+import com.monitoreo.processing.dto.InternalStationMetadataSyncRequest;
 import com.monitoreo.processing.entity.Station;
 import com.monitoreo.processing.exception.StationAlreadyExistsException;
 import com.monitoreo.processing.exception.StationNotFoundException;
@@ -76,6 +77,33 @@ class StationAdminServiceTest {
         assertEquals("Nombre actualizado", station.getName());
         assertEquals("Nombre actualizado", response.getName());
         assertEquals("Usaquén", response.getLocality());
+    }
+
+    @Test
+    void appliesNewerInternalMetadataAndIgnoresOlderVersions() throws Exception {
+        Station station = new Station();
+        station.setStationCode("ST-EXISTENTE-01");
+        station.setName("Nombre histórico");
+        station.setLocality("Usaquén");
+        station.setLatitude(4.70);
+        station.setLongitude(-74.03);
+        station.setMetadataVersion(2);
+        InternalStationMetadataSyncRequest request = new ObjectMapper().readValue("""
+                {"metadataVersion":3,"name":"Nombre nuevo","locality":"Chapinero",
+                 "description":"Actualizada","address":"Calle 1","latitude":4.66,"longitude":-74.07}
+                """, InternalStationMetadataSyncRequest.class);
+        when(stationRepository.findByStationCode("ST-EXISTENTE-01")).thenReturn(Optional.of(station));
+
+        service.synchronizeMetadata("ST-EXISTENTE-01", request);
+        assertEquals(3, station.getMetadataVersion());
+        assertEquals("Chapinero", station.getLocality());
+
+        InternalStationMetadataSyncRequest stale = new ObjectMapper().readValue("""
+                {"metadataVersion":2,"name":"No aplicar","locality":"Suba",
+                 "latitude":4.66,"longitude":-74.07}
+                """, InternalStationMetadataSyncRequest.class);
+        service.synchronizeMetadata("ST-EXISTENTE-01", stale);
+        assertEquals("Chapinero", station.getLocality());
     }
 
     @Test

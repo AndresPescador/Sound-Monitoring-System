@@ -31,6 +31,10 @@ public class Station {
     @Column(name = "locality", nullable = false, length = 100)
     private String locality;
 
+    /** Última versión de metadatos aceptada desde Auth. */
+    @Column(name = "metadata_version", nullable = false)
+    private long metadataVersion = 0;
+
     @Column(name = "address", length = 255)
     private String address;
 

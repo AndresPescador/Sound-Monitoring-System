@@ -7,6 +7,7 @@ import com.monitoreo.auth.dto.RegisterStationRequest;
 import com.monitoreo.auth.dto.RegisterStationResponse;
 import com.monitoreo.auth.security.AdminTokenValidator;
 import com.monitoreo.auth.service.AdminAuthService;
+import com.monitoreo.auth.service.StationMetadataSyncService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -24,7 +25,9 @@ class AdminAuthControllerTest {
 
     private final AdminAuthService adminAuthService = mock(AdminAuthService.class);
     private final AdminTokenValidator tokenValidator = mock(AdminTokenValidator.class);
-    private final AdminAuthController controller = new AdminAuthController(adminAuthService, tokenValidator);
+    private final StationMetadataSyncService metadataSyncService = mock(StationMetadataSyncService.class);
+    private final AdminAuthController controller = new AdminAuthController(
+            adminAuthService, tokenValidator, metadataSyncService);
     private final HttpServletRequest request = new MockHttpServletRequest();
 
     @Test

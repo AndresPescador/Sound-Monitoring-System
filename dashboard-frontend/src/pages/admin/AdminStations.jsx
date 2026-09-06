@@ -9,6 +9,8 @@ import {
   changeStationStatusProcessing,
   deleteStationProcessing,
   rotateStationSecret,
+  getStationSyncStatuses,
+  retryStationSync,
 } from '../../api/admin'
 
 const formatDateTime = (value) => {
@@ -39,12 +41,18 @@ export default function AdminStations() {
   const [editStation, setEditStation] = useState(null)
   const [deletingCode, setDeletingCode] = useState('')
   const [actionLoading, setActionLoading] = useState('')
+  const [syncNotice, setSyncNotice] = useState('')
 
   const fetchStations = useCallback(async () => {
     setError('')
     try {
-      const response = await listStationsAdmin()
-      setStations(response.data)
+      const [response, syncResponse] = await Promise.all([listStationsAdmin(), getStationSyncStatuses()])
+      const statuses = new Map()
+      // La API ordena primero la operación más reciente; conserva esa versión.
+      syncResponse.data.forEach(item => {
+        if (!statuses.has(item.stationCode)) statuses.set(item.stationCode, item)
+      })
+      setStations(response.data.map(station => ({ ...station, sync: statuses.get(station.stationCode) })))
     } catch {
       setError('No se pudieron cargar las estaciones. Revisa la conexión e inténtalo de nuevo.')
     } finally {
@@ -86,6 +94,19 @@ export default function AdminStations() {
       setSecretData(response.data)
     } catch {
       setError('No se pudo rotar el secret. Inténtalo nuevamente.')
+    } finally {
+      setActionLoading('')
+    }
+  }
+
+  const handleRetrySync = async (stationCode) => {
+    setActionLoading(stationCode)
+    try {
+      const response = await retryStationSync(stationCode)
+      setSyncNotice(response.data.message)
+      fetchStations()
+    } catch {
+      setError('No se pudo reintentar la sincronización. Inténtalo nuevamente.')
     } finally {
       setActionLoading('')
     }
@@ -161,6 +182,12 @@ export default function AdminStations() {
             </button>
           </div>
         )}
+        {syncNotice && (
+          <div className="admin-alert" role="status">
+            <span>{syncNotice}</span>
+            <button type="button" onClick={() => setSyncNotice('')} className="admin-alert__dismiss">Cerrar</button>
+          </div>
+        )}
 
         <section className="admin-panel" aria-labelledby="station-list-title">
           <div className="admin-panel__header">
@@ -210,6 +237,11 @@ export default function AdminStations() {
                         <span className="admin-station-row__coords">{latitude}, {longitude}</span>
                         <span>{lastSeen ? `Última señal: ${lastSeen}` : 'Sin señal registrada'}</span>
                       </p>
+                      {station.sync && (
+                        <p className="admin-station-row__meta" role="status">
+                          Sincronización pendiente ({station.sync.attempts} intento{station.sync.attempts === 1 ? '' : 's'}).
+                        </p>
+                      )}
                     </div>
 
                     <div className="admin-station-row__actions" aria-label={`Acciones para ${station.name}`}>
@@ -221,6 +253,16 @@ export default function AdminStations() {
                       >
                         Editar
                       </button>
+                      {station.sync && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetrySync(station.stationCode)}
+                          disabled={isBusy}
+                          className="admin-button admin-button--quiet"
+                        >
+                          {isBusy ? 'Actualizando…' : 'Reintentar sincronización'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleToggleStatus(station)}
@@ -299,8 +341,9 @@ export default function AdminStations() {
         <EditStationModal
           station={editStation}
           onClose={() => setEditStation(null)}
-          onSaved={() => {
+          onSaved={(result) => {
             setEditStation(null)
+            if (result?.syncStatus === 'PENDING') setSyncNotice(result.message)
             setLoading(true)
             fetchStations()
           }}

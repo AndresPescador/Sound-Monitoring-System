@@ -80,17 +80,20 @@ public class StationAdminController {
 
     /**
      * PUT /admin/stations/{stationCode}
-     * Actualiza nombre, descripción, dirección y coordenadas.
-     * El station_code y la localidad no son modificables.
+     * Endpoint legado. Las modificaciones coordinadas se realizan mediante
+     * PUT /auth/admin/stations/{stationCode}; no debe ser usado por el panel.
      */
     @PutMapping("/{stationCode}")
-    public ResponseEntity<StationAdminResponse> updateStation(
+    @Deprecated(forRemoval = false)
+    public ResponseEntity<Map<String, String>> updateStation(
             @PathVariable String stationCode,
             @Valid @RequestBody UpdateStationRequest body,
             HttpServletRequest request
     ) {
         tokenValidator.requireAdmin(request);
-        return ResponseEntity.ok(stationAdminService.updateStation(stationCode, body));
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+                "error", "Use PUT /auth/admin/stations/{stationCode} para actualizar datos coordinados."
+        ));
     }
 
     /**
