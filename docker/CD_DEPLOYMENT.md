@@ -73,8 +73,11 @@ Se reconstruyen solo los servicios afectados:
   `nginx`.
 - Cambios en tests, documentación, `.github` y `send_metrics` no reinician la
   VPS.
-- Cambios en `schema_*.sql` o `sql/` bloquean el CD y requieren aplicar la
-  migración versionada manualmente antes de reintentar.
+- Los pushes que cambian `schema_*.sql` o `sql/` bloquean el CD. Después de
+  aplicar la migración versionada manualmente, usa **Actions → CI → Run
+  workflow**, selecciona `main` y marca `migrations_applied`. Esa confirmación
+  solo desbloquea el despliegue manual; no ejecuta SQL y no desactiva la
+  protección automática en futuros pushes.
 - Si cambia `docker/deploy/sound-monitoring-deploy`, el CD compara la huella
   del entrypoint instalado con la release y se bloquea hasta que un
   administrador lo reinstale manualmente con `bootstrap-vps.sh`.

@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      migrations_applied:
+        description: 'Confirma que las migraciones versionadas de este commit ya se aplicaron en producción'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -260,6 +266,7 @@ jobs:
           BASE_SHA: ${{ github.event.before }}
           COMMIT_SHA: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
+          MIGRATIONS_APPLIED: ${{ github.event.inputs.migrations_applied || 'false' }}
         run: |
           set -euo pipefail
 
@@ -327,6 +334,14 @@ jobs:
                 ;;
             esac
           done <<< "$changed_paths"
+
+          # Los pushes nunca omiten la protección de esquema. Una ejecución
+          # manual puede continuar únicamente si un operador confirma que las
+          # migraciones versionadas de este SHA ya se aplicaron en producción.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$database_change" == "true" && "$MIGRATIONS_APPLIED" == "true" ]]; then
+            echo "Confirmación manual recibida: las migraciones ya fueron aplicadas."
+            database_change=false
+          fi
 
           # Una ejecución manual o una actualización ya instalada del entrypoint
           # es una operación de recuperación: debe alinear todos los servicios
