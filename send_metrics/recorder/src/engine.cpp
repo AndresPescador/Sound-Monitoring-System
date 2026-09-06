@@ -39,7 +39,54 @@ std::string alsa_error(const std::string& action, int error) {
 
 std::string json_escape(const std::string& value) {
     std::ostringstream output;
-    for (const unsigned char character : value) {
+    const auto replacement = [&output] {
+        output << "\xEF\xBF\xBD";
+    };
+    for (std::size_t index = 0; index < value.size();) {
+        const auto character = static_cast<unsigned char>(value[index]);
+        if (character >= 0x80) {
+            std::size_t length = 0;
+            if (character >= 0xC2 && character <= 0xDF) {
+                length = 2;
+            } else if (character >= 0xE0 && character <= 0xEF) {
+                length = 3;
+            } else if (character >= 0xF0 && character <= 0xF4) {
+                length = 4;
+            }
+
+            bool valid = length != 0 && index + length <= value.size();
+            if (valid) {
+                const auto continuation = [&value](std::size_t offset) {
+                    const auto byte = static_cast<unsigned char>(value[offset]);
+                    return byte >= 0x80 && byte <= 0xBF;
+                };
+                for (std::size_t offset = 1; offset < length; ++offset) {
+                    if (!continuation(index + offset)) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (valid && length == 3) {
+                    const auto second = static_cast<unsigned char>(value[index + 1]);
+                    valid = !(character == 0xE0 && second < 0xA0)
+                        && !(character == 0xED && second >= 0xA0);
+                } else if (valid && length == 4) {
+                    const auto second = static_cast<unsigned char>(value[index + 1]);
+                    valid = !(character == 0xF0 && second < 0x90)
+                        && !(character == 0xF4 && second >= 0x90);
+                }
+            }
+
+            if (!valid) {
+                replacement();
+                ++index;
+                continue;
+            }
+            output.write(value.data() + index, static_cast<std::streamsize>(length));
+            index += length;
+            continue;
+        }
+
         switch (character) {
             case '"': output << "\\\""; break;
             case '\\': output << "\\\\"; break;
@@ -49,13 +96,14 @@ std::string json_escape(const std::string& value) {
             case '\r': output << "\\r"; break;
             case '\t': output << "\\t"; break;
             default:
-                if (character < 0x20) {
+                if (character < 0x20 || character == 0x7F) {
                     output << "\\u" << std::hex << std::setw(4) << std::setfill('0')
                            << static_cast<int>(character) << std::dec << std::setfill(' ');
                 } else {
                     output << character;
                 }
         }
+        ++index;
     }
     return output.str();
 }

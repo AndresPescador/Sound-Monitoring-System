@@ -54,11 +54,15 @@ int main() {
 
     recorder::RecorderStatus status;
     status.state = recorder::RecorderState::recording;
-    status.device = "hw:1,0";
+    status.device = std::string("hw:1,0 ") + "\xC3\x28\xF0\x80\x80\x80\x1B";
     status.frames_in_segment = 44100;
     const auto json = recorder::status_to_json(status);
     assert(json.find("\"state\": \"recording\"") != std::string::npos);
     assert(json.find("\"frames_in_segment\": 44100") != std::string::npos);
+    assert(json.find("\xEF\xBF\xBD") != std::string::npos);
+    assert(json.find("\\u001b") != std::string::npos);
+    assert(json.find("\xC3\x28") == std::string::npos);
+    assert(json.find("\xF0\x80\x80\x80") == std::string::npos);
 
     std::filesystem::remove_all(root);
     std::cout << "Recorder contract tests passed\n";

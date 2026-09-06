@@ -177,6 +177,31 @@ class StationConfigTests(unittest.TestCase):
         )
         self.assertEqual(len(commands), 3)
 
+    def test_audio_device_label_removes_terminal_controls_but_keeps_literal_markup(self):
+        device = {
+            "device": "hw:1,0",
+            "description": "Micrófono [USB]\n\x1b[31mfrontal\x1b[0m 🎙",
+            "connection": "USB",
+            "backend": "ALSA",
+        }
+
+        label = audio_device_label(device)
+
+        self.assertEqual(label, "Micrófono [USB] frontal 🎙 — USB [hw:1,0]")
+        self.assertNotIn("\x1b", label)
+        self.assertNotIn("\n", label)
+
+    def test_audio_device_listing_replaces_invalid_utf8_from_recorder(self):
+        def runner(command, **_kwargs):
+            self.assertEqual(command[0], "continuous-recorder")
+            return Completed(stdout=b'[{"device":"hw:1,0","description":"Mic\xc3("}]')
+
+        with patch("station_control.shutil.which", return_value=None):
+            devices = list_audio_devices(runner=runner)
+
+        self.assertEqual(devices[0]["description"], "Mic�(")
+        self.assertNotIn("\xC3", devices[0]["description"])
+
     def test_audio_device_metadata_failure_keeps_alsa_fallback(self):
         def runner(command, **_kwargs):
             if command[0] == "continuous-recorder":

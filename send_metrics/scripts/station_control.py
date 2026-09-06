@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import unicodedata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
@@ -27,6 +28,35 @@ SERVICES = (
 SERVICE_ACTIONS = {"start", "stop", "restart"}
 SYSTEMCTL = shutil.which("systemctl") or "/usr/bin/systemctl"
 SUDO = shutil.which("sudo") or "/usr/bin/sudo"
+_ANSI_ESCAPE_RE = re.compile(
+    r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))"
+)
+
+
+def sanitize_audio_text(value: object) -> str:
+    """Return one safe, literal line for audio-device UI metadata.
+
+    ALSA and PulseAudio descriptions are external metadata. They may contain
+    terminal controls, line breaks, or Rich markup characters. Keep printable
+    Unicode (including accents and emoji), but never let that metadata control
+    the terminal or the layout of a Textual widget.
+    """
+    text = _ANSI_ESCAPE_RE.sub("", str(value))
+    visible = "".join(
+        " "
+        if character.isspace()
+        else character
+        for character in text
+        if character.isspace() or not unicodedata.category(character).startswith("C")
+    )
+    return " ".join(visible.split())
+
+
+def _subprocess_text(value: object) -> str:
+    """Decode command output without inheriting a Raspberry's locale."""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value or "")
 
 
 def service_state(service: str, runner: Callable[..., Any] = subprocess.run) -> str:
@@ -102,12 +132,15 @@ def list_audio_devices(
         [binary, "devices", "--json"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=10,
         check=False,
     )
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "No se pudieron consultar dispositivos ALSA.")
-    value = json.loads(result.stdout)
+        stderr = _subprocess_text(result.stderr).strip()
+        raise RuntimeError(stderr or "No se pudieron consultar dispositivos ALSA.")
+    value = json.loads(_subprocess_text(result.stdout))
     if not isinstance(value, list):
         raise RuntimeError("La respuesta de dispositivos ALSA no es válida.")
     devices = [
@@ -136,17 +169,26 @@ def list_audio_devices(
 
 def audio_device_label(device: dict[str, str]) -> str:
     """Etiqueta humana sin perder el identificador que consume ALSA."""
-    display_name = device.get("display_name") or device.get("description") or device["device"]
-    display_name = " ".join(display_name.split())
-    connection = device.get("connection", "ALSA")
+    raw_identifier = str(device.get("device", ""))
+    display_name = (
+        device.get("display_name")
+        or device.get("description")
+        or raw_identifier
+    )
+    display_name = sanitize_audio_text(display_name) or sanitize_audio_text(raw_identifier) or "Dispositivo ALSA"
+    connection = sanitize_audio_text(device.get("connection", "ALSA")) or "ALSA"
     default_suffix = " · predeterminado" if device.get("is_default") == "true" else ""
-    return f"{display_name} — {connection}{default_suffix} [{device['device']}]"
+    identifier = sanitize_audio_text(raw_identifier) or "sin identificador"
+    return f"{display_name} — {connection}{default_suffix} [{identifier}]"
 
 
 def audio_device_details(device: dict[str, str]) -> str:
+    identifier = sanitize_audio_text(device.get("device", "")) or "sin identificador"
+    connection = sanitize_audio_text(device.get("connection", "ALSA")) or "ALSA"
+    backend = sanitize_audio_text(device.get("backend", "ALSA")) or "ALSA"
     return (
-        f"Conexión: {device.get('connection', 'ALSA')} · "
-        f"Backend: {device.get('backend', 'ALSA')} · Identificador: {device['device']}"
+        f"Conexión: {connection} · "
+        f"Backend: {backend} · Identificador: {identifier}"
     )
 
 
@@ -162,19 +204,24 @@ def _default_pulse_source(
             [pactl, "get-default-source"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=4,
             check=False,
         )
-        default_name = default_result.stdout.strip() if default_result.returncode == 0 else ""
+        default_stdout = _subprocess_text(default_result.stdout)
+        default_name = default_stdout.strip() if default_result.returncode == 0 else ""
         if not default_name:
             info_result = runner(
                 [pactl, "info"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=4,
                 check=False,
             )
-            for line in info_result.stdout.splitlines():
+            for line in _subprocess_text(info_result.stdout).splitlines():
                 if line.lower().startswith("default source:"):
                     default_name = line.split(":", 1)[1].strip()
                     break
@@ -182,12 +229,14 @@ def _default_pulse_source(
             [pactl, "--format=json", "list", "sources"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
             check=False,
         )
         if sources_result.returncode != 0:
             return None
-        sources = json.loads(sources_result.stdout)
+        sources = json.loads(_subprocess_text(sources_result.stdout))
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
         return None
     if not isinstance(sources, list):

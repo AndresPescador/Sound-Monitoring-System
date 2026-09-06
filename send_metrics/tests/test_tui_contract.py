@@ -132,6 +132,43 @@ class TuiContractTests(unittest.IsolatedAsyncioTestCase):
                     self.assertIn("Bluetooth", details)
                     self.assertIn("PulseAudio/PipeWire", details)
 
+    async def test_audio_selector_treats_unsafe_alsa_metadata_as_literal_text(self):
+        from rich.text import Text
+        from textual.widgets import Select
+        from tui.app import ConfigurationScreen, SoundMonitorApp
+
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "station.toml"
+            config_path.write_text("# configuración inicial vacía\n", encoding="utf-8")
+            device = {
+                "device": "hw:1,0",
+                "description": "Micrófono [USB]\n\x1b[31mfrontal\x1b[0m 🎙",
+            }
+            with (
+                patch.object(SoundMonitorApp, "_collect_status", lambda _self: None),
+                patch("tui.app.list_audio_devices", return_value=[device]),
+            ):
+                app = SoundMonitorApp(config_path)
+                async with app.run_test(size=(120, 40)) as pilot:
+                    await pilot.pause()
+                    screen = app.screen
+                    self.assertIsInstance(screen, ConfigurationScreen)
+                    select = screen.query_one("#device", Select)
+                    option_prompt = select._options[1][0]
+                    self.assertIsInstance(option_prompt, Text)
+                    self.assertIn("[USB]", option_prompt.plain)
+                    self.assertNotIn("\x1b", option_prompt.plain)
+
+                    select.focus()
+                    await pilot.press("enter")
+                    await pilot.pause()
+                    self.assertIs(app.screen, screen)
+                    self.assertTrue(select.expanded)
+                    await pilot.press("down")
+                    await pilot.press("enter")
+                    await pilot.pause()
+                    self.assertEqual(select.value, "hw:1,0")
+
 
 if __name__ == "__main__":
     unittest.main()

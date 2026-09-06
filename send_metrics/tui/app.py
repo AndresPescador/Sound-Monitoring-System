@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
+from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
@@ -52,6 +53,7 @@ from station_control import (  # noqa: E402
     queue_summary,
     reactivate_exhausted,
     read_recent_events,
+    sanitize_audio_text,
     service_state,
     service_states,
     validate_recorder_config,
@@ -177,13 +179,13 @@ class ConfigurationScreen(Screen[Optional[set[str]]]):
                 classes="hint",
             )
             device_options = [
-                (audio_device_label(item), item["device"])
+                (Text(audio_device_label(item)), item["device"])
                 for item in self.devices
             ]
             if self.config.device and self.config.device not in {value for _, value in device_options}:
-                device_options.insert(0, (self.config.device, self.config.device))
+                device_options.insert(0, (Text(sanitize_audio_text(self.config.device)), self.config.device))
             if not device_options:
-                device_options = [("No se detectaron dispositivos; use la entrada manual", "")]
+                device_options = [(Text("No se detectaron dispositivos; use la entrada manual"), "")]
             yield Label("Dispositivo ALSA")
             if self.config.device:
                 yield Select(
@@ -202,9 +204,9 @@ class ConfigurationScreen(Screen[Optional[set[str]]]):
                 None,
             )
             yield Static(
-                audio_device_details(selected_info)
+                Text(audio_device_details(selected_info))
                 if selected_info
-                else "Seleccione un dispositivo para ver su conexión y backend.",
+                else Text("Seleccione un dispositivo para ver su conexión y backend."),
                 id="device-details",
             )
             yield Label("Dispositivo ALSA manual (opcional)")
@@ -218,7 +220,10 @@ class ConfigurationScreen(Screen[Optional[set[str]]]):
                 classes="hint",
             )
             if self.device_error:
-                yield Label(f"Detección ALSA: {self.device_error}", classes="hint")
+                yield Label(
+                    Text(f"Detección ALSA: {sanitize_audio_text(self.device_error)}"),
+                    classes="hint",
+                )
             yield Label("Duración de cada segmento (segundos)")
             yield Input(value=str(self.config.segment_seconds), type="integer", id="segment-seconds")
             yield Label("Frecuencia de muestreo (Hz)")
@@ -265,9 +270,9 @@ class ConfigurationScreen(Screen[Optional[set[str]]]):
         )
         details = self.query_one("#device-details", Static)
         details.update(
-            audio_device_details(selected)
+            Text(audio_device_details(selected))
             if selected
-            else "Dispositivo manual o no identificado por el servidor de audio."
+            else Text("Dispositivo manual o no identificado por el servidor de audio.")
         )
 
     def _input_int(self, selector: str) -> int:
@@ -647,11 +652,17 @@ class SoundMonitorApp(App[bool]):
         try:
             devices = list_audio_devices()
             lines = [
-                f"{audio_device_label(item)}\n{audio_device_details(item)}\n{item['description']}"
+                "\n".join(
+                    (
+                        audio_device_label(item),
+                        audio_device_details(item),
+                        sanitize_audio_text(item.get("description", "")),
+                    )
+                )
                 for item in devices
             ]
         except Exception as error:
-            lines = [str(error)]
+            lines = [sanitize_audio_text(error)]
         self.call_from_thread(self.push_screen, InfoScreen("Dispositivos ALSA", lines))
 
     def _configuration_finished(self, changed: Optional[set[str]]) -> None:
