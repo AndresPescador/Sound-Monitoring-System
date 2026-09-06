@@ -6,11 +6,13 @@ set -Eeuo pipefail
 APP_ROOT="/opt/sound-monitoring"
 RELEASE_ROOT="$APP_ROOT/releases"
 STATE_ROOT="$RELEASE_ROOT/.state"
+SERVICE_STATE_ROOT="$STATE_ROOT/services"
 ENV_FILE="$APP_ROOT/docker/.env"
 PROJECT_NAME="docker"
 HEALTH_BASE_URL="http://127.0.0.1:8080"
 HEALTH_CHECK_ATTEMPTS=45
 HEALTH_CHECK_DELAY_SECONDS=2
+RELEASE_LABEL="com.sound-monitoring.release"
 
 log() {
   printf '[sound-monitoring-deploy] %s\n' "$*" >&2
@@ -43,6 +45,7 @@ actual_checksum="$(sha256sum "$archive_path" | awk '{print $1}')"
 
 install -d -m 0755 "$RELEASE_ROOT"
 install -d -m 0700 "$STATE_ROOT"
+install -d -m 0700 "$SERVICE_STATE_ROOT"
 
 current_file="$STATE_ROOT/current"
 previous_file="$STATE_ROOT/previous"
@@ -55,9 +58,14 @@ valid_release_name() {
   [[ "$1" == "bootstrap-current" || "$1" =~ ^[0-9a-f]{40}$ ]]
 }
 
+validate_stored_release() {
+  local release="$1"
+  valid_release_name "$release" || die "invalid stored active release"
+  [[ -d "$RELEASE_ROOT/$release" ]] || die "stored active release is missing"
+}
+
 if [[ -n "$current_release" ]]; then
-  valid_release_name "$current_release" || die "invalid stored active release"
-  [[ -d "$RELEASE_ROOT/$current_release" ]] || die "stored active release is missing"
+  validate_stored_release "$current_release"
 fi
 
 archive_has_safe_paths() {
@@ -141,11 +149,45 @@ done
 compose_for_release() {
   local selected_release="$1"
   shift
-  docker compose \
+  RELEASE_SHA="$selected_release" docker compose \
     --project-name "$PROJECT_NAME" \
     --env-file "$ENV_FILE" \
     --file "$RELEASE_ROOT/$selected_release/docker/docker-compose.yml" \
     "$@"
+}
+
+service_state_file() {
+  local service="$1"
+  local state_name="$2"
+  printf '%s/%s/%s\n' "$SERVICE_STATE_ROOT" "$service" "$state_name"
+}
+
+service_release() {
+  local service="$1"
+  local state_file
+  state_file="$(service_state_file "$service" current)"
+
+  if [[ -s "$state_file" ]]; then
+    local release
+    release="$(<"$state_file")"
+    validate_stored_release "$release"
+    printf '%s\n' "$release"
+    return
+  fi
+
+  [[ -n "$current_release" ]] || die "no rollback baseline is available for $service"
+  printf '%s\n' "$current_release"
+}
+
+service_image() {
+  case "$1" in
+    auth-service|noise-processing|ingestion-api|dashboard-api|dashboard-frontend)
+      printf 'sound-monitoring/%s:%s\n' "$1" "$2"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 health_check() {
@@ -164,36 +206,127 @@ health_check() {
   done
 }
 
-build_targets=()
-for service in "${services[@]}"; do
-  [[ "$service" != "nginx" ]] && build_targets+=("$service")
-done
-
 deploy_services() {
   local selected_release="$1"
+  shift
+  local -a target_services=("$@")
+  local -a build_targets=()
+  local service
+
+  for service in "${target_services[@]}"; do
+    [[ "$service" != "nginx" ]] && build_targets+=("$service")
+  done
 
   compose_for_release "$selected_release" config --quiet
   if [[ ${#build_targets[@]} -gt 0 ]]; then
-    compose_for_release "$selected_release" build "${build_targets[@]}"
+    compose_for_release "$selected_release" build --pull "${build_targets[@]}"
   fi
-  if [[ ${#services[@]} -gt 0 ]]; then
-    compose_for_release "$selected_release" up -d --no-deps "${services[@]}"
+  if [[ ${#target_services[@]} -gt 0 ]]; then
+    compose_for_release "$selected_release" up -d --force-recreate --no-deps "${target_services[@]}"
   fi
+}
+
+verify_service_provenance() {
+  local selected_release="$1"
+  shift
+  local service container_id running_label expected_image actual_image expected_image_id
+
+  for service in "$@"; do
+    container_id="$(compose_for_release "$selected_release" ps -q "$service")"
+    if [[ -z "$container_id" ]]; then
+      log "No running container found for $service"
+      return 1
+    fi
+    if [[ "$(docker inspect --format '{{.State.Running}}' "$container_id")" != "true" ]]; then
+      log "$service is not running"
+      return 1
+    fi
+
+    running_label="$(docker inspect --format "{{ index .Config.Labels \"$RELEASE_LABEL\" }}" "$container_id")"
+    if [[ "$running_label" != "$selected_release" ]]; then
+      log "$service does not carry release $selected_release"
+      return 1
+    fi
+
+    if expected_image="$(service_image "$service" "$selected_release")"; then
+      actual_image="$(docker inspect --format '{{.Image}}' "$container_id")"
+      expected_image_id="$(docker image inspect --format '{{.Id}}' "$expected_image")"
+      if [[ "$actual_image" != "$expected_image_id" ]]; then
+        log "$service is not running image $expected_image"
+        return 1
+      fi
+    fi
+  done
+}
+
+verify_frontend_build_info() {
+  local selected_release="$1"
+  local build_info
+  if ! build_info="$(curl --fail --silent --show-error --max-time 15 "$HEALTH_BASE_URL/build-info.json")"; then
+    log "Frontend build-info.json is unavailable"
+    return 1
+  fi
+  if [[ "$build_info" != "{\"commitSha\":\"$selected_release\"}" ]]; then
+    log "Frontend build-info.json does not match release $selected_release"
+    return 1
+  fi
+}
+
+record_service_release() {
+  local service="$1"
+  local selected_release="$2"
+  local previous_release="$3"
+  local service_dir previous_state current_state
+  service_dir="$SERVICE_STATE_ROOT/$service"
+  previous_state="$(service_state_file "$service" previous)"
+  current_state="$(service_state_file "$service" current)"
+
+  install -d -m 0700 "$service_dir"
+  if [[ "$previous_release" != "$selected_release" ]]; then
+    printf '%s\n' "$previous_release" > "$previous_state"
+  fi
+  printf '%s\n' "$selected_release" > "$current_state"
+}
+
+is_full_reconciliation() {
+  [[ "$(IFS=,; echo "${services[*]}")" == "auth-service,noise-processing,ingestion-api,dashboard-api,dashboard-frontend,nginx" ]]
+}
+
+record_global_release() {
+  if [[ -n "$current_release" && "$current_release" != "$commit_sha" ]]; then
+    printf '%s\n' "$current_release" > "$previous_file"
+  fi
+  printf '%s\n' "$commit_sha" > "$current_file"
 }
 
 rollback() {
-  [[ -n "$current_release" ]] || {
-    log "No previous release is available for rollback."
-    return 1
-  }
+  local service selected_release
+  local -a rollback_services
+  declare -A rollback_groups=()
 
-  log "Rolling back to $current_release"
-  deploy_services "$current_release" && health_check
+  for service in "${services[@]}"; do
+    selected_release="${previous_releases[$service]}"
+    [[ -n "$selected_release" ]] || die "no rollback release is available for $service"
+    rollback_groups["$selected_release"]+="${rollback_groups[$selected_release]:+,}$service"
+  done
+
+  for selected_release in "${!rollback_groups[@]}"; do
+    IFS=',' read -r -a rollback_services <<< "${rollback_groups[$selected_release]}"
+    log "Rolling back ${rollback_groups[$selected_release]} to $selected_release"
+    deploy_services "$selected_release" "${rollback_services[@]}"
+  done
+
+  health_check
 }
 
 if [[ ${#services[@]} -gt 0 ]]; then
+  declare -A previous_releases=()
+  for service in "${services[@]}"; do
+    previous_releases["$service"]="$(service_release "$service")"
+  done
+
   log "Deploying services: ${services[*]}"
-  if ! deploy_services "$commit_sha"; then
+  if ! deploy_services "$commit_sha" "${services[@]}"; then
     log "Build or service start failed before release activation."
     rollback || log "Rollback could not be completed."
     exit 1
@@ -204,13 +337,29 @@ if [[ ${#services[@]} -gt 0 ]]; then
     rollback || log "Rollback could not be completed."
     exit 1
   fi
+
+  if ! verify_service_provenance "$commit_sha" "${services[@]}"; then
+    log "Container provenance verification failed."
+    rollback || log "Rollback could not be completed."
+    exit 1
+  fi
+
+  if [[ " ${services[*]} " == *" dashboard-frontend " ]] && ! verify_frontend_build_info "$commit_sha"; then
+    log "Frontend provenance verification failed."
+    rollback || log "Rollback could not be completed."
+    exit 1
+  fi
+
+  for service in "${services[@]}"; do
+    record_service_release "$service" "$commit_sha" "${previous_releases[$service]}"
+  done
+
+  if is_full_reconciliation; then
+    record_global_release
+  fi
 else
-  log "No deployable VPS service changed; recording the validated release."
+  log "No deployable VPS service changed; release archived without changing active state."
 fi
 
-if [[ -n "$current_release" && "$current_release" != "$commit_sha" ]]; then
-  printf '%s\n' "$current_release" > "$previous_file"
-fi
-printf '%s\n' "$commit_sha" > "$current_file"
 rm -f "$archive_path"
 log "Deployment completed for $commit_sha"

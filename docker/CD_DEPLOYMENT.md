@@ -64,6 +64,10 @@ extrae la release bajo `/opt/sound-monitoring/releases/<sha>` y utiliza el
 nombre de proyecto Compose `docker`, por lo que conserva las redes y volúmenes
 existentes.
 
+El CD no ejecuta SQL, no selecciona los servicios PostgreSQL/Redis, no usa
+`docker compose down` ni elimina volúmenes. Las migraciones continúan siendo
+una operación manual y explícita.
+
 Se reconstruyen solo los servicios afectados:
 
 - `auth-service`, `noise-processing-backend`, `ingestion-api`,
@@ -87,3 +91,24 @@ Tras levantar los servicios se validan `/health`, `/auth/health`,
 falla, el script reconstruye la release anterior y vuelve a comprobarlos. El
 workflow queda fallido aunque el rollback tenga éxito, para que el incidente
 sea visible.
+
+## Procedencia y estado de releases
+
+Cada servicio de aplicación se construye como una imagen etiquetada con el SHA
+validado y se recrea de forma selectiva. Antes de aceptar el despliegue, el
+script comprueba que el contenedor está ejecutándose, tiene la etiqueta de
+release esperada y usa la imagen correspondiente. Si se despliega el frontend,
+también exige que el gateway local devuelva ese SHA en
+`/build-info.json`.
+
+El SHA público no contiene secretos y puede verificarse después del despliegue:
+
+```bash
+curl --fail --silent https://soundmonitoring.systems/build-info.json
+```
+
+El estado activo se conserva por servicio en
+`/opt/sound-monitoring/releases/.state/services/`. Un commit sin servicios
+desplegables queda archivado, pero no sustituye el estado activo. El archivo
+global `.state/current` solo cambia tras una reconciliación completa, como una
+ejecución manual aprobada.

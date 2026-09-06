@@ -145,10 +145,13 @@ services:
 
   auth-service:
     <<: *container-security
+    image: sound-monitoring/auth-service:${RELEASE_SHA:-development}
     build:
       context: ../auth-service
       dockerfile: Dockerfile
     container_name: auth-service
+    labels:
+      com.sound-monitoring.release: ${RELEASE_SHA:-development}
     environment:
       DB_URL:                    jdbc:postgresql://postgres-auth:5432/${POSTGRES_AUTH_DB}
       DB_USERNAME:               auth_app
@@ -195,10 +198,13 @@ services:
 
   noise-processing:
     <<: *container-security
+    image: sound-monitoring/noise-processing:${RELEASE_SHA:-development}
     build:
       context: ../noise-processing-backend
       dockerfile: Dockerfile
     container_name: noise-processing
+    labels:
+      com.sound-monitoring.release: ${RELEASE_SHA:-development}
     environment:
       DB_URL:                   jdbc:postgresql://postgres-noise:5432/${POSTGRES_NOISE_DB}
       DB_USERNAME:              noise_writer
@@ -234,10 +240,13 @@ services:
 
   ingestion-api:
     <<: *container-security
+    image: sound-monitoring/ingestion-api:${RELEASE_SHA:-development}
     build:
       context: ../ingestion-api
       dockerfile: Dockerfile
     container_name: ingestion-api
+    labels:
+      com.sound-monitoring.release: ${RELEASE_SHA:-development}
     environment:
       AUTH_SERVICE_URL:       http://auth-service:8081/auth/validate
       PROCESSING_BACKEND_URL: http://noise-processing:8082/processing/measurements
@@ -266,10 +275,13 @@ services:
 
   dashboard-api:
     <<: *container-security
+    image: sound-monitoring/dashboard-api:${RELEASE_SHA:-development}
     build:
       context: ../dashboard-api
       dockerfile: Dockerfile
     container_name: dashboard-api
+    labels:
+      com.sound-monitoring.release: ${RELEASE_SHA:-development}
     environment:
       DB_HOST:     postgres-noise
       DB_PORT:     5432
@@ -305,13 +317,17 @@ services:
 
   dashboard-frontend:
     <<: *container-security
+    image: sound-monitoring/dashboard-frontend:${RELEASE_SHA:-development}
     build:
       context: ../dashboard-frontend
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
         VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY}
+        BUILD_RELEASE_SHA: ${RELEASE_SHA:-development}
     container_name: dashboard-frontend
+    labels:
+      com.sound-monitoring.release: ${RELEASE_SHA:-development}
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -334,6 +350,8 @@ services:
     <<: *container-security
     image: nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913
     container_name: nginx
+    labels:
+      com.sound-monitoring.release: ${RELEASE_SHA:-development}
     ports:
       # El Nginx de la VPS termina TLS. El gateway Docker no debe escuchar en
       # ninguna interfaz pública del host.

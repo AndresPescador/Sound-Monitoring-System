@@ -8,9 +8,11 @@ RUN npm ci
 COPY . .
 ARG VITE_API_URL
 ARG VITE_MAPTILER_KEY
+ARG BUILD_RELEASE_SHA=development
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_MAPTILER_KEY=$VITE_MAPTILER_KEY
-RUN npm run build
+RUN printf '{"commitSha":"%s"}\n' "$BUILD_RELEASE_SHA" > public/build-info.json \
+    && npm run build
 
 # ── Serve con Nginx ────────────────────────────────────────────────────────────
 FROM nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913
