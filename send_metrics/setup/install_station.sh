@@ -29,6 +29,11 @@ CONFIG_PATH="$CONFIG_DIR/station.toml"
 AUTOSTART_DIR="$STATION_HOME/.config/autostart"
 SYSTEMCTL_PATH=$(command -v systemctl)
 BUILD_DIR="$PROJECT_DIR/recorder/build"
+STATION_SERVICES=(
+    continuous-recorder.service
+    process-audio.service
+    send-metrics.service
+)
 
 if [ ! -r /etc/os-release ]; then
     printf '%s\n' 'ERROR: no se pudo identificar Raspberry Pi OS.' >&2
@@ -114,6 +119,17 @@ render_service() {
     install -m 0644 "$rendered_dir/$(basename -- "$destination_path")" "$destination_path"
 }
 
+enable_station_services() {
+    printf '%s\n' 'Habilitando servicios de estación…'
+    systemctl enable --now "${STATION_SERVICES[@]}"
+    for service in "${STATION_SERVICES[@]}"; do
+        if ! systemctl is-enabled --quiet "$service"; then
+            printf 'ERROR: %s no quedó habilitado para el próximo arranque.\n' "$service" >&2
+            return 1
+        fi
+    done
+}
+
 printf '%s\n' 'Instalando unidades systemd…'
 render_service "$PROJECT_DIR/systemd/continuous-recorder.service.in" /etc/systemd/system/continuous-recorder.service
 render_service "$PROJECT_DIR/systemd/process-audio.service.in" /etc/systemd/system/process-audio.service
@@ -191,7 +207,7 @@ if ! runuser -u "$STATION_USER" -- env \
     exit 1
 fi
 
-systemctl enable --now continuous-recorder.service process-audio.service send-metrics.service
+enable_station_services
 
 printf '\n%s\n' 'Sound Monitor quedó instalado.'
 printf '%s\n' 'Comando: sound-monitor'

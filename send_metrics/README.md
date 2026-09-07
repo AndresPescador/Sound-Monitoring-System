@@ -209,9 +209,17 @@ el servicio. `send_metrics.py` consulta la cola cada 30 segundos por defecto.
 
 Los procesos están aislados para que un fallo de análisis o red no interrumpa la captura. La TUI solo los observa y opera; cerrarla no modifica su estado.
 
+Al finalizar correctamente, el instalador verifica que las tres unidades queden
+habilitadas para cada arranque. La TUI iniciada automáticamente por el
+escritorio vuelve a intentar únicamente los servicios inactivos, lo que cubre
+fuentes PulseAudio/PipeWire que todavía no estaban disponibles durante el
+arranque del sistema. Ejecutar `sound-monitor` manualmente no inicia servicios
+por sí solo.
+
 Comprobar estado y logs:
 
 ```bash
+systemctl is-enabled continuous-recorder.service process-audio.service send-metrics.service
 systemctl status continuous-recorder.service
 systemctl status process-audio.service
 systemctl status send-metrics.service

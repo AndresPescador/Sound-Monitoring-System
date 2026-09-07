@@ -54,6 +54,7 @@ from station_control import (  # noqa: E402
     reactivate_exhausted,
     read_recent_events,
     sanitize_audio_text,
+    service_enablement_states,
     service_state,
     service_states,
     validate_recorder_config,
@@ -65,6 +66,11 @@ SERVICE_LABELS = {
     "continuous-recorder.service": "Grabador",
     "process-audio.service": "Procesador",
     "send-metrics.service": "Emisor",
+}
+ENABLEMENT_LABELS = {
+    "enabled": "habilitado",
+    "disabled": "deshabilitado",
+    "unknown": "desconocido",
 }
 
 
@@ -439,7 +445,12 @@ class SoundMonitorApp(App[bool]):
         ("q", "quit", "Salir"),
     ]
 
-    def __init__(self, config_path: Path, setup_only: bool = False):
+    def __init__(
+        self,
+        config_path: Path,
+        setup_only: bool = False,
+        auto_start: bool = False,
+    ):
         super().__init__()
         self.config_path = config_path
         self.startup_error = ""
@@ -454,6 +465,7 @@ class SoundMonitorApp(App[bool]):
                 metrics_output_dir=runtime_dir / "audio_stats",
             )
         self.setup_only = setup_only
+        self.auto_start = auto_start
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -502,10 +514,32 @@ class SoundMonitorApp(App[bool]):
                 ConfigurationScreen(self.config, self.config_path, initial=not self.config.is_configured),
                 self._configuration_finished,
             )
+        elif self.auto_start:
+            self._recover_autostart_services()
         self.action_refresh()
 
     def action_refresh(self) -> None:
         self._collect_status()
+
+    @work(thread=True, exclusive=True, group="autostart")
+    def _recover_autostart_services(self) -> None:
+        """Retry units that were unavailable before the graphical session started."""
+        states = service_states()
+        failures = []
+        for service in SERVICES:
+            if states.get(service) == "active":
+                continue
+            started, message = control_service(service, "start")
+            if not started:
+                failures.append(message)
+        if failures:
+            self.call_from_thread(
+                self.notify,
+                "No se pudo recuperar el inicio automático: " + " ".join(failures),
+                severity="error",
+                timeout=10,
+            )
+        self.call_from_thread(self.action_refresh)
 
     @work(thread=True, exclusive=True, group="status")
     def _collect_status(self) -> None:
@@ -762,11 +796,33 @@ class SoundMonitorApp(App[bool]):
     def _diagnose(self) -> None:
         recorder_ok, recorder_message = validate_recorder_config(self.config)
         credentials_ok, credentials_message = verify_station_credentials(self.config)
-        message = (
-            f"Grabador: {'OK' if recorder_ok else 'ERROR'} — {recorder_message}\n"
-            f"Servidor: {'OK' if credentials_ok else 'ERROR'} — {credentials_message}"
+        message = self._diagnostic_message(
+            recorder_ok,
+            recorder_message,
+            credentials_ok,
+            credentials_message,
+            service_enablement_states(),
         )
         self.call_from_thread(self.query_one("#diagnostic-result", Static).update, message)
+
+    @staticmethod
+    def _diagnostic_message(
+        recorder_ok: bool,
+        recorder_message: str,
+        credentials_ok: bool,
+        credentials_message: str,
+        enablement: dict[str, str],
+    ) -> str:
+        automatic_start = " · ".join(
+            f"{SERVICE_LABELS[service]}: "
+            f"{ENABLEMENT_LABELS.get(enablement.get(service, 'unknown'), 'desconocido')}"
+            for service in SERVICES
+        )
+        return (
+            f"Grabador: {'OK' if recorder_ok else 'ERROR'} — {recorder_message}\n"
+            f"Servidor: {'OK' if credentials_ok else 'ERROR'} — {credentials_message}\n"
+            f"Inicio automático: {automatic_start}"
+        )
 
     @work(thread=True, exclusive=True, group="retry")
     def _retry_failed(self) -> None:
@@ -790,9 +846,18 @@ class SoundMonitorApp(App[bool]):
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Interfaz de la estación Sound Monitor")
     parser.add_argument("--setup", action="store_true", help="Ejecutar únicamente el asistente inicial")
+    parser.add_argument(
+        "--autostart",
+        action="store_true",
+        help="Recuperar servicios inactivos al iniciar desde el escritorio",
+    )
     parser.add_argument("--config", type=Path, default=default_config_path())
     args = parser.parse_args(argv)
-    result = SoundMonitorApp(args.config, setup_only=args.setup).run()
+    result = SoundMonitorApp(
+        args.config,
+        setup_only=args.setup,
+        auto_start=args.autostart and not args.setup,
+    ).run()
     return 0 if result is not False else 2
 
 

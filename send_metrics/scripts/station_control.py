@@ -100,6 +100,35 @@ def service_states(runner: Callable[..., Any] = subprocess.run) -> dict[str, str
     return states
 
 
+def service_enablement_states(
+    runner: Callable[..., Any] = subprocess.run,
+) -> dict[str, str]:
+    """Return whether each managed unit is enabled for future boots.
+
+    ``systemctl is-enabled`` returns a non-zero exit code for disabled units,
+    so query each known service independently and preserve ``unknown`` for
+    command failures or units systemd cannot identify.
+    """
+    states = {service: "unknown" for service in SERVICES}
+    for service in SERVICES:
+        try:
+            result = runner(
+                [SYSTEMCTL, "is-enabled", service],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        unit_state = _subprocess_text(result.stdout).strip()
+        if result.returncode == 0 and unit_state in {"enabled", "enabled-runtime", "linked"}:
+            states[service] = "enabled"
+        elif unit_state in {"disabled", "masked", "indirect", "static", "generated", "transient"}:
+            states[service] = "disabled"
+    return states
+
+
 def control_service(
     service: str,
     action: str,

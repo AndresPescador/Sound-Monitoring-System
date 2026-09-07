@@ -3,6 +3,6 @@ Type=Application
 Version=1.0
 Name=Sound Monitor
 Comment=Panel de la estación acústica
-Exec=x-terminal-emulator -e /usr/local/bin/sound-monitor
+Exec=x-terminal-emulator -e /usr/local/bin/sound-monitor --autostart
 Terminal=false
 X-GNOME-Autostart-enabled=true

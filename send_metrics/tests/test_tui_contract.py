@@ -2,7 +2,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -14,6 +14,79 @@ import textual  # noqa: F401
 
 
 class TuiContractTests(unittest.IsolatedAsyncioTestCase):
+    async def test_desktop_autostart_recovers_only_inactive_services(self):
+        from station_config import StationConfig, write_station_config
+        from tui.app import SoundMonitorApp
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config_path = root / "station.toml"
+            write_station_config(
+                StationConfig(
+                    station_code="ST-TEST",
+                    station_secret="secret",
+                    server_url="https://monitor.example",
+                    device="hw:1,0",
+                    recordings_dir=root / "recordings",
+                    recorder_state_file=root / "recorder.json",
+                    runtime_dir=root / "runtime",
+                    metrics_output_dir=root / "runtime" / "audio_stats",
+                ),
+                config_path,
+            )
+            with (
+                patch.object(SoundMonitorApp, "_collect_status", lambda _self: None),
+                patch(
+                    "tui.app.service_states",
+                    return_value={
+                        "continuous-recorder.service": "active",
+                        "process-audio.service": "inactive",
+                        "send-metrics.service": "failed",
+                    },
+                ),
+                patch("tui.app.control_service", return_value=(True, "OK")) as control,
+            ):
+                app = SoundMonitorApp(config_path, auto_start=True)
+                async with app.run_test(size=(120, 40)) as pilot:
+                    await pilot.pause()
+                    await pilot.pause()
+
+            self.assertEqual(
+                control.call_args_list,
+                [
+                    call("process-audio.service", "start"),
+                    call("send-metrics.service", "start"),
+                ],
+            )
+
+    def test_manual_or_setup_launch_never_enables_autostart_recovery(self):
+        from tui.app import SoundMonitorApp, main
+
+        with patch("tui.app.SoundMonitorApp") as app_class:
+            app_class.return_value.run.return_value = True
+
+            self.assertEqual(main([]), 0)
+            self.assertFalse(app_class.call_args.kwargs["auto_start"])
+
+            self.assertEqual(main(["--setup", "--autostart"]), 0)
+            self.assertTrue(app_class.call_args.kwargs["setup_only"])
+            self.assertFalse(app_class.call_args.kwargs["auto_start"])
+
+        message = SoundMonitorApp._diagnostic_message(
+            True,
+            "OK",
+            False,
+            "Auth no responde",
+            {
+                "continuous-recorder.service": "enabled",
+                "process-audio.service": "disabled",
+                "send-metrics.service": "unknown",
+            },
+        )
+        self.assertIn("Grabador: habilitado", message)
+        self.assertIn("Procesador: deshabilitado", message)
+        self.assertIn("Emisor: desconocido", message)
+
     async def test_first_run_without_alsa_devices_mounts_and_accepts_manual_device(self):
         from textual.widgets import Input, Select
         from tui.app import ConfigurationScreen, SoundMonitorApp

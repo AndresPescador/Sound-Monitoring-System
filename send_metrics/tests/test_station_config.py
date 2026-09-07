@@ -23,6 +23,7 @@ from station_control import (
     queue_summary,
     reactivate_exhausted,
     sanitize_event,
+    service_enablement_states,
     service_state,
     service_states,
     validate_recorder_config,
@@ -136,6 +137,31 @@ class StationConfigTests(unittest.TestCase):
         )
         self.assertTrue(all(value == "desconocido" for value in service_states(runner).values()))
 
+    def test_service_enablement_distinguishes_enabled_disabled_and_unknown(self):
+        responses = {
+            "continuous-recorder.service": Completed(stdout="enabled\n"),
+            "process-audio.service": Completed(returncode=1, stdout="disabled\n"),
+            "send-metrics.service": Completed(returncode=1),
+        }
+
+        def runner(command, **_kwargs):
+            self.assertEqual(command[1], "is-enabled")
+            return responses[command[2]]
+
+        states = service_enablement_states(runner=runner)
+
+        self.assertEqual(states["continuous-recorder.service"], "enabled")
+        self.assertEqual(states["process-audio.service"], "disabled")
+        self.assertEqual(states["send-metrics.service"], "unknown")
+
+    def test_service_enablement_timeout_degrades_to_unknown(self):
+        def runner(*_args, **_kwargs):
+            raise subprocess.TimeoutExpired("systemctl", 5)
+
+        self.assertTrue(
+            all(value == "unknown" for value in service_enablement_states(runner).values())
+        )
+
     def test_audio_devices_show_default_bluetooth_source_and_usb_bus(self):
         commands = []
         sources = [
@@ -226,6 +252,16 @@ class StationConfigTests(unittest.TestCase):
             '\n/usr/local/bin/continuous-recorder validate-config --config "$CONFIG_PATH"',
             installer,
         )
+
+    def test_installer_verifies_each_service_is_enabled_and_desktop_uses_autostart(self):
+        installer = (PROJECT_DIR / "setup" / "install_station.sh").read_text(encoding="utf-8")
+        desktop_entry = (PROJECT_DIR / "setup" / "sound-monitor.desktop.in").read_text(encoding="utf-8")
+
+        self.assertIn("STATION_SERVICES=(", installer)
+        self.assertIn('systemctl enable --now "${STATION_SERVICES[@]}"', installer)
+        self.assertIn('systemctl is-enabled --quiet "$service"', installer)
+        self.assertIn("enable_station_services", installer)
+        self.assertIn("/usr/local/bin/sound-monitor --autostart", desktop_entry)
 
     def test_recorder_validation_does_not_require_systemd_runtime_directory(self):
         with tempfile.TemporaryDirectory() as directory:
