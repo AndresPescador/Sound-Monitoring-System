@@ -92,6 +92,13 @@ falla, el script reconstruye la release anterior y vuelve a comprobarlos. El
 workflow queda fallido aunque el rollback tenga éxito, para que el incidente
 sea visible.
 
+Cuando se despliega `dashboard-frontend`, el script consulta localmente
+`/dashboard/seo/stations` después del health check y antes de construir la
+imagen. El endpoint entrega solo el código, nombre y localidad de estaciones
+activas; el snapshot queda en el directorio privado de la release, no se
+registra y se valida de forma estricta durante el prerenderizado. Si esa
+consulta o validación falla, el frontend no se publica y se activa el rollback.
+
 ## Procedencia y estado de releases
 
 Cada servicio de aplicación se construye como una imagen etiquetada con el SHA

@@ -1,0 +1,9 @@
+{
+  "stations": [
+    {
+      "station_code": "ST-CHAPINERO-01",
+      "name": "Estación Chapinero",
+      "locality": "Chapinero"
+    }
+  ]
+}

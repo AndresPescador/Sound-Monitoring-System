@@ -149,7 +149,7 @@ done
 compose_for_release() {
   local selected_release="$1"
   shift
-  RELEASE_SHA="$selected_release" docker compose \
+  RELEASE_SHA="$selected_release" SEO_REQUIRE_SNAPSHOT="${SEO_REQUIRE_SNAPSHOT:-0}" docker compose \
     --project-name "$PROJECT_NAME" \
     --env-file "$ENV_FILE" \
     --file "$RELEASE_ROOT/$selected_release/docker/docker-compose.yml" \
@@ -211,19 +211,40 @@ deploy_services() {
   shift
   local -a target_services=("$@")
   local -a build_targets=()
-  local service
+  local service require_seo_snapshot=0
 
   for service in "${target_services[@]}"; do
     [[ "$service" != "nginx" ]] && build_targets+=("$service")
+    [[ "$service" == "dashboard-frontend" ]] && require_seo_snapshot=1
   done
 
   compose_for_release "$selected_release" config --quiet
   if [[ ${#build_targets[@]} -gt 0 ]]; then
-    compose_for_release "$selected_release" build --pull "${build_targets[@]}"
+    SEO_REQUIRE_SNAPSHOT="$require_seo_snapshot" compose_for_release "$selected_release" build --pull "${build_targets[@]}"
   fi
   if [[ ${#target_services[@]} -gt 0 ]]; then
     compose_for_release "$selected_release" up -d --force-recreate --no-deps "${target_services[@]}"
   fi
+}
+
+generate_frontend_seo_snapshot() {
+  local selected_release="$1"
+  local snapshot_dir="$RELEASE_ROOT/$selected_release/dashboard-frontend/.seo-snapshot"
+  local snapshot_file="$snapshot_dir/stations.json"
+  local temporary_file
+
+  install -d -m 0700 "$snapshot_dir"
+  temporary_file="$(mktemp "$snapshot_dir/.stations.XXXXXX")"
+
+  if ! curl --fail --silent --show-error --max-time 15 --max-filesize 1048576 \
+    --output "$temporary_file" "$HEALTH_BASE_URL/dashboard/seo/stations"; then
+    rm -f "$temporary_file"
+    return 1
+  fi
+
+  # El contenido se valida estrictamente por el prerenderizador. Aquí no se
+  # registra ni muestra el catálogo para no ampliar los logs de despliegue.
+  mv -f "$temporary_file" "$snapshot_file"
 }
 
 verify_service_provenance() {
@@ -326,7 +347,24 @@ if [[ ${#services[@]} -gt 0 ]]; then
   done
 
   log "Deploying services: ${services[*]}"
-  if ! deploy_services "$commit_sha" "${services[@]}"; then
+  if [[ " ${services[*]} " == *" dashboard-frontend " ]]; then
+    preliminary_services=()
+    for service in "${services[@]}"; do
+      [[ "$service" != "dashboard-frontend" ]] && preliminary_services+=("$service")
+    done
+
+    if [[ ${#preliminary_services[@]} -gt 0 ]] && ! deploy_services "$commit_sha" "${preliminary_services[@]}"; then
+      log "Build or service start failed before SEO snapshot generation."
+      rollback || log "Rollback could not be completed."
+      exit 1
+    fi
+
+    if ! health_check || ! generate_frontend_seo_snapshot "$commit_sha" || ! deploy_services "$commit_sha" dashboard-frontend; then
+      log "SEO snapshot generation or frontend publication failed."
+      rollback || log "Rollback could not be completed."
+      exit 1
+    fi
+  elif ! deploy_services "$commit_sha" "${services[@]}"; then
     log "Build or service start failed before release activation."
     rollback || log "Rollback could not be completed."
     exit 1

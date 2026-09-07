@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
 
-from app.routers import stations, measurements, aggregations, compare, binaural, spectral, system
+from app.routers import stations, measurements, aggregations, compare, binaural, spectral, system, seo
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,10 +51,11 @@ async def public_cache_headers(request, call_next):
         and request.url.path != "/health"
         and response.status_code == 200
     ):
-        response.headers["Cache-Control"] = (
-            f"public, max-age={settings.public_cache_seconds}, "
-            f"stale-while-revalidate={settings.public_cache_seconds}"
-        )
+        if "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = (
+                f"public, max-age={settings.public_cache_seconds}, "
+                f"stale-while-revalidate={settings.public_cache_seconds}"
+            )
     return response
 
 app.include_router(stations.router)
@@ -64,6 +65,7 @@ app.include_router(compare.router)
 app.include_router(binaural.router)
 app.include_router(spectral.router)
 app.include_router(system.router)
+app.include_router(seo.router)
 
 
 @app.get("/health")

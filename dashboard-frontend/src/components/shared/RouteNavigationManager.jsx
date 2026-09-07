@@ -1,28 +1,11 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigationType } from 'react-router-dom'
-import { stationPageTitle } from '../../routes'
+import { applyNoIndexMetadata, applySeoMetadata, routeSeo, siteUrl } from '../../seo.mjs'
 
-const PUBLIC_TITLE = 'Monitoreo Acústico'
-const LANDING_TITLE = 'Sistema de Monitoreo Acústico Binaural | Bogotá D.C.'
+const SITE_URL = siteUrl(import.meta.env.VITE_SITE_URL)
 
 function isAdminPath(pathname) {
   return pathname === '/admin' || pathname.startsWith('/admin/')
-}
-
-function routeTitle(pathname, heading = '') {
-  if (pathname === '/') return LANDING_TITLE
-  if (pathname === '/mapa-2d') return 'Mapa 2D | Monitoreo Acústico'
-  if (pathname.startsWith('/mapa-2d/stations/')) {
-    return `${heading ? stationPageTitle(heading) : 'Detalle de estación'} | ${PUBLIC_TITLE}`
-  }
-  if (pathname === '/mapa-2d/compare') return 'Comparar estaciones | Monitoreo Acústico'
-  if (pathname === '/mapa-2d/data') return 'Datos abiertos | Monitoreo Acústico'
-  if (pathname === '/mapa-3d/data') return 'Datos abiertos en el mapa 3D | Monitoreo Acústico'
-  if (pathname.startsWith('/mapa-3d/stations/')) {
-    return `${heading ? stationPageTitle(heading) : 'Estación en el mapa 3D'} | ${PUBLIC_TITLE}`
-  }
-  if (pathname.startsWith('/mapa-3d')) return 'Mapa acústico 3D | Monitoreo Acústico'
-  return 'Monitoreo Acústico | Bogotá D.C.'
 }
 
 function findMainHeading() {
@@ -34,9 +17,12 @@ export default function RouteNavigationManager() {
   const navigationType = useNavigationType()
 
   useEffect(() => {
-    if (isAdminPath(location.pathname)) return undefined
+    if (isAdminPath(location.pathname)) {
+      applyNoIndexMetadata()
+      return undefined
+    }
 
-    document.title = routeTitle(location.pathname)
+    applySeoMetadata(routeSeo(location.pathname, { siteUrl: SITE_URL }))
     if (navigationType === 'POP') return undefined
 
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
@@ -47,7 +33,6 @@ export default function RouteNavigationManager() {
       const heading = findMainHeading()
       if (!heading) return false
       heading.focus({ preventScroll: true })
-      document.title = routeTitle(location.pathname, heading.textContent.trim())
       return true
     }
 

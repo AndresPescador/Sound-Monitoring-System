@@ -18,7 +18,8 @@ import ResolutionNotice from '../components/shared/ResolutionNotice'
 import { AUTO_FOCUS_THRESHOLD, getCoverageRatio } from '../components/charts/timeAxis'
 import { getMetricDescription } from '../components/shared/metricDescriptions'
 import { useChartDownload } from '../hooks/useChartDownload'
-import { ROUTES, map2DStationPath, stationPageTitle } from '../routes'
+import { ROUTES, map2DStationPath } from '../routes'
+import { applySeoMetadata, routeSeo, siteUrl } from '../seo.mjs'
 import { buildPresetRange, DEFAULT_RANGE_HOURS, formatDateTime, hasRecentData } from '../components/shared/dateRangeUtils'
 import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/shared/RangeAvailabilityNotice'
 
@@ -286,8 +287,12 @@ export default function StationDetail() {
   }, [code, range, metric, rangeState.initialized])
 
   useEffect(() => {
-    if (summary?.name) document.title = `${stationPageTitle(summary.name)} | Monitoreo Acústico`
-  }, [summary?.name])
+    if (!summary?.name) return
+    applySeoMetadata(routeSeo(`/mapa-2d/stations/${encodeURIComponent(code)}`, {
+      siteUrl: siteUrl(import.meta.env.VITE_SITE_URL),
+      station: { name: summary.name, locality: summary.locality },
+    }))
+  }, [code, summary?.locality, summary?.name])
 
   const handleStationChange = (newCode) => {
     navigate(map2DStationPath(newCode))

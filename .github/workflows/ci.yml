@@ -194,6 +194,8 @@ jobs:
         run: npm ci
       - name: Run tests and generate coverage
         run: npm run test:coverage
+      - name: Verify public frontend build inputs
+        run: npm run test:public-inputs
       - name: Build production bundle
         run: npm run build
       - name: Upload frontend coverage

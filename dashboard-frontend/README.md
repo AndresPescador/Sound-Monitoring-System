@@ -112,6 +112,11 @@ docker build --build-arg VITE_API_URL=http://192.168.1.100/dashboard -t dashboar
 ## Docker Compose
 
 El frontend ya forma parte de `docker/docker-compose.yml`. Se construye con
-`VITE_API_URL` y `VITE_MAPTILER_KEY`, escucha internamente en el puerto 8080 y
+`VITE_API_URL`, `VITE_SITE_URL` y `VITE_MAPTILER_KEY`, escucha internamente en el puerto 8080 y
 no publica un puerto propio en el host: Nginx Docker lo sirve mediante la ruta
 `/`, mientras el gateway solo se expone en `127.0.0.1:${NGINX_PORT}`.
+
+`VITE_SITE_URL` es el origen canónico público usado en canonical, Open Graph y
+el sitemap. Como toda variable con prefijo `VITE_`, se incluye en el bundle y
+no debe contener secretos. La clave de MapTiler también es pública y debe
+restringirse al dominio de la aplicación desde MapTiler.

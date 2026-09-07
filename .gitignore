@@ -28,6 +28,7 @@ sql/backups/
 # ── Dependencias y build del frontend ────────────────────────────────────────
 dashboard-frontend/node_modules/
 dashboard-frontend/dist/
+dashboard-frontend/.seo-snapshot/
 
 # ── Datos de ejecución de send_metrics (tokens, logs, estado) ───────────────
 send_metrics/token.json
