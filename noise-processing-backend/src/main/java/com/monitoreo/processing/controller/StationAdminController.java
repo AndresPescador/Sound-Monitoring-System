@@ -27,10 +27,8 @@ import java.util.Map;
  *   - station_registry (Auth Service): credenciales y tokens
  *   - noise_analytics  (este servicio): metadatos geográficos y métricas
  *
- * El frontend debe coordinar las llamadas a ambos servicios.
- * Para crear: primero Auth, luego aquí (igual que register_station.py).
- * Para eliminar: primero aquí, luego Auth (o en el orden que prefieran,
- * ambos están protegidos por el mismo JWT).
+ * Auth orquesta las altas y bajas a través del controlador interno. Las rutas
+ * administrativas antiguas de creación y borrado se conservan como 410 Gone.
  */
 @RestController
 @RequestMapping("/admin/stations")
@@ -42,17 +40,16 @@ public class StationAdminController {
 
     /**
      * POST /admin/stations
-     * Registra una estación en noise_analytics.
-     * Llamar DESPUÉS de registrarla en el Auth Service.
+     * Endpoint legado retirado. Auth es el único orquestador de altas.
      */
     @PostMapping
-    public ResponseEntity<RegisterStationResponse> registerStation(
-            @Valid @RequestBody RegisterStationRequest request,
+    public ResponseEntity<Map<String, String>> registerStation(
             HttpServletRequest httpRequest
     ) {
         tokenValidator.requireAdmin(httpRequest);
-        RegisterStationResponse response = stationAdminService.registerStation(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+                "error", "El registro de estaciones se realiza exclusivamente mediante Auth."
+        ));
     }
 
     /**
@@ -127,10 +124,8 @@ public class StationAdminController {
             HttpServletRequest request
     ) {
         tokenValidator.requireAdmin(request);
-        stationAdminService.deleteStation(stationCode);
-        return ResponseEntity.ok(Map.of(
-                "message", "Estación eliminada correctamente.",
-                "stationCode", stationCode
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+                "error", "La eliminación de estaciones se realiza exclusivamente mediante Auth."
         ));
     }
 }

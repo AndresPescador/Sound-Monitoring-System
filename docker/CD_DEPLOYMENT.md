@@ -82,6 +82,11 @@ Se reconstruyen solo los servicios afectados:
   workflow**, selecciona `main` y marca `migrations_applied`. Esa confirmación
   solo desbloquea el despliegue manual; no ejecuta SQL y no desactiva la
   protección automática en futuros pushes.
+- La versión con ciclo de vida coordinado requiere aplicar primero
+  `sql/V10__station_lifecycle_auth.sql` en `station_registry` y
+  `sql/V11__station_code_format_noise.sql` en `noise_analytics`. Las
+  restricciones de formato quedan `NOT VALID` hasta auditar y corregir los
+  códigos heredados con las consultas incluidas en cada migración.
 - Si cambia `docker/deploy/sound-monitoring-deploy`, el CD compara la huella
   del entrypoint instalado con la release y se bloquea hasta que un
   administrador lo reinstale manualmente con `bootstrap-vps.sh`.

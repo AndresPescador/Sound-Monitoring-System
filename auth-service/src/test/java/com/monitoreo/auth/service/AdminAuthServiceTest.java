@@ -16,6 +16,7 @@ import com.monitoreo.auth.repository.ApiTokenRepository;
 import com.monitoreo.auth.repository.AuthAuditLogRepository;
 import com.monitoreo.auth.repository.RegisteredStationRepository;
 import com.monitoreo.auth.repository.StationMetadataSyncRepository;
+import com.monitoreo.auth.repository.StationLifecycleOperationRepository;
 import com.monitoreo.auth.entity.StationMetadataSync;
 import io.jsonwebtoken.Claims;
 import com.monitoreo.auth.exception.InvalidCredentialsException;
@@ -28,10 +29,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.List;
 import java.time.OffsetDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,6 +54,7 @@ class AdminAuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private StationCodeAllocator stationCodeAllocator;
     @Mock private StationMetadataSyncRepository metadataSyncRepository;
+    @Mock private StationLifecycleOperationRepository lifecycleOperationRepository;
     @Mock private Claims claims;
 
     @InjectMocks private AdminAuthService service;
@@ -76,9 +81,13 @@ class AdminAuthServiceTest {
         assertEquals("ST-CHIA-04", stationCaptor.getValue().getStationCode());
         assertEquals("Estación Chía", stationCaptor.getValue().getName());
         assertEquals("Chía", stationCaptor.getValue().getLocality());
+        assertEquals("PROVISIONING", stationCaptor.getValue().getLifecycleStatus());
+        assertFalse(stationCaptor.getValue().isActive());
+        assertEquals("secret-hash", stationCaptor.getValue().getSecretHash());
         assertEquals("ST-CHIA-04", response.getStationCode());
         assertEquals("Estación Chía", response.getName());
         assertEquals("Chía", response.getLocality());
+        assertNotEquals(response.getSecret(), stationCaptor.getValue().getSecretHash());
     }
 
     @Test
@@ -176,6 +185,30 @@ class AdminAuthServiceTest {
 
         assertEquals("original-hash", station.getSecretHash());
         verify(auditLogRepository).save(any(com.monitoreo.auth.entity.AuthAuditLog.class));
+    }
+
+    @Test
+    void deletionBlocksCredentialsAndCreatesDurableOperation() {
+        RegisteredStation station = registeredStation();
+        station.setActive(true);
+        AdminUser admin = admin("admin");
+        when(stationRepository.findByStationCode("ST-TEST-01")).thenReturn(Optional.of(station));
+        when(adminUserRepository.findByUsernameAndActiveTrue("admin")).thenReturn(Optional.of(admin));
+        when(metadataSyncRepository.findByStationCodeAndStatusIn(anyString(), any()))
+                .thenReturn(List.of());
+        when(tokenRepository.revokeAllActiveTokensForStation(
+                eq(station), any(OffsetDateTime.class), anyString())).thenReturn(2);
+
+        var operation = service.initiateStationDeletion(
+                "ST-TEST-01", "admin", "198.51.100.10");
+
+        assertEquals("DELETING", station.getLifecycleStatus());
+        assertEquals(false, station.isActive());
+        assertEquals("DELETE", operation.getOperationType());
+        assertEquals("ST-TEST-01", operation.getStationCode());
+        verify(lifecycleOperationRepository).save(operation);
+        verify(tokenRepository).revokeAllActiveTokensForStation(
+                eq(station), any(OffsetDateTime.class), anyString());
     }
 
     @Test

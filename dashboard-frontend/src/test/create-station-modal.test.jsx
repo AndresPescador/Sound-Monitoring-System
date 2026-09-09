@@ -1,16 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { registerStationAuth, registerStationProcessing, updateStationNameAuth } = vi.hoisted(() => ({
+const { registerStationAuth } = vi.hoisted(() => ({
   registerStationAuth: vi.fn(),
-  registerStationProcessing: vi.fn(),
-  updateStationNameAuth: vi.fn(),
 }))
 
 vi.mock('../api/admin', () => ({
   registerStationAuth,
-  registerStationProcessing,
-  updateStationNameAuth,
 }))
 
 vi.mock('../components/admin/StationLocationPicker', () => ({
@@ -25,8 +21,6 @@ function renderModal(props = {}) {
   const defaults = {
     onClose: vi.fn(),
     onCreated: vi.fn(),
-    onPendingChange: vi.fn(),
-    pendingRegistration: null,
   }
   return { ...defaults, ...props, ...render(<CreateStationModal {...defaults} {...props} />) }
 }
@@ -34,8 +28,6 @@ function renderModal(props = {}) {
 describe('CreateStationModal', () => {
   beforeEach(() => {
     registerStationAuth.mockReset()
-    registerStationProcessing.mockReset()
-    updateStationNameAuth.mockReset()
   })
 
   it('completa una localidad de Bogotá con Tab y actualiza las coordenadas desde el mapa', () => {
@@ -68,9 +60,10 @@ describe('CreateStationModal', () => {
         locality: 'Sopo',
         name: 'Estación Sopo',
         secret: 'secret-only-for-test',
+        lifecycleStatus: 'READY',
+        message: 'Estación creada y aprovisionada correctamente.',
       },
     })
-    registerStationProcessing.mockResolvedValue({ data: {} })
 
     renderModal({ onCreated })
 
@@ -80,8 +73,7 @@ describe('CreateStationModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Elegir punto de prueba' }))
     fireEvent.click(screen.getByRole('button', { name: 'Crear estación' }))
 
-    await waitFor(() => expect(registerStationProcessing).toHaveBeenCalledWith({
-      stationCode: 'ST-SOPO-01',
+    await waitFor(() => expect(registerStationAuth).toHaveBeenCalledWith({
       name: 'Estación Sopo',
       locality: 'Sopo',
       description: '',
@@ -89,11 +81,10 @@ describe('CreateStationModal', () => {
       latitude: 4.7,
       longitude: -74.1,
     }))
-    expect(registerStationAuth).toHaveBeenCalledWith({
-      name: 'Estación Sopo',
-      locality: 'Sopo',
-      description: '',
-    })
-    expect(onCreated).toHaveBeenCalledWith('secret-only-for-test', 'ST-SOPO-01')
+    expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({
+      stationCode: 'ST-SOPO-01',
+      secret: 'secret-only-for-test',
+      lifecycleStatus: 'READY',
+    }))
   })
 })

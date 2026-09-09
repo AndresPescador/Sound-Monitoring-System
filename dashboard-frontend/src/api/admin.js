@@ -31,6 +31,15 @@ export const createAdmin = (username, password) =>
 export const registerStationAuth = (data) =>
   adminClient.post('/auth/admin/stations', data)
 
+export const deleteStationAuth = (stationCode) =>
+  adminClient.delete(`/auth/admin/stations/${stationCode}`)
+
+export const getStationLifecycleOperations = () =>
+  adminClient.get('/auth/admin/station-operations', { params: { open: true } })
+
+export const retryStationLifecycleOperation = (operationId) =>
+  adminClient.post(`/auth/admin/station-operations/${operationId}/retry`)
+
 // Rota el secret de una estación e invalida sus tokens activos.
 export const rotateStationSecret = (stationCode) =>
   adminClient.post(`/auth/admin/stations/${stationCode}/rotate-secret`)
@@ -65,13 +74,6 @@ export const listStationsAdmin = () =>
 export const getStationAdmin = (stationCode) =>
   adminClient.get(`/processing/admin/stations/${stationCode}`)
 
-// Registra la estación en Noise Processing con el nombre recibido de Auth (llamar DESPUÉS de registerStationAuth)
-export const registerStationProcessing = (data) =>
-  adminClient.post('/processing/admin/stations', data)
-
 // Cambia el estado en Noise Processing (sincronizar con Auth)
 export const changeStationStatusProcessing = (stationCode, active) =>
   adminClient.patch(`/processing/admin/stations/${stationCode}/status`, { active })
-
-export const deleteStationProcessing = (stationCode) =>
-  adminClient.delete(`/processing/admin/stations/${stationCode}`)

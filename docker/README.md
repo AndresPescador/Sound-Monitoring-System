@@ -161,7 +161,8 @@ Todos deben devolver `{"status": "ok", ...}`.
 
 ## Registro de una estación nueva
 
-Cada estación nueva requiere dos llamadas al administrador, en este orden:
+Cada estación nueva requiere una llamada al administrador de Auth. Auth
+aprovisiona Processing por la red interna y reintenta si está temporalmente caído.
 
 ### Paso 1 — Registrar en Auth Service
 
@@ -171,7 +172,10 @@ curl -X POST https://soundmonitoring.systems/auth/admin/stations \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Estación Chapinero",
-    "locality": "Chapinero"
+    "locality": "Chapinero",
+    "address": "Calle 53 # 13-40",
+    "latitude": 4.6486,
+    "longitude": -74.1057
   }'
 ```
 
@@ -185,29 +189,15 @@ Respuesta — **guarda el `secret`, no se puede recuperar después**:
   "stationCode": "ST-CHAPINERO-01",
   "name": "Estación Chapinero",
   "locality": "Chapinero",
-  "secret": "abc123def456..."
+  "secret": "abc123def456...",
+  "lifecycleStatus": "READY",
+  "operationId": "<uuid>"
 }
 ```
 
-### Paso 2 — Registrar en Noise Processing
-
-Usa exactamente `stationCode` y `locality` devueltos por Auth:
-
-```bash
-curl -X POST https://soundmonitoring.systems/processing/admin/stations \
-  -H "Authorization: Bearer <JWT_ADMIN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "stationCode": "ST-CHAPINERO-01",
-    "name": "Estación Chapinero",
-    "locality": "Chapinero",
-    "latitude": 4.6486,
-    "longitude": -74.1057
-  }'
-```
-
-Si este segundo paso falla, conserva el `secret` y el código recibidos y reintenta
-solo esta llamada; no vuelvas a registrar la estación en Auth.
+Una respuesta `202` indica que el código y las credenciales ya fueron creados,
+pero la estación sigue `PROVISIONING`. Conserva el secret; el scheduler reintenta
+y el panel permite consultar y reintentar la operación.
 
 ### Migración requerida en instalaciones existentes
 
@@ -224,6 +214,11 @@ Para habilitar la edición coordinada de localidad y ubicación, aplica también
 el usuario propietario de cada base. Configure además
 `STATION_METADATA_SYNC_TOKEN` con un valor aleatorio diferente de los JWT antes
 de reconstruir Auth y Noise Processing.
+
+Para este ciclo de vida aplica después `sql/V10__station_lifecycle_auth.sql` en
+`station_registry` y `sql/V11__station_code_format_noise.sql` en
+`noise_analytics`. Ambas migraciones incluyen consultas de auditoría antes de
+validar los códigos históricos.
 
 ### Paso 3 — Configurar la Raspberry Pi
 

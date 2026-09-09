@@ -3,6 +3,8 @@ package com.monitoreo.auth.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 @AllArgsConstructor
 public class RegisterStationResponse {
@@ -16,4 +18,7 @@ public class RegisterStationResponse {
      * porque solo se guarda el hash en la base de datos.
      */
     private String secret;
+    private String lifecycleStatus;
+    private UUID operationId;
+    private String message;
 }

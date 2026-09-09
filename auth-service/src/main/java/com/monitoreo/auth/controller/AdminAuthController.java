@@ -4,7 +4,9 @@ import com.monitoreo.auth.dto.*;
 import com.monitoreo.auth.security.AdminTokenValidator;
 import com.monitoreo.auth.service.AdminAuthService;
 import com.monitoreo.auth.service.StationMetadataSyncService;
+import com.monitoreo.auth.service.StationLifecycleService;
 import com.monitoreo.auth.entity.StationMetadataSync;
+import com.monitoreo.auth.entity.StationLifecycleOperation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Controller de administración con JWT y roles.
@@ -37,6 +40,7 @@ public class AdminAuthController {
     private final AdminAuthService adminAuthService;
     private final AdminTokenValidator tokenValidator;
     private final StationMetadataSyncService metadataSyncService;
+    private final StationLifecycleService lifecycleService;
 
     // =========================================================================
     // AUTENTICACIÓN
@@ -143,7 +147,14 @@ public class AdminAuthController {
         String username = tokenValidator.requireAdmin(request);
         String ip       = tokenValidator.extractIp(request);
         RegisterStationResponse response = adminAuthService.registerStation(body, username, ip);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        boolean completed = lifecycleService.syncNow(response.getOperationId());
+        StationLifecycleOperation operation = lifecycleService.get(response.getOperationId());
+        response.setLifecycleStatus(completed ? "READY" : "PROVISIONING");
+        response.setMessage(completed ? "Estación creada y aprovisionada correctamente."
+                : "FAILED".equals(operation.getStatus())
+                    ? "Credenciales creadas; Processing rechazó el aprovisionamiento y requiere revisión."
+                    : "Credenciales creadas; el aprovisionamiento continuará automáticamente.");
+        return ResponseEntity.status(completed ? HttpStatus.CREATED : HttpStatus.ACCEPTED).body(response);
     }
 
     /**
@@ -253,5 +264,46 @@ public class AdminAuthController {
                 .body(new StationMetadataUpdateResponse(stationCode, 0,
                         synchronizedNow ? "COMPLETED" : "PENDING",
                         synchronizedNow ? "Sincronización completada." : "Sincronización reprogramada."));
+    }
+
+    @DeleteMapping("/stations/{stationCode}")
+    public ResponseEntity<StationLifecycleOperationResponse> deleteStation(
+            @PathVariable String stationCode, HttpServletRequest request) {
+        String username = tokenValidator.requireAdmin(request);
+        StationLifecycleOperation operation = adminAuthService.initiateStationDeletion(
+                stationCode, username, tokenValidator.extractIp(request));
+        boolean completed = lifecycleService.syncNow(operation.getId());
+        operation = lifecycleService.get(operation.getId());
+        String message = completed ? "Estación y datos analíticos eliminados correctamente."
+                : "FAILED".equals(operation.getStatus())
+                    ? "La estación quedó bloqueada; Processing rechazó la purga y requiere revisión."
+                    : "La estación quedó bloqueada y la purga continuará automáticamente.";
+        return ResponseEntity.status(completed ? HttpStatus.OK : HttpStatus.ACCEPTED)
+                .body(StationLifecycleOperationResponse.from(operation, message));
+    }
+
+    @GetMapping("/station-operations")
+    public ResponseEntity<List<StationLifecycleOperationResponse>> lifecycleOperations(
+            @RequestParam(defaultValue = "true") boolean open,
+            HttpServletRequest request) {
+        tokenValidator.requireAdmin(request);
+        if (!open) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(lifecycleService.openOperations());
+    }
+
+    @PostMapping("/station-operations/{operationId}/retry")
+    public ResponseEntity<StationLifecycleOperationResponse> retryLifecycleOperation(
+            @PathVariable UUID operationId, HttpServletRequest request) {
+        tokenValidator.requireAdmin(request);
+        boolean completed = lifecycleService.retry(operationId);
+        StationLifecycleOperation operation = lifecycleService.get(operationId);
+        String message = completed ? "Operación completada."
+                : "FAILED".equals(operation.getStatus())
+                    ? "Processing volvió a rechazar la operación; revisa el conflicto antes de reintentar."
+                    : "Operación reprogramada.";
+        return ResponseEntity.status(completed ? HttpStatus.OK : HttpStatus.ACCEPTED)
+                .body(StationLifecycleOperationResponse.from(operation, message));
     }
 }

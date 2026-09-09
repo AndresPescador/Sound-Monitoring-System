@@ -47,6 +47,9 @@ auth-service/
 | `POST` | `/admin/admins` | Crear administrador normal | JWT SUPER_ADMIN |
 | `GET` | `/admin/admins` | Listar administradores | JWT SUPER_ADMIN |
 | `POST` | `/admin/stations` | Registrar nueva estación | JWT ADMIN/SUPER_ADMIN |
+| `DELETE` | `/admin/stations/{code}` | Bloquear y purgar coordinadamente una estación | JWT ADMIN/SUPER_ADMIN |
+| `GET` | `/admin/station-operations?open=true` | Listar altas/bajas pendientes | JWT ADMIN/SUPER_ADMIN |
+| `POST` | `/admin/station-operations/{id}/retry` | Reintentar un alta o baja | JWT ADMIN/SUPER_ADMIN |
 | `PUT` | `/admin/stations/{code}/name` | Actualizar nombre público | JWT ADMIN/SUPER_ADMIN |
 | `POST` | `/admin/stations/{code}/rotate-secret` | Rotar secret y tokens | JWT ADMIN/SUPER_ADMIN |
 | `DELETE` | `/admin/stations/{code}/token` | Revocar tokens sin cambiar el secret | JWT ADMIN/SUPER_ADMIN |
@@ -130,27 +133,37 @@ docker run -p 8081:8081 --env-file .env auth-service
 ```
 1. Un administrador autenticado llama POST /admin/stations
    Header: Authorization: Bearer <JWT administrativo>
-   Body: { "name": "Estación Chapinero", "locality": "Chapinero", "description": "..." }
+   Body: { "name": "Estación Chapinero", "locality": "Chapinero",
+           "description": "...", "address": "...",
+           "latitude": 4.6486, "longitude": -74.1057 }
 
 2. Auth Service conserva el nombre público elegido y normaliza la localidad a un
    slug para incrementar atómicamente su contador y asignar el código siguiente,
    por ejemplo "ST-CHAPINERO-04". Las localidades de Bogotá son sugeridas por el
    panel, pero se aceptan localidades personalizadas como "Chía" → "ST-CHIA-01".
    El código es inmutable y Auth genera un secret aleatorio del que guarda solo el hash.
+   En la misma transacción deja una operación durable para que Processing cree
+   su copia sin conceder a Auth acceso directo a noise_analytics.
 
-3. Respuesta devuelve el secret en texto plano UNA SOLA VEZ:
+3. Auth intenta el aprovisionamiento HTTP interno. Responde 201 si queda READY
+   o 202 si queda PROVISIONING y el scheduler debe reintentarlo. En ambos casos
+   devuelve el secret en texto plano UNA SOLA VEZ:
    { "stationCode": "ST-CHAPINERO-01", "name": "Estación Chapinero",
-     "locality": "Chapinero", "secret": "abc123..." }
+     "locality": "Chapinero", "secret": "abc123...",
+     "lifecycleStatus": "READY", "operationId": "<uuid>" }
 
 4. Admin configura el secret en la Raspberry Pi (.env de la estación)
 ```
 
-Antes de desplegar este contrato sobre una base existente se debe aplicar
+Antes de desplegar este contrato sobre una base existente se deben aplicar
 `sql/V6__station_code_counters.sql`. Si V6 ya se aplicó antes de admitir
 localidades libres, aplica además `sql/V7__seed_custom_station_code_counters.sql`.
 Ambas migraciones inician o actualizan cada contador con el mayor sufijo
 numérico registrado, incluidas las localidades personalizadas, y no reducen los
 contadores al borrar datos.
+
+Aplica también `sql/V10__station_lifecycle_auth.sql` para agregar los estados y
+la outbox de ciclo de vida. Las estaciones existentes se conservan como READY.
 
 ## Flujo de autenticación de una estación
 

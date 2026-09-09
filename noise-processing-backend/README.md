@@ -40,17 +40,19 @@ noise-processing-backend/
 | Método | Ruta | Descripción | Protección |
 |---|---|---|---|
 | `POST` | `/processing/measurements` | Recibe y persiste métricas acústicas | Solo red interna |
-| `POST` | `/admin/stations` | Registra estación en noise_analytics | JWT ADMIN/SUPER_ADMIN |
+| `POST` | `/admin/stations` | Endpoint legado retirado (`410 Gone`) | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/admin/stations` | Lista estaciones, incluidas las inactivas | JWT ADMIN/SUPER_ADMIN |
 | `GET` | `/admin/stations/{code}` | Consulta el detalle administrativo de una estación | JWT ADMIN/SUPER_ADMIN |
-| `PUT` | `/admin/stations/{code}` | Actualiza nombre, descripción, dirección y coordenadas | JWT ADMIN/SUPER_ADMIN |
+| `PUT` | `/admin/stations/{code}` | Endpoint legado retirado (`410 Gone`) | JWT ADMIN/SUPER_ADMIN |
 | `PATCH` | `/admin/stations/{code}/status` | Activa o desactiva la estación en `noise_analytics` | JWT ADMIN/SUPER_ADMIN |
-| `DELETE` | `/admin/stations/{code}` | Elimina estación, mediciones y agregaciones | JWT ADMIN/SUPER_ADMIN |
+| `DELETE` | `/admin/stations/{code}` | Endpoint legado retirado (`410 Gone`) | JWT ADMIN/SUPER_ADMIN |
+| `PUT` | `/internal/stations/{code}` | Aprovisionamiento idempotente desde Auth | Token interno |
+| `DELETE` | `/internal/stations/{code}` | Purga idempotente desde Auth | Token interno |
 | `GET` | `/health` | Health check | Pública |
 
-> **Advertencia:** el borrado administrativo es irreversible y elimina las
-> mediciones y agregaciones asociadas. El estado debe coordinarse también con
-> Auth Service; este backend no puede actualizar `station_registry`.
+> **Advertencia:** la purga es irreversible y elimina las mediciones y
+> agregaciones asociadas. Solo Auth puede iniciarla y Processing nunca escribe
+> en `station_registry`.
 
 ---
 
@@ -101,24 +103,17 @@ docker run -p 8082:8082 --env-file .env noise-processing-backend
 
 ## Flujo de registro de una estación
 
-El administrador debe registrar cada estación en DOS pasos independientes:
+El administrador registra cada estación mediante una sola llamada a Auth:
 
 ```
 Paso 1 — Auth Service:
 POST /admin/stations  →  http://auth-service:8081
 Header: Authorization: Bearer <JWT administrativo>
-Body: { "name": "Estación Chapinero", "locality": "Chapinero", "description": "..." }
-← Auth devuelve el stationCode generado, la localidad indicada y el nombre público elegido
-← Guarda el secret devuelto para configurar la Raspberry Pi
-
-Paso 2 — Noise Processing Backend:
-POST /admin/stations  →  http://noise-processing-backend:8082
-Header: Authorization: Bearer <JWT administrativo>
-Body: { "stationCode": "ST-CHAPINERO-01", "name": "Estación Chapinero", "locality": "...",
+Body: { "name": "Estación Chapinero", "locality": "Chapinero", "description": "...",
         "latitude": 4.6486, "longitude": -74.1057 }
-← Se copian exactamente stationCode y locality devueltos por Auth
-← Las ediciones posteriores admiten nombre, descripción, dirección y coordenadas;
-  código y localidad quedan inmutables
+← Auth devuelve el stationCode y el secret de una sola visualización
+← Auth llama por la red privada a PUT /internal/stations/{stationCode}
+← Si Processing no responde, la operación queda durable y se reintenta
 ```
 
 ---

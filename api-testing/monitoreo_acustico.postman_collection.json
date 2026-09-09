@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Monitoreo Acústico Binaural",
-    "description": "Colección de pruebas para el Sistema de Monitoreo Acústico Binaural — Bogotá D.C.\n\nFlujo de prueba:\n1. Iniciar sesión como administrador\n2. Registrar estación en Auth Service\n3. Registrar estación en Noise Processing\n4. Obtener token JWT de estación\n5. Enviar métricas\n6. Verificar duplicado\n7. Health checks\n\nNo exportes la colección después de introducir passwords, secrets o tokens.",
+    "description": "Colección de pruebas para el Sistema de Monitoreo Acústico Binaural — Bogotá D.C.\n\nFlujo de prueba:\n1. Iniciar sesión como administrador\n2. Registrar y aprovisionar la estación mediante Auth\n3. Verificar que el alta directa en Processing está retirada\n4. Obtener token JWT de estación\n5. Enviar métricas\n6. Verificar duplicado\n7. Health checks\n\nNo exportes la colección después de introducir passwords, secrets o tokens.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -162,17 +162,17 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Estación Chapinero - pruebas\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\"\n}"
+              "raw": "{\n  \"name\": \"Estación Chapinero - pruebas\",\n  \"locality\": \"Chapinero\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
             },
-            "description": "Envía el nombre público, la localidad y la descripción. Auth asigna el código a partir del slug normalizado de la localidad y registra la estación en station_registry.\nGuarda automáticamente station_code, station_locality y secret para los pasos siguientes.\n\nESTE SECRET SOLO SE MUESTRA UNA VEZ — guardarlo bien."
+            "description": "Envía identidad y ubicación a Auth. Auth asigna el código, guarda la identidad en station_registry y aprovisiona Processing mediante un endpoint interno idempotente. Puede responder 201 (READY) o 202 (PROVISIONING).\nGuarda automáticamente station_code, station_locality y secret para los pasos siguientes.\n\nESTE SECRET SOLO SE MUESTRA UNA VEZ — guardarlo bien."
           },
           "event": [{
             "listen": "test",
             "script": {
               "exec": [
-                "pm.test('Estación creada (201)', () => pm.response.to.have.status(201));",
+                "pm.test('Estación aceptada (201 o 202)', () => pm.expect(pm.response.code).to.be.oneOf([201, 202]));",
                 "",
-                "if (pm.response.code === 201) {",
+                "if ([201, 202].includes(pm.response.code)) {",
                 "    const json = pm.response.json();",
                 "    pm.collectionVariables.set('secret', json.secret);",
                 "    pm.collectionVariables.set('station_code', json.stationCode);",
@@ -185,7 +185,7 @@
           }]
         },
         {
-          "name": "3. Registrar estación — Noise Processing",
+          "name": "3. Alta directa en Processing retirada",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/processing/admin/stations",
@@ -197,18 +197,13 @@
               "mode": "raw",
               "raw": "{\n  \"stationCode\": \"{{station_code}}\",\n  \"name\": \"Estación Chapinero - pruebas\",\n  \"locality\": \"{{station_locality}}\",\n  \"description\": \"Estación creada para pruebas de integración\",\n  \"address\": \"Calle 53 # 13-40, Chapinero\",\n  \"latitude\": 4.6486,\n  \"longitude\": -74.1057\n}"
             },
-            "description": "Registra en noise_analytics exactamente el station_code y la localidad canónica devueltos por Auth.\nDebe ejecutarse DESPUÉS del paso 2; si falla, se reintenta solo esta llamada."
+            "description": "Comprueba que ningún administrador pueda saltarse al orquestador Auth. El endpoint legado debe responder 410 Gone."
           },
           "event": [{
             "listen": "test",
             "script": {
               "exec": [
-                "pm.test('Estación creada (201)', () => pm.response.to.have.status(201));",
-                "if (pm.response.code === 201) {",
-                "    const json = pm.response.json();",
-                "    pm.test('station_code correcto', () => pm.expect(json.stationCode).to.eql(pm.collectionVariables.get('station_code')));",
-                "    pm.test('Nombre estandarizado', () => pm.expect(json.name).to.eql(`Estación ${pm.collectionVariables.get('station_code')}`));",
-                "}"
+                "pm.test('Alta directa retirada (410)', () => pm.response.to.have.status(410));"
               ]
             }
           }]
@@ -437,7 +432,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Estación de prueba\",\n  \"locality\": \"Test\"\n}"
+              "raw": "{\n  \"name\": \"Estación de prueba\",\n  \"locality\": \"Test\",\n  \"latitude\": 4.65,\n  \"longitude\": -74.08\n}"
             },
             "description": "Intenta registrar una estación sin Authorization Bearer.\nDebe devolver HTTP 401."
           },

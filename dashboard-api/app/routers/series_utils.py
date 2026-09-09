@@ -15,7 +15,7 @@ MAX_FUTURE_SKEW = timedelta(minutes=5)
 MAX_COMPARE_STATIONS = 25
 MAX_COMPARE_TOTAL_POINTS = 12000
 MAX_STATION_FILTER_LENGTH = MAX_COMPARE_STATIONS * 51
-STATION_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$")
+STATION_CODE_PATTERN = re.compile(r"^ST-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]+$")
 
 
 def normalize_datetime(value: datetime) -> datetime:
@@ -54,7 +54,7 @@ def resolve_range(from_: datetime | None, to: datetime | None) -> tuple[datetime
 
 
 def validate_station_code(station_code: str) -> str:
-    if not STATION_CODE_PATTERN.fullmatch(station_code):
+    if len(station_code) > 50 or not STATION_CODE_PATTERN.fullmatch(station_code):
         raise HTTPException(status_code=422, detail="Código de estación no válido.")
     return station_code
 

@@ -7,10 +7,12 @@ import {
   listStationsAdmin,
   changeStationStatusAuth,
   changeStationStatusProcessing,
-  deleteStationProcessing,
+  deleteStationAuth,
   rotateStationSecret,
   getStationSyncStatuses,
   retryStationSync,
+  getStationLifecycleOperations,
+  retryStationLifecycleOperation,
 } from '../../api/admin'
 
 const formatDateTime = (value) => {
@@ -36,7 +38,6 @@ export default function AdminStations() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [pendingStationRegistration, setPendingStationRegistration] = useState(null)
   const [secretData, setSecretData] = useState(null)
   const [editStation, setEditStation] = useState(null)
   const [deletingCode, setDeletingCode] = useState('')
@@ -46,13 +47,39 @@ export default function AdminStations() {
   const fetchStations = useCallback(async () => {
     setError('')
     try {
-      const [response, syncResponse] = await Promise.all([listStationsAdmin(), getStationSyncStatuses()])
+      const [response, syncResponse, lifecycleResponse] = await Promise.all([
+        listStationsAdmin(),
+        getStationSyncStatuses(),
+        getStationLifecycleOperations(),
+      ])
       const statuses = new Map()
       // La API ordena primero la operación más reciente; conserva esa versión.
       syncResponse.data.forEach(item => {
         if (!statuses.has(item.stationCode)) statuses.set(item.stationCode, item)
       })
-      setStations(response.data.map(station => ({ ...station, sync: statuses.get(station.stationCode) })))
+      const byCode = new Map(response.data.map(station => [station.stationCode, {
+        ...station,
+        lifecycleStatus: 'READY',
+        sync: statuses.get(station.stationCode),
+      }]))
+      lifecycleResponse.data.forEach(operation => {
+        const existing = byCode.get(operation.stationCode)
+        byCode.set(operation.stationCode, {
+          ...(existing || {
+            stationCode: operation.stationCode,
+            name: operation.name,
+            locality: operation.locality,
+            latitude: operation.latitude,
+            longitude: operation.longitude,
+            active: false,
+            lastSeenAt: null,
+          }),
+          active: false,
+          lifecycleStatus: operation.lifecycleStatus,
+          lifecycleOperation: operation,
+        })
+      })
+      setStations(Array.from(byCode.values()))
     } catch {
       setError('No se pudieron cargar las estaciones. Revisa la conexión e inténtalo de nuevo.')
     } finally {
@@ -112,27 +139,41 @@ export default function AdminStations() {
     }
   }
 
-  const handleDelete = async (stationCode) => {
-    setError('')
+  const handleRetryLifecycle = async (operationId, stationCode) => {
     setActionLoading(stationCode)
     try {
-      await deleteStationProcessing(stationCode)
-      setStations(previous => previous.filter(station => station.stationCode !== stationCode))
-      setDeletingCode('')
+      const response = await retryStationLifecycleOperation(operationId)
+      setSyncNotice(response.data.message)
+      setLoading(true)
+      fetchStations()
     } catch {
-      setError('No se pudo eliminar la estación del servicio de procesamiento.')
+      setError('No se pudo reintentar la operación de ciclo de vida.')
     } finally {
       setActionLoading('')
     }
   }
 
-  const handleCreated = (secret, stationCode) => {
-    setPendingStationRegistration(null)
+  const handleDelete = async (stationCode) => {
+    setError('')
+    setActionLoading(stationCode)
+    try {
+      const response = await deleteStationAuth(stationCode)
+      setSyncNotice(response.data.message)
+      setDeletingCode('')
+      setLoading(true)
+      fetchStations()
+    } catch {
+      setError('No se pudo iniciar la eliminación coordinada de la estación.')
+    } finally {
+      setActionLoading('')
+    }
+  }
+
+  const handleCreated = (registration) => {
     setShowCreate(false)
     setSecretData({
-      stationCode,
-      newSecret: secret,
-      message: 'Estación creada. Configura este secret en la Raspberry Pi. No se volverá a mostrar.',
+      ...registration,
+      newSecret: registration.secret,
     })
     setLoading(true)
     fetchStations()
@@ -152,9 +193,7 @@ export default function AdminStations() {
               onClick={() => setShowCreate(true)}
               className="admin-button admin-button--primary"
             >
-              {pendingStationRegistration
-                ? `Reanudar ${pendingStationRegistration.stationCode}`
-                : 'Nueva estación'}
+              Nueva estación
             </button>
           </div>
         </header>
@@ -209,15 +248,14 @@ export default function AdminStations() {
                 onClick={() => setShowCreate(true)}
                 className="admin-button admin-button--secondary"
               >
-                {pendingStationRegistration
-                  ? `Reanudar ${pendingStationRegistration.stationCode}`
-                  : 'Registrar la primera estación'}
+                Registrar la primera estación
               </button>
             </div>
           ) : (
             <div className="admin-station-list">
               {stations.map(station => {
                 const isBusy = actionLoading === station.stationCode
+                const lifecyclePending = Boolean(station.lifecycleOperation)
                 const lastSeen = formatDateTime(station.lastSeenAt)
                 const latitude = Number.isFinite(station.latitude) ? station.latitude.toFixed(4) : '—'
                 const longitude = Number.isFinite(station.longitude) ? station.longitude.toFixed(4) : '—'
@@ -227,8 +265,10 @@ export default function AdminStations() {
                     <div className="admin-station-row__identity">
                       <div className="admin-station-row__topline">
                         <h3 className="admin-station-row__name">{station.name}</h3>
-                        <span className={`admin-status admin-status--${station.active ? 'active' : 'inactive'}`}>
-                          {station.active ? 'Activa' : 'Inactiva'}
+                        <span className={`admin-status admin-status--${lifecyclePending ? 'pending' : station.active ? 'active' : 'inactive'}`}>
+                          {lifecyclePending
+                            ? station.lifecycleStatus === 'DELETING' ? 'Eliminando' : 'Aprovisionando'
+                            : station.active ? 'Activa' : 'Inactiva'}
                         </span>
                         <span className="admin-station-row__code">{station.stationCode}</span>
                       </div>
@@ -242,9 +282,37 @@ export default function AdminStations() {
                           Sincronización pendiente ({station.sync.attempts} intento{station.sync.attempts === 1 ? '' : 's'}).
                         </p>
                       )}
+                      {station.lifecycleOperation && (
+                        <p className="admin-station-row__meta" role="status">
+                          Operación {station.lifecycleOperation.status.toLowerCase()} ({station.lifecycleOperation.attempts} intento{station.lifecycleOperation.attempts === 1 ? '' : 's'}).
+                          {station.lifecycleOperation.lastError ? ` ${station.lifecycleOperation.lastError}` : ''}
+                        </p>
+                      )}
                     </div>
 
                     <div className="admin-station-row__actions" aria-label={`Acciones para ${station.name}`}>
+                      {lifecyclePending ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleRetryLifecycle(station.lifecycleOperation.operationId, station.stationCode)}
+                            disabled={isBusy}
+                            className="admin-button admin-button--quiet"
+                          >
+                            {isBusy ? 'Reintentando…' : 'Reintentar operación'}
+                          </button>
+                          {station.lifecycleStatus === 'PROVISIONING' && (
+                            <button
+                              type="button"
+                              onClick={() => handleRotateSecret(station.stationCode)}
+                              disabled={isBusy}
+                              className="admin-button admin-button--warning"
+                            >
+                              Rotar secret
+                            </button>
+                          )}
+                        </>
+                      ) : <>
                       <button
                         type="button"
                         onClick={() => setEditStation(station)}
@@ -289,13 +357,14 @@ export default function AdminStations() {
                           Eliminar
                         </button>
                       )}
+                      </>}
                     </div>
 
                     {deletingCode === station.stationCode && (
                       <div className="admin-confirmation" role="alert">
                         <p>
-                          Eliminar <strong>{station.stationCode}</strong> de Processing también elimina sus
-                          mediciones y agregaciones. Esta acción no elimina su registro en Auth.
+                          Eliminar <strong>{station.stationCode}</strong> bloqueará inmediatamente sus credenciales,
+                          borrará sus mediciones y agregaciones y retirará su identidad de Auth. No se puede deshacer.
                         </p>
                         <div className="admin-confirmation__actions">
                           <button
@@ -311,7 +380,7 @@ export default function AdminStations() {
                             disabled={isBusy}
                             className="admin-button admin-button--danger-solid"
                           >
-                            {isBusy ? 'Eliminando…' : 'Sí, eliminar datos'}
+                            {isBusy ? 'Eliminando…' : 'Sí, retirar y purgar'}
                           </button>
                         </div>
                       </div>
@@ -328,8 +397,6 @@ export default function AdminStations() {
         <CreateStationModal
           onClose={() => setShowCreate(false)}
           onCreated={handleCreated}
-          pendingRegistration={pendingStationRegistration}
-          onPendingChange={setPendingStationRegistration}
         />
       )}
 

@@ -99,6 +99,18 @@ class AuthServiceTest {
     }
 
     @Test
+    void rejectsCredentialsUntilProvisioningIsReady() {
+        TokenRequest request = new TokenRequest();
+        request.setStationCode("ST-TEST-01");
+        request.setSecret("secret");
+        station.setLifecycleStatus("PROVISIONING");
+        when(stationRepository.findByStationCode("ST-TEST-01")).thenReturn(Optional.of(station));
+
+        assertThrows(TokenInvalidException.class, () -> service.issueToken(request));
+        verify(passwordEncoder, never()).matches("secret", "stored-hash");
+    }
+
+    @Test
     void validatesRecognizedActiveTokenOnly() {
         ValidateRequest request = new ValidateRequest();
         request.setToken("signed-token");
@@ -117,6 +129,9 @@ class AuthServiceTest {
         assertThrows(TokenInvalidException.class, () -> service.validateToken(request));
         apiToken.setRevoked(false);
         station.setActive(false);
+        assertThrows(TokenInvalidException.class, () -> service.validateToken(request));
+        station.setActive(true);
+        station.setLifecycleStatus("PROVISIONING");
         assertThrows(TokenInvalidException.class, () -> service.validateToken(request));
     }
 

@@ -1,5 +1,6 @@
 package com.monitoreo.auth.service;
 
+import com.monitoreo.auth.exception.InvalidLocalityException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,11 @@ public class StationCodeAllocator {
         if (nextNumber == null || nextNumber < 1) {
             throw new IllegalStateException("No fue posible asignar el código de estación.");
         }
-        return String.format(Locale.ROOT, "ST-%s-%02d", localitySlug, nextNumber);
+        String stationCode = String.format(Locale.ROOT, "ST-%s-%02d", localitySlug, nextNumber);
+        if (stationCode.length() > 50) {
+            throw new InvalidLocalityException(
+                    "Se agotó la capacidad de códigos para esta localidad con el límite de 50 caracteres.");
+        }
+        return stationCode;
     }
 }

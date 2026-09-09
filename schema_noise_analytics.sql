@@ -44,7 +44,10 @@ CREATE TABLE IF NOT EXISTS stations (
     last_seen_at    TIMESTAMPTZ,               -- Actualizado en cada ingesta
 
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT chk_station_code_format
+        CHECK (station_code ~ '^ST-[A-Z0-9]+(-[A-Z0-9]+)*-[0-9]+$')
 );
 
 COMMENT ON TABLE  stations                IS 'Registro de estaciones de monitoreo acústico desplegadas en Bogotá.';

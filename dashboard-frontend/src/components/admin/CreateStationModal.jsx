@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from 'react'
-import { registerStationAuth, registerStationProcessing, updateStationNameAuth } from '../../api/admin'
+import { registerStationAuth } from '../../api/admin'
 import { BOGOTA_LOCALITIES, localitySlug, stationCodePreview } from '../../constants/bogotaLocalities'
 import { Field, Modal } from './ModalComponents'
 import StationLocationPicker from './StationLocationPicker'
@@ -72,28 +72,16 @@ const coordinatesAreValid = (latitude, longitude) => {
     && parsedLongitude >= -180 && parsedLongitude <= 180
 }
 
-const initialForm = pendingRegistration => {
-  if (!pendingRegistration) return EMPTY
-  return {
-    locality: pendingRegistration.locality,
-    name: pendingRegistration.name || pendingRegistration.processingPayload.name,
-    description: pendingRegistration.processingPayload.description,
-    address: pendingRegistration.processingPayload.address,
-    latitude: pendingRegistration.processingPayload.latitude,
-    longitude: pendingRegistration.processingPayload.longitude,
-  }
-}
-
-export function CreateStationModal({ onClose, onCreated, pendingRegistration, onPendingChange }) {
-  const [form, setForm] = useState(() => initialForm(pendingRegistration))
-  const [currentStep, setCurrentStep] = useState(pendingRegistration ? 2 : 1)
+export function CreateStationModal({ onClose, onCreated }) {
+  const [form, setForm] = useState(EMPTY)
+  const [currentStep, setCurrentStep] = useState(1)
   const [submissionStep, setSubmissionStep] = useState('')
   const [error, setError] = useState('')
   const [touched, setTouched] = useState({})
 
   const locality = form.locality
   const localitySuggestion = suggestedBogotaLocality(locality)
-  const codePreview = pendingRegistration?.stationCode || stationCodePreview(locality)
+  const codePreview = stationCodePreview(locality)
   const identityErrors = useMemo(() => ({
     locality: !locality.trim()
       ? 'Selecciona o escribe una localidad para continuar.'
@@ -152,52 +140,20 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
     if (!identityValid || !locationValid) return
 
     setError('')
-    let registration = pendingRegistration
-
     try {
-      if (!registration) {
-        setSubmissionStep('Asignando código y registrando credenciales…')
-        const submittedName = form.name.trim()
-        const authResponse = await registerStationAuth({
-          name: submittedName,
-          locality: locality.trim(),
-          description: form.description,
-        })
-        registration = {
-          stationCode: authResponse.data.stationCode,
-          locality: authResponse.data.locality,
-          secret: authResponse.data.secret,
-          name: submittedName,
-          authNameSynchronized: authResponse.data.name === submittedName,
-          processingPayload: {
-            stationCode: authResponse.data.stationCode,
-            name: submittedName,
-            locality: authResponse.data.locality,
-            description: form.description,
-            address: form.address,
-            latitude: Number.parseFloat(form.latitude),
-            longitude: Number.parseFloat(form.longitude),
-          },
-        }
-        onPendingChange(registration)
-        setCurrentStep(2)
-      }
-
-      if (!registration.authNameSynchronized) {
-        setSubmissionStep('Guardando el nombre público…')
-        await updateStationNameAuth(registration.stationCode, registration.name)
-        registration = { ...registration, authNameSynchronized: true }
-        onPendingChange(registration)
-      }
-
-      setSubmissionStep('Registrando ubicación y datos de la estación…')
-      await registerStationProcessing(registration.processingPayload)
-      onCreated(registration.secret, registration.stationCode)
+      setSubmissionStep('Creando credenciales y aprovisionando…')
+      const response = await registerStationAuth({
+        name: form.name.trim(),
+        locality: locality.trim(),
+        description: form.description,
+        address: form.address,
+        latitude: Number.parseFloat(form.latitude),
+        longitude: Number.parseFloat(form.longitude),
+      })
+      onCreated(response.data)
     } catch (requestError) {
       const message = requestError.response?.data?.error
-      setError(message || (registration
-        ? 'Las credenciales ya existen, pero falta registrar la ubicación. Reintenta este paso.'
-        : 'No se pudo crear la estación. Revisa los datos e inténtalo nuevamente.'))
+      setError(message || 'No se pudo crear la estación. Revisa los datos e inténtalo nuevamente.')
       setSubmissionStep('')
     }
   }
@@ -233,7 +189,7 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
                 onBlur={() => handleBlur('locality')}
                 onKeyDown={handleLocalityKeyDown}
                 suggestion={localitySuggestion}
-                disabled={isSubmitting || Boolean(pendingRegistration)}
+                disabled={isSubmitting}
                 error={touched.locality ? identityErrors.locality : ''}
               />
               <div className="admin-station-code-card">
@@ -250,7 +206,7 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
                 placeholder="Ej. Estación Sopo"
                 required
                 maxLength={150}
-                disabled={isSubmitting || Boolean(pendingRegistration)}
+                disabled={isSubmitting}
                 hint="Este es el nombre público que verás en el dashboard."
                 error={touched.name ? identityErrors.name : ''}
               />
@@ -315,16 +271,11 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
         )}
 
         {error && <div className="admin-alert" role="alert">{error}</div>}
-        {pendingRegistration && !isSubmitting && (
-          <div className="admin-alert admin-alert--warning" role="status">
-            Auth ya reservó {pendingRegistration.stationCode}. Completa únicamente la ubicación para terminar el registro.
-          </div>
-        )}
         {submissionStep && <div className="admin-alert admin-alert--warning" role="status">{submissionStep}</div>}
 
         <footer className="admin-station-wizard__actions">
           {currentStep === 2 && (
-            <button type="button" onClick={() => setCurrentStep(1)} disabled={isSubmitting || Boolean(pendingRegistration)} className="admin-button admin-button--secondary">Atrás</button>
+            <button type="button" onClick={() => setCurrentStep(1)} disabled={isSubmitting} className="admin-button admin-button--secondary">Atrás</button>
           )}
           <button type="button" onClick={onClose} disabled={isSubmitting} className="admin-button admin-button--quiet">
             {currentStep === 1 ? 'Cancelar' : 'Cerrar'}
@@ -333,7 +284,7 @@ export function CreateStationModal({ onClose, onCreated, pendingRegistration, on
             <button type="button" onClick={continueToLocation} disabled={!identityValid || isSubmitting} className="admin-button admin-button--primary">Continuar a ubicación</button>
           ) : (
             <button type="submit" disabled={!locationValid || isSubmitting} className="admin-button admin-button--primary">
-              {submissionStep || (pendingRegistration ? 'Completar registro' : 'Crear estación')}
+              {submissionStep || 'Crear estación'}
             </button>
           )}
         </footer>

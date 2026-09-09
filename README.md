@@ -206,6 +206,7 @@ Gestionada exclusivamente por el Auth Service.
 | `admin_users` | Administradores humanos y versión de credenciales |
 | `station_code_counters` | Consecutivos atómicos por localidad |
 | `station_metadata_sync` | Outbox de sincronización durable de metadatos hacia Processing |
+| `station_lifecycle_operations` | Outbox durable de aprovisionamiento y purga en Processing |
 
 Schema: [schema_station_registry.sql](schema_station_registry.sql)
 
@@ -313,7 +314,8 @@ curl http://127.0.0.1:8080/dashboard/health
 
 En una instalación nueva, crea el superadministrador mediante
 `sql/manage_super_admin.sh bootstrap`. Después inicia sesión en
-`/admin/login` y registra la estación primero en Auth y después en Processing.
+`/admin/login` y registra la estación en Auth; Auth orquesta de forma durable su
+aprovisionamiento en Processing por la red interna.
 El secret de estación se muestra una sola vez y debe configurarse en la
 Raspberry Pi.
 

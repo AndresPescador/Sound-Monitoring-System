@@ -6,8 +6,10 @@ import com.monitoreo.processing.dto.RegisterStationResponse;
 import com.monitoreo.processing.dto.StationAdminResponse;
 import com.monitoreo.processing.dto.UpdateStationRequest;
 import com.monitoreo.processing.dto.InternalStationMetadataSyncRequest;
+import com.monitoreo.processing.dto.InternalStationProvisionRequest;
 import com.monitoreo.processing.entity.Station;
 import com.monitoreo.processing.exception.StationAlreadyExistsException;
+import com.monitoreo.processing.exception.InvalidStationCodeException;
 import com.monitoreo.processing.exception.StationNotFoundException;
 import com.monitoreo.processing.repository.StationRepository;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,6 +53,50 @@ class StationAdminServiceTest {
         verify(stationRepository).save(stationCaptor.capture());
         assertEquals("Nombre controlado por el cliente", stationCaptor.getValue().getName());
         assertEquals("Nombre controlado por el cliente", response.getName());
+    }
+
+    @Test
+    void provisionsIdempotentlyAndRejectsAConflictingSnapshot() throws Exception {
+        InternalStationProvisionRequest request = new ObjectMapper().readValue("""
+                {"name":"Estación Suba","locality":"Suba","description":"Nodo",
+                 "address":"Calle 1","latitude":4.74,"longitude":-74.08}
+                """, InternalStationProvisionRequest.class);
+        when(stationRepository.findByStationCode("ST-SUBA-01")).thenReturn(Optional.empty());
+
+        service.provisionStation("ST-SUBA-01", request);
+        ArgumentCaptor<Station> captor = ArgumentCaptor.forClass(Station.class);
+        verify(stationRepository).save(captor.capture());
+        Station saved = captor.getValue();
+
+        when(stationRepository.findByStationCode("ST-SUBA-01")).thenReturn(Optional.of(saved));
+        service.provisionStation("ST-SUBA-01", request);
+
+        InternalStationProvisionRequest conflict = new ObjectMapper().readValue("""
+                {"name":"Otro nombre","locality":"Suba","latitude":4.74,"longitude":-74.08}
+                """, InternalStationProvisionRequest.class);
+        assertThrows(StationAlreadyExistsException.class,
+                () -> service.provisionStation("ST-SUBA-01", conflict));
+    }
+
+    @Test
+    void internalDeleteIsIdempotent() {
+        when(stationRepository.findByStationCode("ST-SUBA-01"))
+                .thenReturn(Optional.empty());
+        service.deleteStationIfPresent("ST-SUBA-01");
+        org.mockito.Mockito.verify(stationRepository, org.mockito.Mockito.never())
+                .delete(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void internalLifecycleRejectsNonOfficialStationCodes() throws Exception {
+        InternalStationProvisionRequest request = new ObjectMapper().readValue("""
+                {"name":"Estación Suba","locality":"Suba","latitude":4.74,"longitude":-74.08}
+                """, InternalStationProvisionRequest.class);
+
+        assertThrows(InvalidStationCodeException.class,
+                () -> service.provisionStation("station_suba_01", request));
+        assertThrows(InvalidStationCodeException.class,
+                () -> service.deleteStationIfPresent("ST-SUBA"));
     }
 
     @Test

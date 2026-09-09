@@ -532,6 +532,7 @@
 
 .admin-status--active { background: var(--admin-success-soft); color: var(--admin-success); }
 .admin-status--inactive { background: var(--admin-field); color: var(--admin-muted); }
+.admin-status--pending { background: var(--admin-warning-soft); color: var(--admin-warning); }
 .admin-status--role { background: var(--admin-field); color: var(--admin-blue-dark); }
 
 .admin-confirmation {

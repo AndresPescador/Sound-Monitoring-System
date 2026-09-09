@@ -44,8 +44,8 @@ class StationFilterTest(unittest.TestCase):
 
     def test_deduplicates_and_validates_station_codes(self):
         self.assertEqual(
-            ["ST-ONE-01", "ST_TWO_02"],
-            parse_station_codes("ST-ONE-01, ST_TWO_02,ST-ONE-01"),
+            ["ST-ONE-01", "ST-TWO-02"],
+            parse_station_codes("ST-ONE-01, ST-TWO-02,ST-ONE-01"),
         )
         self.assertEqual("ST-ONE-01", validate_station_code("ST-ONE-01"))
 

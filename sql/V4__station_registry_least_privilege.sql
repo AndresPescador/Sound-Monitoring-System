@@ -21,6 +21,9 @@ BEGIN
     IF to_regclass('public.station_metadata_sync') IS NOT NULL THEN
         EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE station_metadata_sync TO auth_app';
     END IF;
+    IF to_regclass('public.station_lifecycle_operations') IS NOT NULL THEN
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE station_lifecycle_operations TO auth_app';
+    END IF;
 END $$;
 GRANT SELECT, INSERT, UPDATE ON TABLE station_code_counters TO auth_app;
 GRANT SELECT, INSERT, UPDATE ON TABLE api_tokens TO auth_app;

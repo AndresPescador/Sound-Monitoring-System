@@ -1,6 +1,7 @@
 package com.monitoreo.processing.controller;
 
 import com.monitoreo.processing.dto.InternalStationMetadataSyncRequest;
+import com.monitoreo.processing.dto.InternalStationProvisionRequest;
 import com.monitoreo.processing.exception.ForbiddenException;
 import com.monitoreo.processing.service.StationAdminService;
 import jakarta.validation.Valid;
@@ -31,11 +32,34 @@ public class InternalStationSyncController {
             @PathVariable String stationCode,
             @RequestHeader(value = "X-Station-Metadata-Sync", required = false) String suppliedToken,
             @Valid @RequestBody InternalStationMetadataSyncRequest body) {
+        requireSyncToken(suppliedToken);
+        stationAdminService.synchronizeMetadata(stationCode, body);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{stationCode}")
+    public ResponseEntity<Void> provisionStation(
+            @PathVariable String stationCode,
+            @RequestHeader(value = "X-Station-Metadata-Sync", required = false) String suppliedToken,
+            @Valid @RequestBody InternalStationProvisionRequest body) {
+        requireSyncToken(suppliedToken);
+        stationAdminService.provisionStation(stationCode, body);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{stationCode}")
+    public ResponseEntity<Void> deleteStation(
+            @PathVariable String stationCode,
+            @RequestHeader(value = "X-Station-Metadata-Sync", required = false) String suppliedToken) {
+        requireSyncToken(suppliedToken);
+        stationAdminService.deleteStationIfPresent(stationCode);
+        return ResponseEntity.noContent().build();
+    }
+
+    private void requireSyncToken(String suppliedToken) {
         if (!StringUtils.hasText(suppliedToken) || !MessageDigest.isEqual(
                 syncToken.getBytes(StandardCharsets.UTF_8), suppliedToken.getBytes(StandardCharsets.UTF_8))) {
             throw new ForbiddenException("Credencial de sincronización inválida.");
         }
-        stationAdminService.synchronizeMetadata(stationCode, body);
-        return ResponseEntity.noContent().build();
     }
 }

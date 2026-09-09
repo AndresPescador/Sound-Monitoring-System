@@ -33,6 +33,9 @@ public class RegisteredStation {
     @Column(name = "metadata_version", nullable = false)
     private long metadataVersion = 0;
 
+    @Column(name = "lifecycle_status", nullable = false, length = 24)
+    private String lifecycleStatus = "READY";
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

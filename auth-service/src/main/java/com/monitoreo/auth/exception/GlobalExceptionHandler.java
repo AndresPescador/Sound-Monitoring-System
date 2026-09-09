@@ -25,10 +25,20 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
+    @ExceptionHandler(StationOperationNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleOperationNotFound(StationOperationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+    }
+
     @ExceptionHandler(StationAlreadyExistsException.class)
     public ResponseEntity<Map<String, String>> handleStationExists(StationAlreadyExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(StationLifecycleConflictException.class)
+    public ResponseEntity<Map<String, String>> handleLifecycleConflict(StationLifecycleConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidLocalityException.class)

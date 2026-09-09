@@ -27,6 +27,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidStationCodeException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidStationCode(InvalidStationCodeException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> fields = ex.getBindingResult().getFieldErrors().stream()

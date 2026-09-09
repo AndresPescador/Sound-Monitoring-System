@@ -70,6 +70,12 @@ public class AuthService {
             throw new TokenInvalidException("Credenciales inválidas.");
         }
 
+        if (!"READY".equals(station.getLifecycleStatus())) {
+            log.warn("Intento de autenticación de estación no aprovisionada: {} ({})",
+                    request.getStationCode(), station.getLifecycleStatus());
+            throw new TokenInvalidException("La estación no está disponible.");
+        }
+
         if (!station.isActive()) {
             log.warn("Intento de autenticación de estación inactiva: {}", request.getStationCode());
             throw new TokenInvalidException("La estación está inactiva.");
@@ -125,6 +131,11 @@ public class AuthService {
         }
 
         RegisteredStation station = apiToken.getStation();
+        if (!"READY".equals(station.getLifecycleStatus())) {
+            log.warn("Token presentado para estación no disponible: {} ({})",
+                    station.getStationCode(), station.getLifecycleStatus());
+            throw new TokenInvalidException("La estación no está disponible.");
+        }
         if (!station.isActive()) {
             log.warn("Token válido pero estación inactiva: {}", station.getStationCode());
             throw new TokenInvalidException("La estación está inactiva.");

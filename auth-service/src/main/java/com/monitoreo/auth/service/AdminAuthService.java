@@ -5,15 +5,18 @@ import com.monitoreo.auth.dto.*;
 import com.monitoreo.auth.entity.AdminUser;
 import com.monitoreo.auth.entity.AuthAuditLog;
 import com.monitoreo.auth.entity.RegisteredStation;
+import com.monitoreo.auth.entity.StationLifecycleOperation;
 import com.monitoreo.auth.entity.StationMetadataSync;
 import com.monitoreo.auth.exception.AdminNotFoundException;
 import com.monitoreo.auth.exception.InvalidCredentialsException;
 import com.monitoreo.auth.exception.StationNotFoundException;
+import com.monitoreo.auth.exception.StationLifecycleConflictException;
 import com.monitoreo.auth.exception.UsernameAlreadyExistsException;
 import com.monitoreo.auth.repository.AdminUserRepository;
 import com.monitoreo.auth.repository.ApiTokenRepository;
 import com.monitoreo.auth.repository.AuthAuditLogRepository;
 import com.monitoreo.auth.repository.RegisteredStationRepository;
+import com.monitoreo.auth.repository.StationLifecycleOperationRepository;
 import com.monitoreo.auth.repository.StationMetadataSyncRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -42,6 +45,7 @@ public class AdminAuthService {
     private final PasswordEncoder passwordEncoder;
     private final StationCodeAllocator stationCodeAllocator;
     private final StationMetadataSyncRepository metadataSyncRepository;
+    private final StationLifecycleOperationRepository lifecycleOperationRepository;
     private static final List<String> OPEN_SYNC_STATUSES = List.of("PENDING", "RETRYING", "FAILED");
 
     // =========================================================================
@@ -225,7 +229,20 @@ public class AdminAuthService {
         station.setDescription(request.getDescription());
         station.setLocality(locality);
         station.setSecretHash(secretHash);
+        station.setLifecycleStatus("PROVISIONING");
+        station.setActive(false);
         stationRepository.save(station);
+
+        StationLifecycleOperation operation = new StationLifecycleOperation();
+        operation.setStationCode(stationCode);
+        operation.setOperationType("PROVISION");
+        operation.setName(station.getName());
+        operation.setLocality(station.getLocality());
+        operation.setDescription(request.getDescription());
+        operation.setAddress(request.getAddress());
+        operation.setLatitude(request.getLatitude());
+        operation.setLongitude(request.getLongitude());
+        lifecycleOperationRepository.save(operation);
 
         AdminUser admin = adminUserRepository
                 .findByUsernameAndActiveTrue(adminUsername)
@@ -239,12 +256,14 @@ public class AdminAuthService {
         log.info("Estación '{}' creada por admin '{}'",
                 stationCode, adminUsername);
 
-        // Constructor de Auth: (stationCode, name, locality, secret)
         return new RegisterStationResponse(
                 station.getStationCode(),
                 station.getName(),
                 station.getLocality(),
-                secret
+                secret,
+                "PROVISIONING",
+                operation.getId(),
+                "Credenciales creadas; aprovisionamiento en Processing pendiente."
         );
     }
 
@@ -254,6 +273,9 @@ public class AdminAuthService {
         RegisteredStation station = stationRepository
                 .findByStationCode(stationCode)
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
+        if ("DELETING".equals(station.getLifecycleStatus())) {
+            throw new StationLifecycleConflictException("No se puede rotar el secret durante la eliminación.");
+        }
 
         String newSecret     = UUID.randomUUID().toString().replace("-", "");
         String newSecretHash = passwordEncoder.encode(newSecret);
@@ -292,6 +314,7 @@ public class AdminAuthService {
         RegisteredStation station = stationRepository
                 .findByStationCode(stationCode)
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
+        requireReady(station);
 
         int revoked = tokenRepository.revokeAllActiveTokensForStation(
                 station, OffsetDateTime.now(),
@@ -314,6 +337,7 @@ public class AdminAuthService {
         RegisteredStation station = stationRepository
                 .findByStationCode(stationCode)
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
+        requireReady(station);
 
         station.setActive(active);
         stationRepository.save(station);
@@ -337,6 +361,7 @@ public class AdminAuthService {
         RegisteredStation station = stationRepository
                 .findByStationCode(stationCode)
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
+        requireReady(station);
 
         station.setName(request.getName().trim());
         stationRepository.save(station);
@@ -361,6 +386,7 @@ public class AdminAuthService {
                                                        String adminUsername, String ipAddress) {
         RegisteredStation station = stationRepository.findByStationCode(stationCode)
                 .orElseThrow(() -> new StationNotFoundException(stationCode));
+        requireReady(station);
         AdminUser admin = adminUserRepository.findByUsernameAndActiveTrue(adminUsername)
                 .orElseThrow(() -> new AdminNotFoundException(adminUsername));
 
@@ -396,6 +422,47 @@ public class AdminAuthService {
         return operation;
     }
 
+    @Transactional
+    public StationLifecycleOperation initiateStationDeletion(String stationCode,
+                                                               String adminUsername,
+                                                               String ipAddress) {
+        RegisteredStation station = stationRepository.findByStationCode(stationCode)
+                .orElseThrow(() -> new StationNotFoundException(stationCode));
+
+        if ("DELETING".equals(station.getLifecycleStatus())) {
+            return lifecycleOperationRepository
+                    .findFirstByStationCodeAndOperationTypeAndStatusInOrderByCreatedAtDesc(
+                            stationCode, "DELETE", OPEN_SYNC_STATUSES)
+                    .orElseThrow(() -> new StationLifecycleConflictException(
+                            "La estación está eliminándose, pero no tiene una operación recuperable."));
+        }
+        requireReady(station);
+
+        AdminUser admin = adminUserRepository.findByUsernameAndActiveTrue(adminUsername)
+                .orElseThrow(() -> new AdminNotFoundException(adminUsername));
+
+        station.setLifecycleStatus("DELETING");
+        station.setActive(false);
+        stationRepository.save(station);
+        int revoked = tokenRepository.revokeAllActiveTokensForStation(
+                station, OffsetDateTime.now(), "Estación en proceso de eliminación por: " + adminUsername);
+
+        metadataSyncRepository.findByStationCodeAndStatusIn(stationCode, OPEN_SYNC_STATUSES)
+                .forEach(previous -> previous.setStatus("SUPERSEDED"));
+
+        StationLifecycleOperation operation = new StationLifecycleOperation();
+        operation.setStationCode(stationCode);
+        operation.setOperationType("DELETE");
+        operation.setName(station.getName());
+        operation.setLocality(station.getLocality());
+        lifecycleOperationRepository.save(operation);
+
+        auditLogRepository.save(buildAuditLog(station, admin, "STATION_DELETION_STARTED", true,
+                "Eliminación iniciada. Tokens revocados: " + revoked, ipAddress));
+        log.info("Eliminación iniciada para estación '{}' por admin '{}'", stationCode, adminUsername);
+        return operation;
+    }
+
     // =========================================================================
     // UTILIDADES PRIVADAS
     // =========================================================================
@@ -411,5 +478,13 @@ public class AdminAuthService {
         entry.setDetail(detail);
         entry.setIpAddress(ipAddress);
         return entry;
+    }
+
+    private void requireReady(RegisteredStation station) {
+        if (!"READY".equals(station.getLifecycleStatus())) {
+            throw new StationLifecycleConflictException(
+                    "La estación " + station.getStationCode() + " está en estado "
+                            + station.getLifecycleStatus() + " y no admite esta operación.");
+        }
     }
 }

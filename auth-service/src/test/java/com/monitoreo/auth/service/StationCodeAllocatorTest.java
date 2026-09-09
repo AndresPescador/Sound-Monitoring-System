@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -43,5 +44,16 @@ class StationCodeAllocatorTest {
                 .thenReturn(100);
 
         assertEquals("ST-SUBA-100", new StationCodeAllocator(jdbcTemplate).nextCode("SUBA"));
+    }
+
+    @Test
+    void rejectsAReservedCodeThatExceedsDatabaseCapacity() {
+        String slug = "A".repeat(44);
+        String pattern = "^ST-" + slug + "-([0-9]+)$";
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class),
+                eq(pattern), eq(pattern), eq(slug))).thenReturn(100);
+
+        assertThrows(com.monitoreo.auth.exception.InvalidLocalityException.class,
+                () -> new StationCodeAllocator(jdbcTemplate).nextCode(slug));
     }
 }

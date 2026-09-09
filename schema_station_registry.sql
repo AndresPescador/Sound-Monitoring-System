@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS registered_stations (
     description     TEXT,
     locality        VARCHAR(100)    NOT NULL,
     metadata_version BIGINT          NOT NULL DEFAULT 0,
+    lifecycle_status VARCHAR(24)      NOT NULL DEFAULT 'READY',
 
     -- Estado de la estación
     is_active       BOOLEAN         NOT NULL DEFAULT TRUE,
@@ -37,7 +38,12 @@ CREATE TABLE IF NOT EXISTS registered_stations (
     secret_hash     TEXT            NOT NULL,
 
     registered_at   TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT chk_registered_station_code_format
+        CHECK (station_code ~ '^ST-[A-Z0-9]+(-[A-Z0-9]+)*-[0-9]+$'),
+    CONSTRAINT chk_registered_station_lifecycle
+        CHECK (lifecycle_status IN ('PROVISIONING', 'READY', 'DELETING'))
 );
 
 COMMENT ON TABLE  registered_stations             IS 'Estaciones autorizadas para enviar datos al sistema. Gestionada exclusivamente por el Station Authentication Service.';
@@ -92,6 +98,39 @@ CREATE TABLE IF NOT EXISTS station_metadata_sync (
 );
 CREATE INDEX IF NOT EXISTS idx_station_metadata_sync_due
     ON station_metadata_sync (status, next_attempt_at);
+
+-- Outbox durable para crear y purgar estaciones en noise_analytics.
+-- No referencia registered_stations para conservar el historial tras la purga.
+CREATE TABLE IF NOT EXISTS station_lifecycle_operations (
+    id               UUID             PRIMARY KEY DEFAULT uuid_generate_v4(),
+    station_code     VARCHAR(50)      NOT NULL,
+    operation_type   VARCHAR(20)      NOT NULL,
+    name             VARCHAR(150),
+    locality         VARCHAR(100),
+    description      TEXT,
+    address          VARCHAR(255),
+    latitude         DOUBLE PRECISION,
+    longitude        DOUBLE PRECISION,
+    status           VARCHAR(20)      NOT NULL DEFAULT 'PENDING',
+    attempt_count    INTEGER          NOT NULL DEFAULT 0,
+    next_attempt_at  TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
+    last_error       TEXT,
+    created_at       TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ      NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_station_lifecycle_operation_type
+        CHECK (operation_type IN ('PROVISION', 'DELETE')),
+    CONSTRAINT chk_station_lifecycle_operation_status
+        CHECK (status IN ('PENDING', 'RETRYING', 'FAILED', 'COMPLETED', 'SUPERSEDED')),
+    CONSTRAINT chk_station_lifecycle_provision_snapshot CHECK (
+        operation_type <> 'PROVISION' OR
+        (name IS NOT NULL AND locality IS NOT NULL AND latitude IS NOT NULL AND longitude IS NOT NULL)
+    )
+);
+CREATE INDEX IF NOT EXISTS idx_station_lifecycle_operations_due
+    ON station_lifecycle_operations (status, next_attempt_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_station_lifecycle_operations_open
+    ON station_lifecycle_operations (station_code)
+    WHERE status IN ('PENDING', 'RETRYING', 'FAILED');
 
 
 -- =============================================================================
