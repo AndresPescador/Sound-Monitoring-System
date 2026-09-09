@@ -298,6 +298,10 @@ export default function StationDetail() {
     navigate(map2DStationPath(newCode))
   }
 
+  const stationName = summary?.name
+    ?? stations.find(station => station.station_code === code)?.name
+    ?? code
+
   const coverageRatio = getCoverageRatio([
     { data: hourly, timeKey: 'hour_start', valueKeys: ['leq_hour', 'l10', 'l50', 'l90'] },
     { data: timeseries, timeKey: 'recorded_at', valueKeys: ['value'] },
@@ -312,9 +316,9 @@ export default function StationDetail() {
       <header className="dashboard-station-header">
         <div>
           <p className="dashboard-breadcrumb">
-            <Link to={ROUTES.map2D}>Mapa 2D</Link> / <span>{code}</span>
+            <Link to={ROUTES.map2D}>Mapa 2D</Link> / <span>{stationName}</span>
           </p>
-          <h1 tabIndex={-1}>{summary?.name ?? code}</h1>
+          <h1 tabIndex={-1}>{stationName}</h1>
           <p className="dashboard-station-header__meta">{summary?.locality} · {summary?.is_active ? 'Activa' : 'Inactiva'}</p>
         </div>
 
