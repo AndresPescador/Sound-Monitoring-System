@@ -1,19 +1,21 @@
+import { message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 import ChartCursor from './ChartCursor'
 import { ACTIVE_DOT, compactEmptyTimeBuckets, getChartDataWindow, getTimeAxis } from './timeAxis'
 import useChartAxisTransition from '../../hooks/useChartAxisTransition'
 import { getCompareSeriesStyles } from './compareSeriesColors'
 
 function CompareTooltip({ active, payload, label }) {
+  const { t } = useLanguage()
   if (!active || !payload?.length) return null
 
   let dateLabel = label
-  try { dateLabel = format(parseISO(label), 'd MMM HH:mm', { locale: es }) } catch { /* keep label */ }
+  try { dateLabel = format(parseISO(label), 'd MMM HH:mm', { locale: t.dateLocale }) } catch { /* keep label */ }
 
   const visiblePoints = payload.filter(item => item.value != null)
   if (!visiblePoints.length) return null
@@ -28,12 +30,12 @@ function CompareTooltip({ active, payload, label }) {
         const sourceCount = point[`${item.dataKey}__sourceCount`]
         return (
           <div key={item.dataKey}>
-            <strong>{item.name}: {Number(item.value).toFixed(2)} dBFS</strong>
+            <strong>{item.name}: {t.fixed(Number(item.value), 2)} dBFS</strong>
             {Number.isFinite(Number(min)) && Number.isFinite(Number(max)) && (
-              <span>Rango: {Number(min).toFixed(2)}–{Number(max).toFixed(2)} dBFS</span>
+              <span>{t('charts.range') + ' '}{t.fixed(Number(min), 2)}–{t.fixed(Number(max), 2)} dBFS</span>
             )}
             {Number.isFinite(Number(sourceCount)) && (
-              <span>{Number(sourceCount).toLocaleString('es-CO')} mediciones en esta ventana</span>
+              <span>{Number(sourceCount).toLocaleString(t.locale)}{' ' + t('charts.measurements_in_this_window')}</span>
             )}
           </div>
         )
@@ -42,9 +44,11 @@ function CompareTooltip({ active, payload, label }) {
   )
 }
 
-export default function CompareChart({ series = [], metricLabel = 'Leq hora', axisMode = 'range' }) {
+export default function CompareChart({ series = [], metricLabel: metricLabelMessage = localizedMessage('charts.hourly_leq'), axisMode = 'range' }) {
+  const { t } = useLanguage()
+  const metricLabel = metricLabelMessage
   const { renderedAxisMode, phase } = useChartAxisTransition(axisMode)
-  if (!series.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos.</p>
+  if (!series.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_data')}</p>
 
   // Pivot: merge all series by hour_start timestamp
   const timeMap = {}
@@ -64,7 +68,7 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora', ax
   const visibleData = renderedAxisMode === 'data'
     ? compactEmptyTimeBuckets(focusedData, valueKeys)
     : focusedData
-  const timeAxis = getTimeAxis(visibleData)
+  const timeAxis = getTimeAxis(visibleData, undefined, undefined, t)
   const seriesStyles = getCompareSeriesStyles(series.map(s => s.station_code ?? s.locality))
 
   return (
@@ -81,7 +85,7 @@ export default function CompareChart({ series = [], metricLabel = 'Leq hora', ax
           tickLine={false}
           tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }}
         />
-        <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
+        <YAxis tickFormatter={t.number} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
         <Tooltip
           cursor={<ChartCursor />}
           content={<CompareTooltip />}

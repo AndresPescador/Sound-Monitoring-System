@@ -1,3 +1,5 @@
+import LocalizedMapControls from './LocalizedMapControls'
+import { useLanguage } from '../../context/LanguageContext'
 import { useEffect, useRef, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, GeoJSON, Popup, Tooltip, useMap } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
@@ -93,6 +95,7 @@ function MapZoomGuide({ onVisibilityChange }) {
 }
 
 function StationMarker({ station, isHovered, isSelected, onSelect, navigate }) {
+  const { t } = useLanguage()
   const markerRef = useRef(null)
   const color = NOISE_COLOR[station.noise_level] ?? '#94a3b8'
 
@@ -119,7 +122,7 @@ function StationMarker({ station, isHovered, isSelected, onSelect, navigate }) {
           <strong>{station.name}</strong>
           <span>{station.locality}</span>
           <span>
-            Leq: <strong>{station.current_leq_dbfs != null ? `${station.current_leq_dbfs.toFixed(1)} dBFS` : 'Sin dato reciente'}</strong>
+            Leq: <strong>{station.current_leq_dbfs != null ? `${t.fixed(station.current_leq_dbfs, 1)} dBFS` : t('maps.no_recent_reading_2')}</strong>
           </span>
         </Tooltip>
       )}
@@ -129,16 +132,14 @@ function StationMarker({ station, isHovered, isSelected, onSelect, navigate }) {
           <p className="dashboard-map-popup__meta">{station.locality}</p>
           {station.current_leq_dbfs != null && (
             <p className="dashboard-map-popup__value">
-              Leq: <strong>{station.current_leq_dbfs.toFixed(1)} dBFS</strong>
+              Leq: <strong>{t.fixed(station.current_leq_dbfs, 1)} dBFS</strong>
             </p>
           )}
           <button
             type="button"
             onClick={() => navigate(map2DStationPath(station.station_code))}
             className="dashboard-map-popup__action"
-          >
-            Ver detalle
-          </button>
+          >{t('maps.view_details')}</button>
         </div>
       </Popup>
     </CircleMarker>
@@ -146,6 +147,7 @@ function StationMarker({ station, isHovered, isSelected, onSelect, navigate }) {
 }
 
 export default function StationMap({ stations = [], hoveredStationCode, selectedStationCode, onSelect }) {
+  const { t } = useLanguage()
   const navigate = useNavigate()
   const { isDark } = useTheme()
   const mapRef = useRef(null)
@@ -166,6 +168,7 @@ export default function StationMap({ stations = [], hoveredStationCode, selected
         className="dashboard-leaflet-map"
         scrollWheelZoom={true}
       >
+        <LocalizedMapControls />
         <TileLayer
           attribution={TILE_ATTRIBUTION}
           url={TILE_URLS.light}
@@ -197,13 +200,11 @@ export default function StationMap({ stations = [], hoveredStationCode, selected
       </MapContainer>
       {showZoomGuide && (
         <div className="dashboard-map-guide" role="note">
-          <h2 id="map-heading">Lecturas por estación</h2>
-          <p>Selecciona una estación para acercarte y consultar su detalle acústico.</p>
+          <h2 id="map-heading">{t('maps.readings_by_station')}</h2>
+          <p>{t('maps.select_a_station_to_zoom_in_and_explore_its')}</p>
         </div>
       )}
-      <button type="button" className="dashboard-map-reset" onClick={resetView}>
-        Vista Bogotá
-      </button>
+      <button type="button" className="dashboard-map-reset" onClick={resetView}>{t('maps.bogota_view')}</button>
     </>
   )
 }

@@ -1,8 +1,10 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { ROUTES } from '../../routes'
 import Map2DNavbar from './Map2DNavbar'
 
 export default function Map2DLayout() {
+  const { t } = useLanguage()
   const { pathname } = useLocation()
   const isMapHome = pathname === ROUTES.map2D
 
@@ -13,11 +15,11 @@ export default function Map2DLayout() {
         <Outlet />
       </main>
       <footer className="dashboard-footer">
-        <span className="dashboard-footer__brand">Monitoreo Acústico · Experiencia 2D</span>
-        <p className="dashboard-footer__copy">Mapa, análisis por estación, comparaciones y datos abiertos.</p>
-        <nav className="dashboard-footer__links" aria-label="Enlaces del pie de página">
-          <Link to={ROUTES.landing}>Presentación</Link>
-          <Link to={ROUTES.map2DData}>Datos abiertos</Link>
+        <span className="dashboard-footer__brand">{t('maps.acoustic_monitoring_2d_experience')}</span>
+        <p className="dashboard-footer__copy">{t('maps.map_station_analysis_comparisons_and_open_data')}</p>
+        <nav className="dashboard-footer__links" aria-label={t('maps.footer_links')}>
+          <Link to={ROUTES.landing}>{t('maps.introduction')}</Link>
+          <Link to={ROUTES.map2DData}>{t('maps.open_data')}</Link>
         </nav>
       </footer>
     </div>

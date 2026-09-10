@@ -1,3 +1,5 @@
+import { message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import { useEffect, useState } from 'react'
 import { buildPresetRange, toDatetimeLocalValue } from './dateRangeUtils'
 
@@ -22,6 +24,7 @@ export default function DateRangePicker({
   isHistoricalRange = false,
   className = '',
 }) {
+  const { t } = useLanguage()
   const [active, setActive]   = useState(preset)
   const [custom, setCustom]   = useState(false)
   const [fromVal, setFromVal] = useState('')
@@ -49,21 +52,21 @@ export default function DateRangePicker({
 
   const applyCustom = () => {
     if (!fromVal || !toVal) {
-      setError('Seleccione el inicio y el final del rango.')
+      setError(localizedMessage('common.select_the_start_and_end_of_the_range'))
       return
     }
     const from = new Date(fromVal)
     const to = new Date(toVal)
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-      setError('El rango contiene una fecha no válida.')
+      setError(localizedMessage('common.the_range_contains_an_invalid_date'))
       return
     }
     if (from > to) {
-      setError('El inicio no puede ser posterior al final.')
+      setError(localizedMessage('common.the_start_cannot_be_after_the_end'))
       return
     }
     if (to.getTime() - from.getTime() > MAX_PUBLIC_RANGE_MS) {
-      setError('El rango máximo de consulta pública es de 31 días.')
+      setError(localizedMessage('common.the_maximum_public_query_range_is_31_days'))
       return
     }
     setError('')
@@ -71,7 +74,7 @@ export default function DateRangePicker({
   }
 
   return (
-    <div className={`dashboard-range-picker ${className}`} role="group" aria-label="Rango de tiempo">
+    <div className={`dashboard-range-picker ${className}`} role="group" aria-label={t('common.time_range')}>
       {PRESETS.map(p => (
         <button
           key={p.label}
@@ -103,9 +106,7 @@ export default function DateRangePicker({
             ? 'dashboard-range-picker__button--active'
             : ''
         }`}
-      >
-        Personalizado
-      </button>
+      >{t('common.custom')}</button>
 
       {custom && (
         <div className="dashboard-range-picker__custom">
@@ -114,16 +115,16 @@ export default function DateRangePicker({
             value={fromVal}
             onChange={e => setFromVal(e.target.value)}
             className="dashboard-input"
-            aria-label="Fecha y hora inicial"
+            aria-label={t('common.start_date_and_time')}
             aria-invalid={Boolean(error)}
           />
-          <span className="text-text-muted text-sm">a</span>
+          <span className="text-text-muted text-sm">{t('common.to')}</span>
           <input
             type="datetime-local"
             value={toVal}
             onChange={e => setToVal(e.target.value)}
             className="dashboard-input"
-            aria-label="Fecha y hora final"
+            aria-label={t('common.end_date_and_time')}
             min={fromVal || undefined}
             aria-invalid={Boolean(error)}
           />
@@ -131,10 +132,8 @@ export default function DateRangePicker({
             type="button"
             onClick={applyCustom}
             className="dashboard-button dashboard-button--primary"
-          >
-            Aplicar
-          </button>
-          {error && <p className="dashboard-range-picker__error" role="alert">{error}</p>}
+          >{t('common.apply')}</button>
+          {error && <p className="dashboard-range-picker__error" role="alert">{t(error)}</p>}
         </div>
       )}
     </div>

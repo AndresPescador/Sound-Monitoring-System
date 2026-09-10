@@ -16,12 +16,14 @@ import { useCallback, useRef, useEffect } from 'react'
  * @param {string}         [fileLabel]  - sufijo para el nombre de archivo (ej: clave de métrica)
  * @param {string}         [svgTitle]   - título que se incrusta en SVG/PNG (si difiere del title)
  * @param {string}         [stationCode]- código de estación para incluir en el nombre del archivo
+ * @param {string}         [csvTitle] - Stable Spanish filename label for CSV compatibility.
  */
-export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle = '', stationCode = '') {
+export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle = '', stationCode = '', csvTitle = title) {
   // Refs que siempre tienen el valor actual — nunca quedan stale en closures
   const svgTitleRef   = useRef(svgTitle)
   const fileLabelRef  = useRef(fileLabel)
   const slugRef       = useRef('')
+  const csvSlugRef    = useRef('')
   const dataRef       = useRef(data)
 
   // Actualiza las refs en cada render sin recrear callbacks
@@ -35,7 +37,8 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     const code  = stationCode ? stationCode.toLowerCase() + '_' : ''
     const extra = fileLabel ? '_' + fileLabel.replace(/[^a-z0-9]/gi, '_').toLowerCase() : ''
     slugRef.current = code + base + extra
-  }, [title, fileLabel, stationCode])
+    csvSlugRef.current = code + csvTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase() + extra
+  }, [title, csvTitle, fileLabel, stationCode])
 
   // ── Utilidad compartida: construye el SVG exportable con título ───────────
   const buildExportSvg = useCallback(() => {
@@ -258,7 +261,7 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     const url  = URL.createObjectURL(blob)
 
     const link    = document.createElement('a')
-    link.download = `${slugRef.current}.csv`
+    link.download = `${csvSlugRef.current}.csv`
     link.href     = url
     link.click()
     URL.revokeObjectURL(url)

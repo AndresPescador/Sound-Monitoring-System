@@ -1,12 +1,15 @@
+import { defaultT } from '../i18n/core.mjs'
+import { useLanguage } from '../context/LanguageContext'
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import BogotaMapGateway from '../components/landing/BogotaMapGateway'
 import ThemeToggle from '../components/shared/ThemeToggle'
+import LanguageSwitcher from '../components/shared/LanguageSwitcher'
 import { ROUTES } from '../routes'
 import './landing.css'
 
 const waveform = [18, 34, 24, 58, 44, 72, 36, 82, 54, 28, 64, 40, 76, 48, 30, 56, 68, 38, 78, 46, 26, 62, 42, 70]
-const metricLabels = ['Leq', 'ILD', 'Correlación', 'L10', 'L50', 'L90', 'Espectro']
+const metricLabels = (t = defaultT) => (['Leq', 'ILD', t('landing.correlation'), 'L10', 'L50', 'L90', t('maps.spectrum')])
 
 const landingSectionGaps = {
   mapas: 0,
@@ -18,9 +21,10 @@ const landingSectionGaps = {
 }
 
 function SoundWave({ channel, values, reverse = false }) {
+  const { t } = useLanguage()
   const sequence = reverse ? [...values].reverse() : values
   return (
-    <div className="landing-wave-row" aria-label={`Señal ilustrativa del canal ${channel}`}>
+    <div className="landing-wave-row" aria-label={t('landing.illustrative_signal_for_the_channel', { p0: channel })}>
       <span className="landing-wave-label">{channel}</span>
       <div className="landing-wave-bars" aria-hidden="true">
         {sequence.map((height, index) => (
@@ -101,6 +105,7 @@ function scrollToLandingSection(sectionId, behavior = 'smooth', updateHash = tru
 }
 
 export default function Landing() {
+  const { t } = useLanguage()
   useEffect(() => {
     const initialSectionId = window.location.hash.slice(1)
     const initialFrame = window.requestAnimationFrame(() => {
@@ -155,33 +160,34 @@ export default function Landing() {
         <Link
           to="/"
           className="landing-brand"
-          aria-label="Inicio del Sistema de Monitoreo Acústico Binaural"
+          aria-label={t('landing.binaural_acoustic_monitoring_system_home')}
           onClick={(event) => handleSectionNavigation(event, 'inicio')}
         >
           <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
           <span className="landing-brand-copy">
             <span className="landing-brand-name">
-              <span>Sistema de Monitoreo</span>
-              <span>Acústico Binaural</span>
+              <span>{t('landing.binaural_acoustic')}</span>
+              <span>{t('landing.monitoring_system')}</span>
             </span>
             <small>Bogotá D.C.</small>
           </span>
         </Link>
 
-        <nav aria-label="Navegación de la presentación">
-          <a href="#inicio" onClick={(event) => handleSectionNavigation(event, 'inicio')}>Inicio</a>
-          <a href="#mapas" onClick={(event) => handleSectionNavigation(event, 'mapas')}>Mapas</a>
-          <a href="#proyecto" onClick={(event) => handleSectionNavigation(event, 'proyecto')}>Proyecto</a>
-          <a href="#estacion-real" onClick={(event) => handleSectionNavigation(event, 'estacion-real')}>Estación</a>
-          <a href="#sistema" onClick={(event) => handleSectionNavigation(event, 'sistema')}>Sistema</a>
+        <nav aria-label={t('landing.introduction_navigation')}>
+          <a href="#inicio" onClick={(event) => handleSectionNavigation(event, 'inicio')}>{t('landing.home')}</a>
+          <a href="#mapas" onClick={(event) => handleSectionNavigation(event, 'mapas')}>{t('landing.maps')}</a>
+          <a href="#proyecto" onClick={(event) => handleSectionNavigation(event, 'proyecto')}>{t('landing.project')}</a>
+          <a href="#estacion-real" onClick={(event) => handleSectionNavigation(event, 'estacion-real')}>{t('admin.station_2')}</a>
+          <a href="#sistema" onClick={(event) => handleSectionNavigation(event, 'sistema')}>{t('landing.system')}</a>
           <a href="#binaural" onClick={(event) => handleSectionNavigation(event, 'binaural')}>Binaural</a>
-          <a href="#audiencias" onClick={(event) => handleSectionNavigation(event, 'audiencias')}>Usos</a>
-          <a href="#datos" onClick={(event) => handleSectionNavigation(event, 'datos')}>Datos abiertos</a>
+          <a href="#audiencias" onClick={(event) => handleSectionNavigation(event, 'audiencias')}>{t('landing.uses')}</a>
+          <a href="#datos" onClick={(event) => handleSectionNavigation(event, 'datos')}>{t('maps.open_data')}</a>
         </nav>
 
         <div className="landing-nav-actions">
+          <LanguageSwitcher />
           <ThemeToggle />
-          <a href="#mapas" className="landing-nav-cta" onClick={(event) => handleSectionNavigation(event, 'mapas')}>Explorar mapas</a>
+          <a href="#mapas" className="landing-nav-cta" onClick={(event) => handleSectionNavigation(event, 'mapas')}>{t('landing.explore_maps')}</a>
         </div>
       </header>
 
@@ -189,13 +195,13 @@ export default function Landing() {
         <section className="landing-hero" id="inicio" data-loop aria-labelledby="landing-title">
           <div className="landing-hero-signal" aria-hidden="true" />
           <div className="landing-hero-copy">
-            <p className="landing-hero-kicker">Red binaural de Bogotá</p>
-            <h1 id="landing-title" tabIndex={-1}>Sistema de Monitoreo Acústico Binaural</h1>
-            <p className="landing-hero-tagline">Bogotá suena. La medimos.</p>
-            <p className="landing-hero-lead">Una red de estaciones convierte el paisaje sonoro de la ciudad en datos abiertos, espaciales y comparables.</p>
+            <p className="landing-hero-kicker">{t('landing.bogota_binaural_network')}</p>
+            <h1 id="landing-title" tabIndex={-1}>{t('landing.binaural_acoustic_monitoring_system')}</h1>
+            <p className="landing-hero-tagline">{t('landing.bogota_makes_sound_we_measure_it')}</p>
+            <p className="landing-hero-lead">{t('landing.a_network_of_stations_turns_the_city_s_soundscape')}</p>
             <div className="landing-hero-actions">
-              <a href="#mapas" className="landing-button landing-button--primary" onClick={(event) => handleSectionNavigation(event, 'mapas')}>Explorar mapas</a>
-              <a href="#sistema" className="landing-button landing-button--secondary" onClick={(event) => handleSectionNavigation(event, 'sistema')}>Conocer el sistema</a>
+              <a href="#mapas" className="landing-button landing-button--primary" onClick={(event) => handleSectionNavigation(event, 'mapas')}>{t('landing.explore_maps')}</a>
+              <a href="#sistema" className="landing-button landing-button--secondary" onClick={(event) => handleSectionNavigation(event, 'sistema')}>{t('landing.discover_the_system')}</a>
             </div>
           </div>
 
@@ -203,7 +209,7 @@ export default function Landing() {
             <div className="landing-hero-image-wrap" data-loop>
               <img
                 src="/assets/station-assembly-hero.webp"
-                alt="Montaje real de la estación con cabeza binaural, batería, interfaz de audio y electrónica"
+                alt={t('landing.actual_station_assembly_with_binaural_head_battery_audio_interface')}
                 width="1672"
                 height="941"
                 loading="eager"
@@ -211,7 +217,7 @@ export default function Landing() {
               />
               <div className="landing-hero-scan" aria-hidden="true" />
               <div className="landing-hero-scope" aria-hidden="true">
-                <div><span>Canal L</span><span>Canal R</span></div>
+                <div><span>{t('maps.l_channel')}</span><span>{t('maps.r_channel')}</span></div>
                 <div className="landing-hero-scope-bars">
                   {waveform.slice(0, 16).map((height, index) => (
                     <i key={`hero-${index}`} style={{ '--scope-height': `${Math.max(18, height - 8)}%`, '--scope-delay': `${index * -105}ms` }} />
@@ -219,21 +225,21 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-            <figcaption>Montaje real del proyecto. Dos micrófonos capturan diferencias espaciales que una medición convencional no puede revelar.</figcaption>
+            <figcaption>{t('landing.actual_project_assembly_two_microphones_capture_spatial_differences_that')}</figcaption>
           </figure>
         </section>
 
-        <div className="landing-metric-rail" data-reveal="rail" data-loop role="img" aria-label="Métricas acústicas publicadas: Leq, ILD, correlación, L10, L50, L90 y espectro">
+        <div className="landing-metric-rail" data-reveal="rail" data-loop role="img" aria-label={t('landing.published_acoustic_metrics_leq_ild_correlation_l10_l50_l90')}>
           <div className="landing-metric-track" aria-hidden="true">
-            {[...metricLabels, ...metricLabels].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
+            {[...metricLabels(t), ...metricLabels(t)].map((label, index) => <span key={`${label}-${index}`}>{t(label)}</span>)}
           </div>
         </div>
 
         <section className="landing-map-section" aria-labelledby="map-title">
           <div className="landing-section-heading" id="mapas" data-reveal="copy">
             <div className="landing-map-heading-copy">
-              <h2 id="map-title">Dos formas de leer la misma ciudad</h2>
-              <p>Consulta el estado actual en el mapa 2D o explora la intensidad acústica sobre el tejido urbano en 3D.</p>
+              <h2 id="map-title">{t('landing.two_ways_to_read_the_same_city')}</h2>
+              <p>{t('landing.check_the_current_status_on_the_2d_map_or')}</p>
             </div>
           </div>
           <div className="landing-map-stage" data-reveal="visual"><BogotaMapGateway /></div>
@@ -241,8 +247,8 @@ export default function Landing() {
 
         <section className="landing-project" aria-labelledby="project-title">
           <div className="landing-project-intro" id="proyecto" data-reveal="copy">
-            <h2 id="project-title">El sonido urbano también es información.</h2>
-            <p>El sistema convierte fragmentos de audio en evidencia consultable para comprender patrones, contrastar zonas y abrir nuevas preguntas sobre Bogotá.</p>
+            <h2 id="project-title">{t('landing.urban_sound_is_information_too')}</h2>
+            <p>{t('landing.the_system_turns_audio_segments_into_accessible_evidence_to')}</p>
           </div>
 
           <div className="landing-project-mosaic" data-reveal="sequence">
@@ -254,29 +260,29 @@ export default function Landing() {
                 aria-hidden="true"
                 loading="lazy"
               />
-              <span className="landing-feature-word">Estéreo</span>
-              <h3>Escucha en dos canales</h3>
-              <p>La diferencia entre izquierda y derecha permite observar lateralización y carácter espacial de las fuentes sonoras.</p>
+              <span className="landing-feature-word">{t('landing.stereo')}</span>
+              <h3>{t('landing.listen_through_two_channels')}</h3>
+              <p>{t('landing.the_difference_between_left_and_right_reveals_lateralization_and')}</p>
             </article>
             <article>
-              <h3>Procesa cerca de la fuente</h3>
-              <p>Cada Raspberry Pi calcula métricas localmente, conserva un backlog y reintenta envíos cuando la red vuelve a estar disponible.</p>
+              <h3>{t('landing.process_near_the_source')}</h3>
+              <p>{t('landing.each_raspberry_pi_calculates_metrics_locally_keeps_a_backlog')}</p>
             </article>
             <article>
-              <h3>Publica para explorar</h3>
-              <p>Las mediciones se agregan por hora y llegan a mapas, gráficas comparativas y descargas abiertas.</p>
+              <h3>{t('landing.publish_for_exploration')}</h3>
+              <p>{t('landing.measurements_are_aggregated_hourly_and_delivered_to_maps_comparison')}</p>
             </article>
           </div>
         </section>
 
         <section className="landing-field" aria-labelledby="field-title">
           <div className="landing-field-copy" id="estacion-real" data-reveal="copy">
-            <h2 id="field-title">Así se ve una estación real.</h2>
-            <p>Esta fotografía corresponde al despliegue del proyecto: una cabeza binaural elevada, alimentación solar y electrónica preparada para capturar y procesar el entorno acústico.</p>
+            <h2 id="field-title">{t('landing.this_is_what_a_real_station_looks_like')}</h2>
+            <p>{t('landing.this_photograph_shows_the_project_deployment_an_elevated_binaural')}</p>
             <dl>
-              <div><dt>Captura</dt><dd>Cabeza binaural de dos canales</dd></div>
-              <div><dt>Energía</dt><dd>Panel solar y batería</dd></div>
-              <div><dt>Entorno</dt><dd>Despliegue sobre una cubierta en Bogotá</dd></div>
+              <div><dt>{t('landing.capture')}</dt><dd>{t('landing.two_channel_binaural_head')}</dd></div>
+              <div><dt>{t('landing.power')}</dt><dd>{t('landing.solar_panel_and_battery')}</dd></div>
+              <div><dt>{t('landing.environment')}</dt><dd>{t('landing.rooftop_deployment_in_bogota')}</dd></div>
             </dl>
           </div>
 
@@ -285,12 +291,12 @@ export default function Landing() {
             <figure className="landing-field-deployment">
               <img
                 src="/assets/station-field-bogota.webp"
-                alt="Estación binaural real desplegada en una cubierta de Bogotá junto a su panel solar"
+                alt={t('landing.real_binaural_station_deployed_on_a_bogota_rooftop_beside')}
                 width="980"
                 height="1604"
                 loading="lazy"
               />
-              <figcaption>Despliegue de campo · Bogotá D.C.</figcaption>
+              <figcaption>{t('landing.field_deployment_bogota_d_c')}</figcaption>
             </figure>
           </div>
         </section>
@@ -298,13 +304,13 @@ export default function Landing() {
         <section className="landing-system" aria-labelledby="system-title">
           <div className="landing-system-header">
             <div className="landing-section-heading landing-section-heading--light" id="sistema" data-reveal="copy">
-              <h2 id="system-title">De la calle al dato abierto</h2>
-              <p>Una cadena verificable autentica cada estación, protege la ingesta y separa la operación del acceso público.</p>
+              <h2 id="system-title">{t('landing.from_the_street_to_open_data')}</h2>
+              <p>{t('landing.a_verifiable_pipeline_authenticates_every_station_protects_ingestion_and')}</p>
             </div>
             <figure className="landing-system-evidence" data-reveal="visual">
               <img
                 src="/assets/station-assembly-overview.webp"
-                alt="Vista cenital del montaje real con panel solar, batería, interfaz de audio y cabeza binaural"
+                alt={t('landing.overhead_view_of_the_actual_assembly_with_solar_panel')}
                 width="1959"
                 height="803"
                 loading="lazy"
@@ -316,97 +322,97 @@ export default function Landing() {
                 aria-hidden="true"
                 loading="lazy"
               />
-              <figcaption>Integración del sistema completo antes del despliegue.</figcaption>
+              <figcaption>{t('landing.full_system_integration_before_deployment')}</figcaption>
             </figure>
           </div>
 
-          <div className="landing-pipeline" data-reveal="sequence" role="list" aria-label="Flujo del sistema">
+          <div className="landing-pipeline" data-reveal="sequence" role="list" aria-label={t('landing.system_flow')}>
             <article role="listitem">
-              <span>Captura</span>
-              <h3>Estación de campo</h3>
-              <p>Micrófono estéreo y Raspberry Pi</p>
+              <span>{t('landing.capture')}</span>
+              <h3>{t('landing.field_station')}</h3>
+              <p>{t('landing.stereo_microphone_and_raspberry_pi')}</p>
             </article>
             <article role="listitem">
-              <span>Autentica</span>
-              <h3>Ingreso seguro</h3>
-              <p>JWT de estación y validación</p>
+              <span>{t('landing.authenticate')}</span>
+              <h3>{t('landing.secure_intake')}</h3>
+              <p>{t('landing.station_jwt_and_validation')}</p>
             </article>
             <article role="listitem">
-              <span>Procesa</span>
-              <h3>Analítica acústica</h3>
-              <p>Persistencia y agregación horaria</p>
+              <span>{t('landing.process')}</span>
+              <h3>{t('landing.acoustic_analytics')}</h3>
+              <p>{t('landing.storage_and_hourly_aggregation')}</p>
             </article>
             <article role="listitem">
-              <span>Publica</span>
-              <h3>Dashboard ciudadano</h3>
-              <p>Mapas, gráficas y datos abiertos</p>
+              <span>{t('landing.publish')}</span>
+              <h3>{t('landing.public_dashboard')}</h3>
+              <p>{t('landing.maps_charts_and_open_data')}</p>
             </article>
           </div>
         </section>
 
         <section className="landing-binaural" aria-labelledby="binaural-title">
           <div className="landing-binaural-copy" id="binaural" data-reveal="copy">
-            <h2 id="binaural-title">No solo cuánto ruido. También desde dónde.</h2>
-            <p>El nivel equivalente describe la energía. La diferencia interaural y la correlación añaden una lectura espacial del entorno.</p>
+            <h2 id="binaural-title">{t('landing.not_just_how_much_noise_also_where_it_comes')}</h2>
+            <p>{t('landing.the_equivalent_level_describes_energy_interaural_difference_and_correlation')}</p>
             <dl>
-              <div><dt>ILD</dt><dd>Compara el nivel recibido por cada canal.</dd></div>
-              <div><dt>Correlación</dt><dd>Describe cuánto se parecen ambas señales.</dd></div>
-              <div><dt>Espectro</dt><dd>Ubica frecuencia dominante, centroide y rolloff.</dd></div>
+              <div><dt>ILD</dt><dd>{t('landing.compares_the_level_received_by_each_channel')}</dd></div>
+              <div><dt>{t('landing.correlation')}</dt><dd>{t('landing.describes_how_similar_the_two_signals_are')}</dd></div>
+              <div><dt>{t('maps.spectrum')}</dt><dd>{t('landing.identifies_dominant_frequency_centroid_and_rolloff')}</dd></div>
             </dl>
           </div>
 
           <div className="landing-waveform" data-reveal="visual" data-loop>
             <div className="landing-waveform-header">
-              <span>Captura binaural</span>
-              <span>Señal ilustrativa</span>
+              <span>{t('landing.binaural_capture')}</span>
+              <span>{t('landing.illustrative_signal')}</span>
             </div>
             <SoundWave channel="L" values={waveform} />
             <SoundWave channel="R" values={waveform.map((value, index) => Math.max(16, value - (index % 5) * 5))} reverse />
-            <div className="landing-wave-axis" aria-hidden="true"><span>Canal izquierdo</span><span>Canal derecho</span></div>
+            <div className="landing-wave-axis" aria-hidden="true"><span>{t('landing.left_channel')}</span><span>{t('landing.right_channel')}</span></div>
           </div>
         </section>
 
         <section className="landing-audiences" aria-labelledby="audiencias">
-          <h2 id="audiencias" data-reveal="copy">Una red, tres maneras de usarla</h2>
+          <h2 id="audiencias" data-reveal="copy">{t('landing.one_network_three_ways_to_use_it')}</h2>
           <div className="landing-audiences-layout">
             <div className="landing-audience-grid" data-reveal="sequence">
               <article className="landing-audience-primary">
-                <h3>Ciudadanía</h3>
-                <p>Consultar el nivel reciente de una zona y entender qué significan las métricas publicadas.</p>
-                <Link to={ROUTES.map2D}>Consultar la ciudad</Link>
+                <h3>{t('landing.public')}</h3>
+                <p>{t('landing.check_an_area_s_recent_level_and_understand_what')}</p>
+                <Link to={ROUTES.map2D}>{t('landing.explore_the_city')}</Link>
               </article>
               <article>
-                <h3>Análisis ambiental</h3>
-                <p>Comparar estaciones, revisar tendencias y descargar información replicable.</p>
-                <Link to={ROUTES.map2DCompare}>Comparar estaciones</Link>
+                <h3>{t('landing.environmental_analysis')}</h3>
+                <p>{t('landing.compare_stations_review_trends_and_download_reproducible_information')}</p>
+                <Link to={ROUTES.map2DCompare}>{t('maps.compare_stations')}</Link>
               </article>
               <article>
-                <h3>Operación técnica</h3>
-                <p>Gestionar la red y verificar el estado de las estaciones autorizadas.</p>
-                <Link to="/admin/login">Ingresar al panel</Link>
+                <h3>{t('landing.technical_operations')}</h3>
+                <p>{t('landing.manage_the_network_and_check_the_status_of_authorized')}</p>
+                <Link to="/admin/login">{t('landing.open_the_admin_panel')}</Link>
               </article>
             </div>
             <figure className="landing-audiences-visual" data-reveal="visual">
               <img
                 src="/assets/landing-tres-formas-v2.webp"
-                alt="Ilustración de ciudadanía, análisis ambiental y operación técnica conectados por una red de escucha"
+                alt={t('landing.illustration_of_the_public_environmental_analysis_and_technical_operations')}
                 loading="lazy"
               />
-              <figcaption>Una red que se puede consultar, analizar y operar.</figcaption>
+              <figcaption>{t('landing.a_network_to_explore_analyze_and_operate')}</figcaption>
             </figure>
           </div>
         </section>
 
         <section className="landing-open-data" aria-labelledby="open-data-title">
           <div className="landing-open-data-copy" id="datos" data-reveal="copy">
-            <h2 id="open-data-title">Los datos también deben circular.</h2>
-            <p>Consulta intervalos acotados, filtra por estación y descarga mediciones en CSV desde el portal público.</p>
+            <h2 id="open-data-title">{t('landing.data_should_circulate_too')}</h2>
+            <p>{t('landing.select_bounded_time_ranges_filter_by_station_and_download')}</p>
           </div>
           <div className="landing-open-data-visual">
             <div className="landing-open-data-art" data-reveal="visual" aria-hidden="true">
               <img className="landing-open-data-illustration" src="/assets/landing-datos-binaural-wide-v2.webp" alt="" loading="lazy" />
             </div>
-            <Link to={ROUTES.map2DData} className="landing-button landing-button--light" data-reveal="visual">Abrir datos públicos</Link>
+            <Link to={ROUTES.map2DData} className="landing-button landing-button--light" data-reveal="visual">{t('landing.open_public_data')}</Link>
           </div>
         </section>
       </main>
@@ -416,17 +422,17 @@ export default function Landing() {
           <img className="landing-brand-mark" src="/assets/logo-oido-urbano.png" alt="" aria-hidden="true" />
           <span className="landing-brand-copy">
             <span className="landing-brand-name">
-              <span>Sistema de Monitoreo</span>
-              <span>Acústico Binaural</span>
+              <span>{t('landing.binaural_acoustic')}</span>
+              <span>{t('landing.monitoring_system')}</span>
             </span>
             <small>Bogotá D.C.</small>
           </span>
         </div>
-        <p>Proyecto de monitoreo ambiental con captura binaural y datos abiertos.</p>
-        <nav aria-label="Enlaces finales">
-          <Link to={ROUTES.map2D}>Mapa 2D</Link>
-          <Link to={ROUTES.map3D}>Mapa 3D</Link>
-          <Link to={ROUTES.map2DData}>Datos Abiertos</Link>
+        <p>{t('landing.environmental_monitoring_project_with_binaural_capture_and_open_data')}</p>
+        <nav aria-label={t('landing.footer_links')}>
+          <Link to={ROUTES.map2D}>{t('landing.2d_map')}</Link>
+          <Link to={ROUTES.map3D}>{t('landing.3d_map')}</Link>
+          <Link to={ROUTES.map2DData}>{t('landing.open_data')}</Link>
         </nav>
       </footer>
     </div>

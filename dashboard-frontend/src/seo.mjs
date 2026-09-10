@@ -1,3 +1,4 @@
+import { defaultT } from './i18n/core.mjs'
 export const DEFAULT_SITE_URL = 'https://soundmonitoring.systems'
 
 function normalizeSiteUrl(value = DEFAULT_SITE_URL) {
@@ -18,7 +19,7 @@ export function absoluteUrl(pathname, configuredSiteUrl) {
   return new URL(pathname, `${normalizeSiteUrl(configuredSiteUrl)}/`).toString()
 }
 
-export function routeSeo(pathname, options = {}) {
+export function routeSeo(pathname, options = {}, t = defaultT) {
   const configuredSiteUrl = normalizeSiteUrl(options.siteUrl)
   const canonical = absoluteUrl(pathname, configuredSiteUrl)
   const stationName = String(options.station?.name ?? '').trim()
@@ -27,48 +28,48 @@ export function routeSeo(pathname, options = {}) {
   const base = {
     canonical,
     image: absoluteUrl('/assets/station-assembly-hero.webp', configuredSiteUrl),
-    siteName: 'Sistema de Monitoreo Acústico Binaural',
+    siteName: t('landing.binaural_acoustic_monitoring_system'),
   }
 
   if (pathname === '/') {
     return {
       ...base,
-      title: 'Sistema de Monitoreo Acústico Binaural | Bogotá D.C.',
-      description: 'Sistema de monitoreo acústico binaural para explorar el paisaje sonoro de Bogotá mediante mapas, métricas espaciales y datos abiertos.',
-      heading: 'Sistema de Monitoreo Acústico Binaural',
+      title: t('seo.binaural_acoustic_monitoring_system_bogota_d_c'),
+      description: t('seo.binaural_acoustic_monitoring_system_for_exploring_bogota_s_soundscape'),
+      heading: t('landing.binaural_acoustic_monitoring_system'),
     }
   }
   if (pathname === '/mapa-2d') {
     return {
       ...base,
-      title: 'Mapa acústico 2D de Bogotá | Monitoreo Acústico',
-      description: 'Explora el mapa acústico 2D de Bogotá y consulta las estaciones activas de la red binaural.',
-      heading: 'Mapa acústico 2D de Bogotá',
+      title: t('seo.bogota_2d_acoustic_map_acoustic_monitoring'),
+      description: t('seo.explore_bogota_s_2d_acoustic_map_and_check_active'),
+      heading: t('seo.bogota_2d_acoustic_map'),
     }
   }
   if (pathname === '/mapa-3d') {
     return {
       ...base,
-      title: 'Mapa acústico 3D de Bogotá | Monitoreo Acústico',
-      description: 'Visualiza la red de monitoreo acústico binaural de Bogotá en un mapa urbano tridimensional.',
-      heading: 'Mapa acústico 3D de Bogotá',
+      title: t('seo.bogota_3d_acoustic_map_acoustic_monitoring'),
+      description: t('seo.view_bogota_s_binaural_acoustic_monitoring_network_on_a'),
+      heading: t('seo.bogota_3d_acoustic_map'),
     }
   }
   if (pathname === '/mapa-2d/data' || pathname === '/mapa-3d/data') {
     return {
       ...base,
-      title: 'Datos acústicos abiertos de Bogotá | Monitoreo Acústico',
-      description: 'Consulta y descarga datos acústicos agregados de la red binaural de Bogotá.',
-      heading: 'Portal de datos acústicos abiertos',
+      title: t('seo.bogota_open_acoustic_data_acoustic_monitoring'),
+      description: t('seo.browse_and_download_aggregated_acoustic_data_from_bogota_s'),
+      heading: t('seo.open_acoustic_data_portal'),
     }
   }
   if (pathname.startsWith('/mapa-2d/stations/')) {
-    const displayName = stationName || 'Estación de monitoreo acústico'
-    const localityText = locality ? ` en ${locality}, Bogotá` : ' en Bogotá'
+    const displayName = stationName || t('seo.acoustic_monitoring_station')
+    const localityText = locality ? ' ' + t('seo.in_bogota', { p0: locality }) : ' ' + t('seo.in_bogota_2')
     return {
       ...base,
-      title: `${displayName} | Monitoreo Acústico de Bogotá`,
-      description: `Consulta las métricas acústicas de ${displayName}${localityText}.`,
+      title: t('seo.bogota_acoustic_monitoring', { p0: displayName }),
+      description: t('seo.explore_acoustic_metrics_for', { p0: displayName, p1: localityText }),
       heading: displayName,
       locality,
     }
@@ -76,9 +77,9 @@ export function routeSeo(pathname, options = {}) {
 
   return {
     ...base,
-    title: 'Monitoreo Acústico | Bogotá D.C.',
-    description: 'Explora el paisaje sonoro de Bogotá mediante datos abiertos y monitoreo acústico binaural.',
-    heading: 'Monitoreo acústico de Bogotá',
+    title: t('seo.acoustic_monitoring_bogota_d_c'),
+    description: t('seo.explore_bogota_s_soundscape_through_open_data_and_binaural'),
+    heading: t('seo.bogota_acoustic_monitoring_2'),
   }
 }
 

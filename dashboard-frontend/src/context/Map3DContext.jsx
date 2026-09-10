@@ -1,3 +1,4 @@
+import { message as localizedMessage } from '../i18n/core.mjs'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getStationSummary, getStations } from '../api/stations'
@@ -55,7 +56,7 @@ export function Map3DProvider({ children }) {
       return nextStations
     } catch (error) {
       if (error?.code !== 'ERR_CANCELED' && error?.name !== 'CanceledError') {
-        setStationsError('No fue posible actualizar el snapshot de estaciones.')
+        setStationsError(localizedMessage('maps.could_not_update_the_station_snapshot'))
       }
       return null
     } finally {
@@ -114,7 +115,7 @@ export function Map3DProvider({ children }) {
       })
       .catch(error => {
         if (controller.signal.aborted || error?.code === 'ERR_CANCELED') return
-        setSummaryError('No fue posible cargar el resumen de esta estación.')
+        setSummaryError(localizedMessage('maps.could_not_load_this_station_s_summary'))
       })
     return () => controller.abort()
   }, [selectedStationCode])

@@ -1,3 +1,5 @@
+import { defaultT, message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { subHours } from 'date-fns'
@@ -23,17 +25,17 @@ import { useChartDownload } from '../../hooks/useChartDownload'
 
 const DETAIL_CACHE_LIMIT = 20
 const detailCache = new Map()
-const METRIC_LABELS = {
-  leq_dbfs: 'Leq (ponderación A)',
-  dbfs_level: 'Nivel dBFS',
-  rms_energy: 'Energía RMS',
-  ild_db: 'ILD (diferencia interaural)',
-  interaural_correlation: 'Correlación interaural',
-  dominant_frequency: 'Frecuencia dominante',
-  spectral_centroid: 'Centroide espectral',
-  spectral_rolloff: 'Rolloff espectral',
-  zero_crossing_rate: 'Tasa de cruces por cero',
-}
+const METRIC_LABELS = (t = defaultT) => ({
+  leq_dbfs: t('maps.leq_a_weighted'),
+  dbfs_level: t('maps.dbfs_level'),
+  rms_energy: t('maps.rms_energy'),
+  ild_db: t('maps.ild_interaural_difference'),
+  interaural_correlation: t('maps.interaural_correlation'),
+  dominant_frequency: t('maps.dominant_frequency'),
+  spectral_centroid: t('maps.spectral_centroid'),
+  spectral_rolloff: t('maps.spectral_rolloff'),
+  zero_crossing_rate: t('maps.zero_crossing_rate'),
+})
 
 function cacheGet(key) { return detailCache.get(key) }
 function cacheSet(key, value) {
@@ -54,17 +56,18 @@ function bogotaDate(iso) {
   }
 }
 
-function relativeTime(value) {
-  if (!value) return 'sin comunicación registrada'
+function relativeTime(value, t = defaultT) {
+  if (!value) return t('maps.no_communication_recorded')
   const minutes = Math.round((new Date(value).getTime() - Date.now()) / 60000)
-  try { return new Intl.RelativeTimeFormat('es', { numeric: 'auto' }).format(minutes, 'minute') } catch { return 'fecha no disponible' }
+  try { return new Intl.RelativeTimeFormat('es', { numeric: 'auto' }).format(minutes, 'minute') } catch { return t('maps.date_unavailable') }
 }
 
-function formatValue(value, digits = 1) {
-  return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : 'Sin dato'
+function formatValue(value, digits = 1, t = defaultT) {
+  return Number.isFinite(Number(value)) ? t.fixed(Number(value), digits) : t('common.no_reading')
 }
 
 function Map3DChartSection({ title, info, data, fileLabel, svgTitle, stationCode, children }) {
+  const { t } = useLanguage()
   const cardRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
   const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, data, fileLabel, svgTitle, stationCode)
@@ -86,10 +89,12 @@ function Map3DChartSection({ title, info, data, fileLabel, svgTitle, stationCode
 }
 
 function DetailLoading({ label }) {
-  return <ChartSkeleton height={220} showLegend={false} label={label} />
+  const { t } = useLanguage()
+  return <ChartSkeleton height={220} showLegend={false} label={t(label)} />
 }
 
 export default function Map3DStationDetail() {
+  const { t } = useLanguage()
   const { code } = useParams()
   const navigate = useNavigate()
   const { stations, selectedStation, selectedStationCode, selectedSummary: contextSummary, summaryError, loadingStations, focusStation } = useMap3DContext()
@@ -169,7 +174,7 @@ export default function Map3DStationDetail() {
       })
       .catch(error => {
         if (controller.signal.aborted || error?.code === 'ERR_CANCELED') return
-        setLevelState(current => ({ ...current, loading: false, error: 'No fue posible cargar el nivel para este rango.' }))
+        setLevelState(current => ({ ...current, loading: false, error: localizedMessage('maps.could_not_load_the_level_for_this_range') }))
       })
     return () => controller.abort()
   }, [activeTab, code, metric, profileDate, range.from, range.to, retryKey])
@@ -193,7 +198,7 @@ export default function Map3DStationDetail() {
       })
       .catch(error => {
         if (controller.signal.aborted || error?.code === 'ERR_CANCELED') return
-        setBinauralState(current => ({ ...current, loading: false, error: 'No fue posible cargar las métricas binaurales.' }))
+        setBinauralState(current => ({ ...current, loading: false, error: localizedMessage('maps.could_not_load_binaural_metrics') }))
       })
     return () => controller.abort()
   }, [activeTab, code, range.from, range.to, retryKey])
@@ -217,7 +222,7 @@ export default function Map3DStationDetail() {
       })
       .catch(error => {
         if (controller.signal.aborted || error?.code === 'ERR_CANCELED') return
-        setSpectralState(current => ({ ...current, loading: false, error: 'No fue posible cargar las métricas espectrales.' }))
+        setSpectralState(current => ({ ...current, loading: false, error: localizedMessage('maps.could_not_load_spectral_metrics') }))
       })
     return () => controller.abort()
   }, [activeTab, code, range.from, range.to, retryKey])
@@ -236,18 +241,18 @@ export default function Map3DStationDetail() {
   if (!loadingStations && !hasStation && (summaryError || !summaryLoading)) {
     return (
       <div className="map3d-error-panel" role="alert">
-        <h2>Estación no encontrada</h2>
-        <p>El código <span className="map3d-code">{code}</span> no corresponde a una estación disponible.</p>
-        <button type="button" className="map3d-primary-button" onClick={() => navigate(ROUTES.map3D)}>Volver a explorar</button>
+        <h2>{t('maps.station_not_found')}</h2>
+        <p>{t('maps.the_code') + ' '}<span className="map3d-code">{code}</span>{' ' + t('maps.does_not_match_an_available_station')}</p>
+        <button type="button" className="map3d-primary-button" onClick={() => navigate(ROUTES.map3D)}>{t('maps.back_to_exploration')}</button>
       </div>
     )
   }
 
   const tabs = [
-    { id: 'summary', label: 'Resumen' },
-    { id: 'level', label: 'Nivel' },
+    { id: 'summary', label: t('maps.summary') },
+    { id: 'level', label: t('maps.level') },
     { id: 'binaural', label: 'Binaural' },
-    { id: 'spectral', label: 'Espectro' },
+    { id: 'spectral', label: t('maps.spectrum') },
   ]
 
   const handleTabKeyDown = (event, index) => {
@@ -267,16 +272,16 @@ export default function Map3DStationDetail() {
     <div className="map3d-station-detail">
       <div className="map3d-station-detail__toolbar">
         <div>
-          <p className="map3d-overline">{station?.locality ?? 'Cargando localidad'}</p>
+          <p className="map3d-overline">{station?.locality ?? t('maps.loading_locality')}</p>
           <h2>{summary?.name ?? station?.name ?? code}</h2>
-          <p className="map3d-muted">{station?.address ?? summary?.address ?? 'Dirección no registrada'} · <span className="map3d-code">{code}</span></p>
+          <p className="map3d-muted">{station?.address ?? summary?.address ?? t('maps.address_not_recorded')} · <span className="map3d-code">{code}</span></p>
         </div>
         <span className={`map3d-status ${summary?.is_active ?? station?.is_active ? 'is-active' : 'is-inactive'}`}>
-          {summary?.is_active ?? station?.is_active ? 'Activa' : 'Inactiva'}
+          {summary?.is_active ?? station?.is_active ? t('maps.active_2') : t('common.inactive')}
         </span>
       </div>
 
-      <div className="map3d-tabs" role="tablist" aria-label="Análisis de estación">
+      <div className="map3d-tabs" role="tablist" aria-label={t('maps.station_analysis')}>
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -321,35 +326,37 @@ export default function Map3DStationDetail() {
 }
 
 function SummaryPanel({ summary, station, loading }) {
+  const { t } = useLanguage()
   const metrics = [
-    ['Último Leq', formatValue(summary?.latest_leq_dbfs ?? station?.current_leq_dbfs), 'dBFS'],
-    ['Total de mediciones', summary?.total_measurements?.toLocaleString('es-CO') ?? 'Sin dato', 'registros'],
-    ['Última hora', formatValue(summary?.last_hour_leq), 'Leq dBFS'],
-    ['L10 / L50 / L90', `${formatValue(summary?.last_hour_l10)} / ${formatValue(summary?.last_hour_l50)} / ${formatValue(summary?.last_hour_l90)}`, 'dBFS'],
+    [t('maps.latest_leq'), formatValue(summary?.latest_leq_dbfs ?? station?.current_leq_dbfs, undefined, t), 'dBFS'],
+    [t('maps.total_measurements'), summary?.total_measurements?.toLocaleString(t.locale) ?? t('common.no_reading'), 'registros'],
+    [t('maps.last_hour'), formatValue(summary?.last_hour_leq, undefined, t), 'Leq dBFS'],
+    ['L10 / L50 / L90', `${formatValue(summary?.last_hour_l10, undefined, t)} / ${formatValue(summary?.last_hour_l50, undefined, t)} / ${formatValue(summary?.last_hour_l90, undefined, t)}`, 'dBFS'],
   ]
-  if (loading) return <DetailLoading label="Cargando resumen de estación…" />
+  if (loading) return <DetailLoading label={t('maps.loading_station_summary')} />
   return (
     <div className="map3d-summary-panel">
       <div className="map3d-summary-grid map3d-summary-grid--station">
-        {metrics.map(([label, value, detail]) => <div className="map3d-summary-stat" key={label}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>)}
+        {metrics.map(([label, value, detail]) => <div className="map3d-summary-stat" key={label}><span>{t(label)}</span><strong>{value}</strong><small>{detail}</small></div>)}
       </div>
       <dl className="map3d-detail-list">
-        <div><dt>Localidad</dt><dd>{summary?.locality ?? station?.locality ?? 'Sin dato'}</dd></div>
-        <div><dt>Dirección</dt><dd>{summary?.address ?? station?.address ?? 'Dirección no registrada'}</dd></div>
-        <div><dt>Última comunicación</dt><dd>{relativeTime(summary?.last_seen_at ?? station?.last_seen_at)}</dd></div>
+        <div><dt>{t('admin.locality_2')}</dt><dd>{summary?.locality ?? station?.locality ?? t('common.no_reading')}</dd></div>
+        <div><dt>{t('admin.address')}</dt><dd>{summary?.address ?? station?.address ?? t('maps.address_not_recorded')}</dd></div>
+        <div><dt>{t('maps.last_communication')}</dt><dd>{relativeTime(summary?.last_seen_at ?? station?.last_seen_at, t)}</dd></div>
       </dl>
-      <p className="map3d-panel-note">El resumen se actualiza con el snapshot de estaciones. Abre Nivel, Binaural o Espectro cuando necesites una serie detallada.</p>
+      <p className="map3d-panel-note">{t('maps.the_summary_updates_with_the_station_snapshot_open_level')}</p>
     </div>
   )
 }
 
 function DetailControls({ range, profileDate, metric, onRangeChange, onProfileDateChange, onMetricChange, onAxisModeChange, axisMode, automaticAxisMode, axisIsAutomatic }) {
+  const { t } = useLanguage()
   return (
     <>
       <div className="map3d-control-grid">
-        <div className="map3d-field"><label>Rango temporal</label><DateRangePicker onChange={onRangeChange} /></div>
-        <div className="map3d-field"><label htmlFor="map3d-metric">Métrica</label><MetricSelector id="map3d-metric" value={metric} onChange={onMetricChange} className="dashboard-select" /></div>
-        <div className="map3d-field"><label htmlFor="map3d-profile-date">Día del perfil (hora Bogotá)</label><input id="map3d-profile-date" type="date" value={profileDate} onChange={event => onProfileDateChange(event.target.value)} className="dashboard-input" /></div>
+        <div className="map3d-field"><label>{t('maps.time_range')}</label><DateRangePicker onChange={onRangeChange} /></div>
+        <div className="map3d-field"><label htmlFor="map3d-metric">{t('maps.metric')}</label><MetricSelector id="map3d-metric" value={metric} onChange={onMetricChange} className="dashboard-select" /></div>
+        <div className="map3d-field"><label htmlFor="map3d-profile-date">{t('maps.profile_day_bogota_time')}</label><input id="map3d-profile-date" type="date" value={profileDate} onChange={event => onProfileDateChange(event.target.value)} className="dashboard-input" /></div>
       </div>
       <ChartAxisModeControl mode={axisMode} automaticMode={automaticAxisMode} isAutomatic={axisIsAutomatic} onChange={onAxisModeChange} range={range} />
     </>
@@ -357,22 +364,23 @@ function DetailControls({ range, profileDate, metric, onRangeChange, onProfileDa
 }
 
 function LevelPanel({ code, range, profileDate, metric, state, axisMode, automaticAxisMode, axisIsAutomatic, onRangeChange, onProfileDateChange, onMetricChange, onAxisModeChange, onRetry }) {
+  const { t } = useLanguage()
   if (state.error) return <ErrorPanel message={state.error} onRetry={onRetry} />
   const seriesData = state.timeseries.map(item => ({ timestamp: item.recorded_at, [metric]: item.value }))
   return (
     <div className="map3d-detail-content">
       <DetailControls range={range} profileDate={profileDate} metric={metric} onRangeChange={onRangeChange} onProfileDateChange={onProfileDateChange} onMetricChange={onMetricChange} onAxisModeChange={onAxisModeChange} axisMode={axisMode} automaticAxisMode={automaticAxisMode} axisIsAutomatic={axisIsAutomatic} />
-      {state.loading ? <DetailLoading label="Cargando niveles, perfil y serie temporal…" /> : (
+      {state.loading ? <DetailLoading label={t('maps.loading_levels_profile_and_time_series')} /> : (
         <div className="map3d-chart-stack">
-          <Map3DChartSection title="Niveles horarios: Leq / L10 / L90" info="L90 representa el ruido de fondo; Leq el nivel equivalente y L10 los picos ocasionales." data={state.hourly} stationCode={code}>
+          <Map3DChartSection title={t('maps.hourly_levels_leq_l10_l90')} info="L90 representa el ruido de fondo; Leq el nivel equivalente y L10 los picos ocasionales." data={state.hourly} stationCode={code}>
             <LevelBandChart data={state.hourly} axisMode={axisMode} />
-            <p className="map3d-chart-note">L90 = fondo · Leq = nivel equivalente · L10 = picos</p>
+            <p className="map3d-chart-note">{t('maps.l90_background_leq_equivalent_level_l10_peaks')}</p>
           </Map3DChartSection>
-          <Map3DChartSection title={`Perfil diario: ${profileDate}`} info="Nivel equivalente promedio para cada hora del día." data={state.daily} stationCode={code}>
+          <Map3DChartSection title={t('maps.daily_profile', { p0: profileDate })} info={t('common.daily_profile_help')} data={state.daily} stationCode={code}>
             <DailyBarChart data={state.daily} />
-            <p className="map3d-chart-note">Leq por hora del día · el color indica nivel acústico</p>
+            <p className="map3d-chart-note">{t('maps.leq_by_hour_of_day_color_indicates_acoustic_level')}</p>
           </Map3DChartSection>
-          <Map3DChartSection title={`Serie temporal · ${METRIC_LABELS[metric] ?? metric}`} info={getMetricDescription(metric)} data={seriesData} fileLabel={metric} svgTitle={METRIC_LABELS[metric] ?? metric} stationCode={code}>
+          <Map3DChartSection title={t('maps.time_series', { p0: METRIC_LABELS(t)[metric] ?? metric })} info={getMetricDescription(metric, t)} data={seriesData} fileLabel={metric} svgTitle={METRIC_LABELS(t)[metric] ?? metric} stationCode={code}>
             <TimeSeriesChart data={state.timeseries} metricLabel={metric} unit="dBFS" axisMode={axisMode} />
             <ResolutionNotice meta={state.timeseriesMeta} />
           </Map3DChartSection>
@@ -383,23 +391,24 @@ function LevelPanel({ code, range, profileDate, metric, state, axisMode, automat
 }
 
 function BinauralPanel({ code, state, axisMode, onRetry }) {
+  const { t } = useLanguage()
   if (state.error) return <ErrorPanel message={state.error} onRetry={onRetry} />
-  if (state.loading) return <DetailLoading label="Cargando métricas binaurales…" />
-  if (!state.data.length) return <EmptyPanel title="Sin datos binaurales" message="No hay ILD ni correlación interaural para el rango seleccionado." />
+  if (state.loading) return <DetailLoading label={t('maps.loading_binaural_metrics')} />
+  if (!state.data.length) return <EmptyPanel title={t('maps.no_binaural_data')} message={t('common.missing_binaural_help')} />
   const channelData = state.data.some(item => item.ch_left_dbfs != null || item.ch_right_dbfs != null)
   return (
     <div className="map3d-detail-content">
       <ResolutionNotice meta={state.meta} />
       <div className="map3d-chart-grid">
-        <Map3DChartSection title="ILD: diferencia interaural" info={getMetricDescription('ild_db')} data={state.data.map(item => ({ timestamp: item.recorded_at, ild_db: item.ild_db }))} fileLabel="ild_db" stationCode={code}>
+        <Map3DChartSection title={t('maps.ild_interaural_difference_2')} info={getMetricDescription('ild_db', t)} data={state.data.map(item => ({ timestamp: item.recorded_at, ild_db: item.ild_db }))} fileLabel="ild_db" stationCode={code}>
           <ILDChart data={state.data} axisMode={axisMode} />
-          <p className="map3d-chart-note">El signo indica predominio relativo entre los canales.</p>
+          <p className="map3d-chart-note">{t('maps.the_sign_indicates_relative_dominance_between_channels')}</p>
         </Map3DChartSection>
-        <Map3DChartSection title="Correlación interaural" info={getMetricDescription('interaural_correlation')} data={state.data.map(item => ({ timestamp: item.recorded_at, interaural_correlation: item.interaural_correlation }))} fileLabel="correlacion" stationCode={code}>
-          <TimeSeriesChart data={state.data.map(item => ({ recorded_at: item.recorded_at, value: item.interaural_correlation, value_min: item.interaural_correlation_min, value_max: item.interaural_correlation_max, source_count: item.source_count }))} metricLabel="Correlación" axisMode={axisMode} />
+        <Map3DChartSection title={t('maps.interaural_correlation')} info={getMetricDescription('interaural_correlation', t)} data={state.data.map(item => ({ timestamp: item.recorded_at, interaural_correlation: item.interaural_correlation }))} fileLabel="correlacion" stationCode={code}>
+          <TimeSeriesChart data={state.data.map(item => ({ recorded_at: item.recorded_at, value: item.interaural_correlation, value_min: item.interaural_correlation_min, value_max: item.interaural_correlation_max, source_count: item.source_count }))} metricLabel={t('landing.correlation')} axisMode={axisMode} />
         </Map3DChartSection>
-        {channelData && <Map3DChartSection title="Canales izquierdo y derecho" data={state.data} fileLabel="canales" stationCode={code}>
-          <TimeSeriesChart data={state.data} unit="dBFS" axisMode={axisMode} series={[{ dataKey: 'ch_left_dbfs', label: 'Canal L', color: '#1d4ed8' }, { dataKey: 'ch_right_dbfs', label: 'Canal R', color: '#52637c' }]} />
+        {channelData && <Map3DChartSection title={t('maps.left_and_right_channels')} data={state.data} fileLabel="canales" stationCode={code}>
+          <TimeSeriesChart data={state.data} unit="dBFS" axisMode={axisMode} series={[{ dataKey: 'ch_left_dbfs', label: t('maps.l_channel'), color: '#1d4ed8' }, { dataKey: 'ch_right_dbfs', label: t('maps.r_channel'), color: '#52637c' }]} />
         </Map3DChartSection>}
       </div>
     </div>
@@ -407,21 +416,22 @@ function BinauralPanel({ code, state, axisMode, onRetry }) {
 }
 
 function SpectralPanel({ code, state, axisMode, onRetry }) {
+  const { t } = useLanguage()
   if (state.error) return <ErrorPanel message={state.error} onRetry={onRetry} />
-  if (state.loading) return <DetailLoading label="Cargando métricas espectrales…" />
-  if (!state.data.length) return <EmptyPanel title="Sin datos espectrales" message="No hay frecuencia dominante, centroide ni rolloff para el rango seleccionado." />
+  if (state.loading) return <DetailLoading label={t('maps.loading_spectral_metrics')} />
+  if (!state.data.length) return <EmptyPanel title={t('maps.no_spectral_data')} message="No hay frecuencia dominante, centroide ni rolloff para el rango seleccionado." />
   const series = [
-    ['spectral_centroid', 'Centroide espectral', 'Hz'],
-    ['dominant_frequency', 'Frecuencia dominante', 'Hz'],
-    ['spectral_rolloff', 'Rolloff espectral', 'Hz'],
-    ['zero_crossing_rate', 'Tasa de cruces por cero', ''],
+    ['spectral_centroid', t('maps.spectral_centroid'), 'Hz'],
+    ['dominant_frequency', t('maps.dominant_frequency'), 'Hz'],
+    ['spectral_rolloff', t('maps.spectral_rolloff'), 'Hz'],
+    ['zero_crossing_rate', t('maps.zero_crossing_rate'), ''],
   ]
   return (
     <div className="map3d-detail-content">
       <ResolutionNotice meta={state.meta} />
       <div className="map3d-chart-grid">
         {series.map(([key, label, unit]) => (
-          <Map3DChartSection key={key} title={label} info={getMetricDescription(key)} data={state.data.map(item => ({ timestamp: item.recorded_at, [key]: item[key] }))} fileLabel={key} stationCode={code}>
+          <Map3DChartSection key={key} title={t(label)} info={getMetricDescription(key, t)} data={state.data.map(item => ({ timestamp: item.recorded_at, [key]: item[key] }))} fileLabel={key} stationCode={code}>
             <TimeSeriesChart data={state.data.map(item => ({ recorded_at: item.recorded_at, value: item[key], value_min: item[`${key}_min`], value_max: item[`${key}_max`], source_count: item.source_count }))} metricLabel={label} unit={unit} axisMode={axisMode} />
           </Map3DChartSection>
         ))}
@@ -431,9 +441,11 @@ function SpectralPanel({ code, state, axisMode, onRetry }) {
 }
 
 function ErrorPanel({ message, onRetry }) {
-  return <div className="map3d-inline-error" role="alert"><strong>No se pudo cargar este análisis.</strong><p>{message}</p><button type="button" className="map3d-secondary-button" onClick={onRetry}>Reintentar</button></div>
+  const { t } = useLanguage()
+  return <div className="map3d-inline-error" role="alert"><strong>{t('maps.could_not_load_this_analysis')}</strong><p>{t(message)}</p><button type="button" className="map3d-secondary-button" onClick={onRetry}>{t('maps.retry')}</button></div>
 }
 
 function EmptyPanel({ title, message }) {
-  return <div className="map3d-empty-panel"><strong>{title}</strong><p>{message}</p><span>Prueba otro rango temporal o vuelve más tarde.</span></div>
+  const { t } = useLanguage()
+  return <div className="map3d-empty-panel"><strong>{title}</strong><p>{t(message)}</p><span>{t('maps.try_another_time_range_or_come_back_later')}</span></div>
 }

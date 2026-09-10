@@ -1,3 +1,5 @@
+import { defaultT } from '../i18n/core.mjs'
+import { useLanguage } from '../context/LanguageContext'
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { getCompare }      from '../api/compare'
 import { getStationSummary, getStations }     from '../api/stations'
@@ -17,32 +19,32 @@ import { buildPresetRange, DEFAULT_RANGE_HOURS, getLatestTimestamp, getStationLa
 import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/shared/RangeAvailabilityNotice'
 
 // ─── Métricas disponibles en /compare ────────────────────────────────────────
-const COMPARE_METRICS = [
-  { value: 'leq_hour',              label: 'Leq horario' },
-  { value: 'l10',                   label: 'L10 (picos)' },
-  { value: 'l50',                   label: 'L50 (típico)' },
-  { value: 'l90',                   label: 'L90 (fondo)' },
-  { value: 'dbfs_avg',              label: 'dBFS promedio' },
-  { value: 'dbfs_max',              label: 'dBFS máximo' },
-  { value: 'avg_spectral_centroid', label: 'Centroide espectral' },
-  { value: 'avg_ild_db',            label: 'ILD promedio' },
-  { value: 'avg_interaural_corr',   label: 'Correlación interaural' },
-]
+const COMPARE_METRICS = (t = defaultT) => ([
+  { value: 'leq_hour',              label: t('common.hourly_leq') },
+  { value: 'l10',                   label: t('common.noise_peaks') },
+  { value: 'l50',                   label: t('common.l50_typical') },
+  { value: 'l90',                   label: t('common.noise_background') },
+  { value: 'dbfs_avg',              label: t('common.average_dbfs') },
+  { value: 'dbfs_max',              label: t('common.maximum_dbfs') },
+  { value: 'avg_spectral_centroid', label: t('maps.spectral_centroid') },
+  { value: 'avg_ild_db',            label: t('common.average_ild') },
+  { value: 'avg_interaural_corr',   label: t('maps.interaural_correlation') },
+])
 
 // ─── Métricas crudas disponibles en /measurements (sección 2) ────────────────
-const RAW_METRICS = [
-  { value: 'leq_dbfs',               label: 'Leq (ponderación A)' },
-  { value: 'dbfs_level',             label: 'Nivel dBFS' },
-  { value: 'rms_energy',             label: 'Energía RMS' },
-  { value: 'ild_db',                 label: 'ILD (diferencia interaural)' },
-  { value: 'interaural_correlation', label: 'Correlación interaural' },
-  { value: 'dominant_frequency',     label: 'Frecuencia dominante (Hz)' },
-  { value: 'spectral_centroid',      label: 'Centroide espectral (Hz)' },
-  { value: 'spectral_rolloff',       label: 'Rolloff espectral (Hz)' },
-  { value: 'zero_crossing_rate',     label: 'Tasa de cruces por cero' },
-  { value: 'ch_left_dbfs',           label: 'Canal izquierdo (dBFS)' },
-  { value: 'ch_right_dbfs',          label: 'Canal derecho (dBFS)' },
-]
+const RAW_METRICS = (t = defaultT) => ([
+  { value: 'leq_dbfs',               label: t('maps.leq_a_weighted') },
+  { value: 'dbfs_level',             label: t('maps.dbfs_level') },
+  { value: 'rms_energy',             label: t('maps.rms_energy') },
+  { value: 'ild_db',                 label: t('maps.ild_interaural_difference') },
+  { value: 'interaural_correlation', label: t('maps.interaural_correlation') },
+  { value: 'dominant_frequency',     label: t('common.dominant_frequency_hz') },
+  { value: 'spectral_centroid',      label: t('common.spectral_centroid_hz') },
+  { value: 'spectral_rolloff',       label: t('common.spectral_rolloff_hz') },
+  { value: 'zero_crossing_rate',     label: t('maps.zero_crossing_rate') },
+  { value: 'ch_left_dbfs',           label: t('common.left_channel_dbfs') },
+  { value: 'ch_right_dbfs',          label: t('common.right_channel_dbfs') },
+])
 
 const EXACT_PREVIEW_LIMIT = 3000
 const EXACT_MAX_LIMIT = 10000
@@ -62,25 +64,26 @@ function getAutomaticRange(hours, latestTimestamp) {
   }
 }
 
-function formatCount(count, singular, plural) {
+function formatCount(count, singular, plural, t = defaultT) {
   const value = Number(count ?? 0)
-  return `${value.toLocaleString('es-CO')} ${value === 1 ? singular : plural}`
+  return `${value.toLocaleString(t.locale)} ${value === 1 ? singular : plural}`
 }
 
-function formatStationCount(count) {
-  return formatCount(count, 'estación', 'estaciones')
+function formatStationCount(count, t = defaultT) {
+  return formatCount(count, t('common.station'), t('maps.stations'), t)
 }
 
 // ─── Subcomponente: selector de tags con scroll ───────────────────────────────
 function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKey, getLabel, getSubLabel }) {
+  const { t } = useLanguage()
   return (
     <div className="dashboard-tag-selector">
       <div className="dashboard-tag-group__heading">
         <div className="dashboard-tag-group__actions">
-          <button type="button" onClick={onSelectAll} className="dashboard-text-button">Todas</button>
-          <button type="button" onClick={onClearAll} className="dashboard-text-button">Ninguna</button>
+          <button type="button" onClick={onSelectAll} className="dashboard-text-button">{t('common.all')}</button>
+          <button type="button" onClick={onClearAll} className="dashboard-text-button">{t('common.none')}</button>
         </div>
-        <span className="dashboard-tag-group__count">{selected.size} / {items.length} seleccionadas</span>
+        <span className="dashboard-tag-group__count">{selected.size} / {items.length}{' ' + t('common.selected')}</span>
       </div>
       <div className="dashboard-tag-list">
         {items.map(item => {
@@ -101,7 +104,7 @@ function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKe
                   : ''
               }`}
             >
-              <span className="dashboard-tag__label">{label}</span>
+              <span className="dashboard-tag__label">{t(label)}</span>
               {subLabel && (
                 <span className="dashboard-tag__sub">
                   {subLabel}
@@ -116,10 +119,11 @@ function TagSelector({ items, selected, onToggle, onSelectAll, onClearAll, getKe
 }
 
 // ─── SectionCard con soporte de descarga ──────────────────────────────────────
-function SectionCard({ title, subtitle, downloadData, fileLabel, svgTitle, children }) {
+function SectionCard({ title, subtitle, downloadData, fileLabel, svgTitle, csvTitle, children }) {
+  const { t } = useLanguage()
   const cardRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
-  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData, fileLabel, svgTitle)
+  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData, fileLabel, svgTitle, '', csvTitle)
 
   const handlePNG = useCallback(async () => {
     setDownloading(true)
@@ -148,6 +152,7 @@ function SectionCard({ title, subtitle, downloadData, fileLabel, svgTitle, child
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Compare({ onStationSelectionChange } = {}) {
+  const { t } = useLanguage()
   const [allStations, setAllStations] = useState([])
   const [latestByStation, setLatestByStation] = useState({})
   const [latestTimestampsReady, setLatestTimestampsReady] = useState(false)
@@ -500,16 +505,17 @@ export default function Compare({ onStationSelectionChange } = {}) {
     <div className="dashboard-page dashboard-compare-page">
       <header className="dashboard-page-header">
         <div>
-          <h1 tabIndex={-1}>Comparar estaciones</h1>
-          <p>Contrasta localidades y estaciones individuales para reconocer cambios, picos y diferencias espaciales.</p>
+          <h1 tabIndex={-1}>{t('maps.compare_stations')}</h1>
+          <p>{t('common.compare_localities_and_individual_stations_to_identify_changes_peaks')}</p>
         </div>
       </header>
 
       <SectionCard
-        title="Comparación por localidad"
-        subtitle="Agrega las estaciones de cada localidad y compara su evolución en el tiempo"
+        title={t('common.comparison_by_locality')}
+        csvTitle={defaultT('common.comparison_by_locality')}
+        subtitle={t('common.aggregate_the_stations_in_each_locality_and_compare_their')}
         fileLabel={localityMetric}
-        svgTitle={`Comparación por localidad: ${COMPARE_METRICS.find(m => m.value === localityMetric)?.label ?? localityMetric}`}
+        svgTitle={t('common.comparison_by_locality_2', { p0: COMPARE_METRICS(t).find(m => m.value === localityMetric)?.label ?? localityMetric })}
         downloadData={localityCSV}
       >
         <div className="dashboard-controls">
@@ -521,10 +527,10 @@ export default function Compare({ onStationSelectionChange } = {}) {
             onChange={handleLocalityRangeChange}
           />
           <div className="dashboard-field">
-            <label htmlFor="locality-metric">Métrica</label>
+            <label htmlFor="locality-metric">{t('maps.metric')}</label>
             <select value={localityMetric} onChange={e => setLocalityMetric(e.target.value)}
               id="locality-metric" className="dashboard-select">
-              {COMPARE_METRICS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              {COMPARE_METRICS(t).map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
         </div>
@@ -543,12 +549,12 @@ export default function Compare({ onStationSelectionChange } = {}) {
 
         {localities.length > 0 && (
           <div className="dashboard-tag-group">
-            <div className="dashboard-tag-group__heading"><p>Localidades</p></div>
+            <div className="dashboard-tag-group__heading"><p>{t('common.localities')}</p></div>
             <TagSelector
               items={localities} selected={selectedLocalities}
               onToggle={toggleLocality} onSelectAll={selectAllLocalities} onClearAll={clearAllLocalities}
               getKey={l => l.locality} getLabel={l => l.locality}
-              getSubLabel={l => formatStationCount(l.codes.length)}
+              getSubLabel={l => formatStationCount(l.codes.length, t)}
             />
           </div>
         )}
@@ -565,19 +571,19 @@ export default function Compare({ onStationSelectionChange } = {}) {
         <div>
           <div className="dashboard-chart-heading">
             <h3>
-              {COMPARE_METRICS.find(m => m.value === localityMetric)?.label}
+              {COMPARE_METRICS(t).find(m => m.value === localityMetric)?.label}
             </h3>
-            <ChartInfo text={getMetricDescription(localityMetric)} />
+            <ChartInfo text={getMetricDescription(localityMetric, t)} />
           </div>
           {loadingLocality
-            ? <ChartSkeleton height={280} label="Cargando comparación por localidad..." />
+            ? <ChartSkeleton height={280} label={t('common.loading_locality_comparison')} />
             : localitySeries.length === 0
               ? localityLatestTimestamp
-                ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y localidades seleccionadas</p>
-                : <NoMeasurementsNotice>No hay mediciones registradas para las localidades seleccionadas.</NoMeasurementsNotice>
+                ? <p className="text-sm text-text-muted py-8 text-center">{t('common.no_data_for_the_selected_range_and_localities')}</p>
+                : <NoMeasurementsNotice>{t('common.no_measurements_recorded_for_the_selected_localities')}</NoMeasurementsNotice>
               : <CompareChart
                   series={localitySeries}
-                  metricLabel={COMPARE_METRICS.find(m => m.value === localityMetric)?.label}
+                  metricLabel={COMPARE_METRICS(t).find(m => m.value === localityMetric)?.label}
                   axisMode={activeLocalityAxisMode}
                 />
           }
@@ -589,7 +595,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
               <div key={s.station_code} className="dashboard-result">
                 <p className="dashboard-result__code">{s.station_code}</p>
                 <p className="dashboard-result__name">{s.locality}</p>
-                <p className="dashboard-result__meta">{s.data.length} puntos</p>
+                <p className="dashboard-result__meta">{s.data.length}{' ' + t('common.points')}</p>
               </div>
             ))}
           </div>
@@ -597,10 +603,11 @@ export default function Compare({ onStationSelectionChange } = {}) {
       </SectionCard>
 
       <SectionCard
-        title="Comparación por estación"
-        subtitle="Selecciona estaciones específicas para comparar su comportamiento en detalle"
+        title={t('common.comparison_by_station')}
+        csvTitle={defaultT('common.comparison_by_station')}
+        subtitle={t('common.select_specific_stations_to_compare_their_behavior_in_detail')}
         fileLabel={stationMetric}
-        svgTitle={`Comparación por estación: ${RAW_METRICS.find(m => m.value === stationMetric)?.label ?? stationMetric}`}
+        svgTitle={t('common.comparison_by_station_2', { p0: RAW_METRICS(t).find(m => m.value === stationMetric)?.label ?? stationMetric })}
         downloadData={stationCSV}
       >
         <div className="dashboard-controls">
@@ -612,10 +619,10 @@ export default function Compare({ onStationSelectionChange } = {}) {
             onChange={handleStationRangeChange}
           />
           <div className="dashboard-field">
-            <label htmlFor="station-metric">Métrica</label>
+            <label htmlFor="station-metric">{t('maps.metric')}</label>
             <select value={stationMetric} onChange={e => setStationMetric(e.target.value)}
               id="station-metric" className="dashboard-select">
-              {RAW_METRICS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              {RAW_METRICS(t).map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>
         </div>
@@ -634,7 +641,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
 
         {allStations.length > 0 && (
           <div className="dashboard-tag-group">
-            <div className="dashboard-tag-group__heading"><p>Estaciones</p></div>
+            <div className="dashboard-tag-group__heading"><p>{t('admin.stations')}</p></div>
             <TagSelector
               items={allStations} selected={selectedStations}
               onToggle={toggleStation} onSelectAll={selectAllStations} onClearAll={clearAllStations}
@@ -656,19 +663,19 @@ export default function Compare({ onStationSelectionChange } = {}) {
         <div>
           <div className="dashboard-chart-heading">
             <h3>
-              {RAW_METRICS.find(m => m.value === stationMetric)?.label}
+              {RAW_METRICS(t).find(m => m.value === stationMetric)?.label}
             </h3>
-            <ChartInfo text={getMetricDescription(stationMetric)} />
+            <ChartInfo text={getMetricDescription(stationMetric, t)} />
           </div>
           {loadingStation
-            ? <ChartSkeleton height={280} label="Cargando comparación por estación..." />
+            ? <ChartSkeleton height={280} label={t('common.loading_station_comparison')} />
             : stationSeries.length === 0
               ? stationLatestTimestamp
-                ? <p className="text-sm text-text-muted py-8 text-center">Sin datos para el rango y estaciones seleccionadas</p>
-                : <NoMeasurementsNotice>No hay mediciones registradas para las estaciones seleccionadas.</NoMeasurementsNotice>
+                ? <p className="text-sm text-text-muted py-8 text-center">{t('common.no_data_for_the_selected_range_and_stations')}</p>
+                : <NoMeasurementsNotice>{t('common.no_measurements_recorded_for_the_selected_stations')}</NoMeasurementsNotice>
               : <CompareChart
                   series={stationSeries}
-                  metricLabel={RAW_METRICS.find(m => m.value === stationMetric)?.label}
+                  metricLabel={RAW_METRICS(t).find(m => m.value === stationMetric)?.label}
                   axisMode={activeStationAxisMode}
                 />
           }
@@ -679,32 +686,30 @@ export default function Compare({ onStationSelectionChange } = {}) {
         {(loadingStation || stationSeries.length > 0) && (
           <div ref={exactScatterRef} className="dashboard-compare-scatter">
             <div className="dashboard-chart-heading">
-              <h3>Puntos exactos por estación</h3>
-              <ChartInfo text="Cada punto conserva el timestamp original de la medición. En 'Ajustar a datos' la escala compacta distribuye los puntos para facilitar la lectura y marca los saltos largos con …; 'Rango completo' conserva la escala temporal real." />
+              <h3>{t('common.exact_points_by_station')}</h3>
+              <ChartInfo text={t('common.exact_points_help')} />
             </div>
             {loadingStation
-              ? <ChartSkeleton height={300} label="Cargando puntos exactos..." />
+              ? <ChartSkeleton height={300} label={t('common.loading_exact_points')} />
               : !shouldLoadExactPoints
-                ? <ChartSkeleton height={300} label="Los puntos exactos se cargarán al acercarte..." />
+                ? <ChartSkeleton height={300} label={t('common.exact_points_will_load_as_you_scroll_closer')} />
                 : loadingExactPoints
-                  ? <ChartSkeleton height={300} label="Cargando puntos exactos..." />
+                  ? <ChartSkeleton height={300} label={t('common.loading_exact_points')} />
                   : exactPointsError
                     ? (
                       <div className="dashboard-chart-inline-state" role="alert">
-                        <p>No fue posible cargar los puntos exactos.</p>
-                        <button type="button" className="dashboard-load-more-button" onClick={() => setExactPointsRequest(value => value + 1)}>
-                          Reintentar
-                        </button>
+                        <p>{t('common.could_not_load_exact_points')}</p>
+                        <button type="button" className="dashboard-load-more-button" onClick={() => setExactPointsRequest(value => value + 1)}>{t('maps.retry')}</button>
                       </div>
                     )
                     : hasExactPoints
                       ? <ScatterCompareChart
                           series={stationSeries}
-                          metricLabel={RAW_METRICS.find(m => m.value === stationMetric)?.label}
+                          metricLabel={RAW_METRICS(t).find(m => m.value === stationMetric)?.label}
                           axisMode={activeStationAxisMode}
                           range={stationRange}
                         />
-                      : <p className="text-center text-sm text-text-muted py-8">No hay puntos exactos para este rango.</p>
+                      : <p className="text-center text-sm text-text-muted py-8">{t('charts.no_exact_points_for_this_range')}</p>
             }
             {!loadingStation && !loadingExactPoints && !exactPointsError && hasExactPoints && (
               <>
@@ -713,15 +718,12 @@ export default function Compare({ onStationSelectionChange } = {}) {
                     type="button"
                     className="dashboard-load-more-button"
                     onClick={() => setExactPointLimit(EXACT_MAX_LIMIT)}
-                  >
-                    Cargar hasta {EXACT_MAX_LIMIT.toLocaleString('es-CO')} puntos exactos en total
-                  </button>
+                  >{t('common.load_up_to') + ' '}{EXACT_MAX_LIMIT.toLocaleString(t.locale)}{' ' + t('common.exact_points_in_total')}</button>
                 )}
                 {hasMoreExactPoints
-                  ? <p className="dashboard-resolution-note dashboard-resolution-note--aggregated">
-                      Vista exacta representativa: {formatCount(stationSeries.reduce((sum, item) => sum + (item.meta?.raw_returned_count ?? 0), 0), 'punto', 'puntos')} mostrados de {formatCount(stationSeries.reduce((sum, item) => sum + (item.meta?.total_count ?? 0), 0), 'medición', 'mediciones')}. Cada punto conserva su timestamp original.
+                  ? <p className="dashboard-resolution-note dashboard-resolution-note--aggregated">{t('common.representative_exact_view') + ' '}{formatCount(stationSeries.reduce((sum, item) => sum + (item.meta?.raw_returned_count ?? 0), 0), t('common.point'), t('common.points'), t)}{' ' + t('common.shown_out_of') + ' '}{formatCount(stationSeries.reduce((sum, item) => sum + (item.meta?.total_count ?? 0), 0), t('common.measurement'), t('common.measurements'), t)}. {t('common.original_timestamp')}
                     </p>
-                  : <p className="text-xs text-text-light mt-1">Vista de precisión · cada punto mantiene su timestamp original; la escala visual sigue el ajuste temporal seleccionado</p>
+                  : <p className="text-xs text-text-light mt-1">{t('common.precision_view_each_point_keeps_its_original_timestamp_the')}</p>
                 }
               </>
             )}
@@ -736,8 +738,8 @@ export default function Compare({ onStationSelectionChange } = {}) {
                 <p className="dashboard-result__name">{s.locality}</p>
                 <p className="dashboard-result__meta">
                   {s.meta?.is_aggregated
-                    ? `${formatCount(s.data.length, 'ventana', 'ventanas')} · ${formatCount(s.meta.total_count, 'medición', 'mediciones')}`
-                    : formatCount(s.data.length, 'punto', 'puntos')}
+                    ? `${formatCount(s.data.length, t('common.window'), t('common.windows'), t)} · ${formatCount(s.meta.total_count, t('common.measurement'), t('common.measurements'), t)}`
+                    : formatCount(s.data.length, t('common.point'), t('common.points'), t)}
                 </p>
               </div>
             ))}

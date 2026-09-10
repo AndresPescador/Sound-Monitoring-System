@@ -1,8 +1,9 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { useMemo } from 'react'
 import { useMap3DContext } from '../../context/Map3DContext'
 
-function formatValue(value, digits = 1) {
-  return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : '—'
+function formatValue(value, digits = 1, t) {
+  return Number.isFinite(Number(value)) ? t.fixed(Number(value), digits) : '—'
 }
 
 function getCardPlacement(position) {
@@ -28,6 +29,7 @@ function getCardPlacement(position) {
 }
 
 export default function Map3DStationCard({ position, onOpenAnalysis, onHideCard }) {
+  const { t } = useLanguage()
   const { selectedStation, selectedStationCode, selectedSummary, summaryError } = useMap3DContext()
   const station = selectedStation ?? selectedSummary
   const isActive = selectedSummary?.is_active ?? selectedStation?.is_active
@@ -35,15 +37,15 @@ export default function Map3DStationCard({ position, onOpenAnalysis, onHideCard 
 
   if (!station && !selectedStationCode) return null
 
-  const name = station?.name ?? selectedStationCode ?? 'Estación seleccionada'
-  const locality = station?.locality ?? 'Cargando localidad'
+  const name = station?.name ?? selectedStationCode ?? t('maps.selected_station')
+  const locality = station?.locality ?? t('maps.loading_locality')
   const latest = selectedSummary?.latest_leq_dbfs ?? station?.current_leq_dbfs
 
   return (
     <article
       className={`map3d-station-card ${position ? `is-anchored is-${placement.side}` : 'is-positioning'}`}
       style={placement.style}
-      aria-label={`Resumen de ${name}`}
+      aria-label={t('maps.summary_of', { p0: name })}
     >
       <span className="map3d-station-card__pointer" aria-hidden="true" />
       <header className="map3d-station-card__header">
@@ -53,34 +55,30 @@ export default function Map3DStationCard({ position, onOpenAnalysis, onHideCard 
           <p>{locality}</p>
         </div>
         <div className={`map3d-status ${isActive ? 'is-active' : 'is-inactive'}`}>
-          {isActive == null ? 'Sin estado' : isActive ? 'Activa' : 'Inactiva'}
+          {isActive == null ? t('maps.no_status') : isActive ? t('maps.active_2') : t('common.inactive')}
         </div>
       </header>
 
       <div className="map3d-station-card__metrics">
         <div>
-          <span>Leq actual</span>
-          <strong>{formatValue(latest)} <small>dBFS</small></strong>
+          <span>{t('maps.current_leq')}</span>
+          <strong>{formatValue(latest, undefined, t)} <small>dBFS</small></strong>
         </div>
         <div>
-          <span>Última hora</span>
-          <strong>{formatValue(selectedSummary?.last_hour_leq)} <small>dBFS</small></strong>
+          <span>{t('maps.last_hour')}</span>
+          <strong>{formatValue(selectedSummary?.last_hour_leq, undefined, t)} <small>dBFS</small></strong>
         </div>
         <div>
-          <span>Mediciones</span>
-          <strong>{selectedSummary?.total_measurements?.toLocaleString('es-CO') ?? '—'}</strong>
+          <span>{t('maps.measurements')}</span>
+          <strong>{selectedSummary?.total_measurements?.toLocaleString(t.locale) ?? '—'}</strong>
         </div>
       </div>
 
       {summaryError && <p className="map3d-station-card__error">{summaryError}</p>}
 
       <footer className="map3d-station-card__actions">
-        <button type="button" className="map3d-primary-button" onClick={onOpenAnalysis}>
-          Abrir análisis detallado en 2D
-        </button>
-        <button type="button" className="map3d-card-link" onClick={onHideCard}>
-          Ocultar tarjeta
-        </button>
+        <button type="button" className="map3d-primary-button" onClick={onOpenAnalysis}>{t('maps.open_detailed_analysis_in_2d')}</button>
+        <button type="button" className="map3d-card-link" onClick={onHideCard}>{t('maps.hide_card')}</button>
       </footer>
     </article>
   )

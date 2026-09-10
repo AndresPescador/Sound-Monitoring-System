@@ -1,0 +1,45 @@
+// Spanish and English copy for seo. Keys are shared by both languages.
+export default {
+  "es": {
+    "binaural_acoustic_monitoring_system_bogota_d_c": "Sistema de Monitoreo Acústico Binaural | Bogotá D.C.",
+    "binaural_acoustic_monitoring_system_for_exploring_bogota_s_soundscape": "Sistema de monitoreo acústico binaural para explorar el paisaje sonoro de Bogotá mediante mapas, métricas espaciales y datos abiertos.",
+    "bogota_2d_acoustic_map_acoustic_monitoring": "Mapa acústico 2D de Bogotá | Monitoreo Acústico",
+    "explore_bogota_s_2d_acoustic_map_and_check_active": "Explora el mapa acústico 2D de Bogotá y consulta las estaciones activas de la red binaural.",
+    "bogota_2d_acoustic_map": "Mapa acústico 2D de Bogotá",
+    "bogota_3d_acoustic_map_acoustic_monitoring": "Mapa acústico 3D de Bogotá | Monitoreo Acústico",
+    "view_bogota_s_binaural_acoustic_monitoring_network_on_a": "Visualiza la red de monitoreo acústico binaural de Bogotá en un mapa urbano tridimensional.",
+    "bogota_3d_acoustic_map": "Mapa acústico 3D de Bogotá",
+    "bogota_open_acoustic_data_acoustic_monitoring": "Datos acústicos abiertos de Bogotá | Monitoreo Acústico",
+    "browse_and_download_aggregated_acoustic_data_from_bogota_s": "Consulta y descarga datos acústicos agregados de la red binaural de Bogotá.",
+    "open_acoustic_data_portal": "Portal de datos acústicos abiertos",
+    "acoustic_monitoring_station": "Estación de monitoreo acústico",
+    "in_bogota": "en {{p0}}, Bogotá",
+    "in_bogota_2": "en Bogotá",
+    "bogota_acoustic_monitoring": "{{p0}} | Monitoreo Acústico de Bogotá",
+    "explore_acoustic_metrics_for": "Consulta las métricas acústicas de {{p0}}{{p1}}.",
+    "acoustic_monitoring_bogota_d_c": "Monitoreo Acústico | Bogotá D.C.",
+    "explore_bogota_s_soundscape_through_open_data_and_binaural": "Explora el paisaje sonoro de Bogotá mediante datos abiertos y monitoreo acústico binaural.",
+    "bogota_acoustic_monitoring_2": "Monitoreo acústico de Bogotá"
+  },
+  "en": {
+    "binaural_acoustic_monitoring_system_bogota_d_c": "Binaural Acoustic Monitoring System | Bogotá D.C.",
+    "binaural_acoustic_monitoring_system_for_exploring_bogota_s_soundscape": "Binaural acoustic monitoring system for exploring Bogotá's soundscape through maps, spatial metrics and open data.",
+    "bogota_2d_acoustic_map_acoustic_monitoring": "Bogotá 2D acoustic map | Acoustic Monitoring",
+    "explore_bogota_s_2d_acoustic_map_and_check_active": "Explore Bogotá's 2D acoustic map and check active stations in the binaural network.",
+    "bogota_2d_acoustic_map": "Bogotá 2D acoustic map",
+    "bogota_3d_acoustic_map_acoustic_monitoring": "Bogotá 3D acoustic map | Acoustic Monitoring",
+    "view_bogota_s_binaural_acoustic_monitoring_network_on_a": "View Bogotá's binaural acoustic monitoring network on a three-dimensional urban map.",
+    "bogota_3d_acoustic_map": "Bogotá 3D acoustic map",
+    "bogota_open_acoustic_data_acoustic_monitoring": "Bogotá open acoustic data | Acoustic Monitoring",
+    "browse_and_download_aggregated_acoustic_data_from_bogota_s": "Browse and download aggregated acoustic data from Bogotá's binaural network.",
+    "open_acoustic_data_portal": "Open acoustic data portal",
+    "acoustic_monitoring_station": "Acoustic monitoring station",
+    "in_bogota": "in {{p0}}, Bogotá",
+    "in_bogota_2": "in Bogotá",
+    "bogota_acoustic_monitoring": "{{p0}} | Bogotá Acoustic Monitoring",
+    "explore_acoustic_metrics_for": "Explore acoustic metrics for {{p0}}{{p1}}.",
+    "acoustic_monitoring_bogota_d_c": "Acoustic Monitoring | Bogotá D.C.",
+    "explore_bogota_s_soundscape_through_open_data_and_binaural": "Explore Bogotá's soundscape through open data and binaural acoustic monitoring.",
+    "bogota_acoustic_monitoring_2": "Bogotá acoustic monitoring"
+  }
+}

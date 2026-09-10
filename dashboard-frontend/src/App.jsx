@@ -1,3 +1,5 @@
+import { message as localizedMessage } from './i18n/core.mjs'
+import { useLanguage } from './context/LanguageContext'
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import Landing from './pages/Landing'
@@ -20,8 +22,9 @@ const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 const PrivateAdminRoute = lazy(() => import('./components/admin/PrivateAdminRoute'))
 
-function RouteLoading({ label = 'Cargando vista...' }) {
-  return <div className="map3d-route-loading" role="status" aria-live="polite">{label}</div>
+function RouteLoading({ label = localizedMessage('common.loading_view') }) {
+  const { t } = useLanguage()
+  return <div className="map3d-route-loading" role="status" aria-live="polite">{t(label)}</div>
 }
 
 function LegacyStationRedirect() {
@@ -30,6 +33,7 @@ function LegacyStationRedirect() {
 }
 
 export default function App() {
+  const { t } = useLanguage()
   return (
     <BrowserRouter>
       <AdminAuthProvider>
@@ -50,7 +54,7 @@ export default function App() {
 
           {/* ── Experiencia 3D: el layout mantiene el mapa montado entre rutas ── */}
           <Route path={ROUTES.map3D} element={
-            <Suspense fallback={<RouteLoading label="Cargando mapa 3D..." />}>
+            <Suspense fallback={<RouteLoading label={t('common.loading_3d_map')} />}>
               <UrbanTwin />
             </Suspense>
           }>
@@ -59,7 +63,7 @@ export default function App() {
             <Route path="stations/:code" element={null} />
             {/* Comparar pertenece a la experiencia 2D; los enlaces 3D antiguos vuelven al mapa. */}
             <Route path="compare" element={<Navigate to={ROUTES.map3D} replace />} />
-            <Route path="data" element={<Suspense fallback={<RouteLoading label="Cargando datos abiertos..." />}><Map3DDataRoute /></Suspense>} />
+            <Route path="data" element={<Suspense fallback={<RouteLoading label={t('common.loading_open_data')} />}><Map3DDataRoute /></Suspense>} />
           </Route>
 
           {/* Compatibilidad con enlaces guardados antes de separar las experiencias. */}

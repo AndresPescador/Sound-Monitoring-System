@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NoiseTwinMap from '../map/NoiseTwinMap'
@@ -7,6 +8,7 @@ import Map3DStationCard from './Map3DStationCard'
 import Map3DTemporalRail from './Map3DTemporalRail'
 import Map3DAnalysisPanel from './Map3DAnalysisPanel'
 import ThemeToggle from '../shared/ThemeToggle'
+import LanguageSwitcher from '../shared/LanguageSwitcher'
 
 function getMode(pathname) {
   if (pathname.includes('/data')) return 'data'
@@ -15,25 +17,26 @@ function getMode(pathname) {
 }
 
 function Map3DNav() {
+  const { t } = useLanguage()
   const location = useLocation()
   const links = [
-    { to: ROUTES.map3D, label: 'Mapa 3D', end: true },
-    { to: ROUTES.map3DData, label: 'Datos abiertos' },
+    { to: ROUTES.map3D, label: t('landing.3d_map'), end: true },
+    { to: ROUTES.map3DData, label: t('maps.open_data') },
   ]
 
   return (
     <header className="map3d-topbar">
-      <Link to={ROUTES.landing} className="map3d-topbar__brand" aria-label="Volver al inicio del Sistema de Monitoreo Acústico">
+      <Link to={ROUTES.landing} className="map3d-topbar__brand" aria-label={t('maps.back_to_the_acoustic_monitoring_system_home_page')}>
         <img
           className="map3d-topbar__mark"
           src="/assets/logo-oido-urbano.png"
           alt=""
           aria-hidden="true"
         />
-        <span>Monitoreo Acústico<small>Mapa 3D</small></span>
+        <span>{t('admin.acoustic_monitoring')}<small>{t('landing.3d_map')}</small></span>
       </Link>
 
-      <nav className="map3d-topbar__nav" aria-label="Herramientas de la experiencia 3D">
+      <nav className="map3d-topbar__nav" aria-label={t('maps.3d_experience_tools')}>
         {links.map(link => {
           const isActive = link.to === ROUTES.map3D
             ? location.pathname === ROUTES.map3D || location.pathname.startsWith(`${ROUTES.map3D}/stations/`)
@@ -52,14 +55,16 @@ function Map3DNav() {
       </nav>
 
       <div className="map3d-topbar__actions">
-        <ThemeToggle />
-        <Link to={ROUTES.map2D} className="map3d-topbar__switch">Cambiar a mapa 2D</Link>
+        <LanguageSwitcher />
+          <ThemeToggle />
+        <Link to={ROUTES.map2D} className="map3d-topbar__switch">{t('maps.switch_to_2d_map')}</Link>
       </div>
     </header>
   )
 }
 
 function Map3DStationPicker() {
+  const { t } = useLanguage()
   const { stations, selectedStationCode, hoveredStationCode, loadingStations, selectStation, setHoveredStationCode } = useMap3DContext()
   // En escritorio la lista es el punto de entrada de la experiencia; en móvil
   // empieza plegada para no tapar el mapa y conserva el mismo control para abrirla.
@@ -73,7 +78,7 @@ function Map3DStationPicker() {
   ), [normalizedQuery, stations])
 
   return (
-    <aside className={`map3d-station-picker map3d-station-picker--floating ${open ? 'is-open' : ''}`} aria-label="Selector de estaciones 3D">
+    <aside className={`map3d-station-picker map3d-station-picker--floating ${open ? 'is-open' : ''}`} aria-label={t('maps.3d_station_selector')}>
       <button
         type="button"
         className="map3d-station-picker__toggle"
@@ -82,8 +87,8 @@ function Map3DStationPicker() {
         aria-controls="map3d-station-picker-content"
       >
         <span>
-          <span className="map3d-overline">Estaciones</span>
-          <strong>{selectedStationCode ? 'Estación enfocada' : 'Buscar una estación'}</strong>
+          <span className="map3d-overline">{t('admin.stations')}</span>
+          <strong>{selectedStationCode ? t('maps.focused_station') : t('maps.find_a_station')}</strong>
         </span>
         <span className="map3d-station-picker__count">{stations.length}</span>
       </button>
@@ -91,21 +96,21 @@ function Map3DStationPicker() {
       {open && (
         <div id="map3d-station-picker-content" className="map3d-station-picker__content">
           <div className="map3d-station-picker__intro">
-            <strong>Explora por estación</strong>
-            <span>Selecciona una fila para centrar el mapa y ver su lectura actual.</span>
+            <strong>{t('maps.explore_by_station')}</strong>
+            <span>{t('maps.select_a_row_to_center_the_map_and_see')}</span>
           </div>
           <label className="map3d-search-field">
-            <span>Filtrar por nombre, localidad o código</span>
+            <span>{t('maps.filter_by_name_locality_or_code')}</span>
             <input
               type="search"
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="Ej. Usaquén"
+              placeholder={t('maps.e_g_usaquen')}
               autoFocus
             />
           </label>
           <p className="map3d-station-picker__hint">
-            {loadingStations ? 'Actualizando estaciones…' : `${filteredStations.length} de ${stations.length} estaciones`}
+            {loadingStations ? t('maps.updating_stations') : t('maps.of_stations', { p0: t.number(filteredStations.length), p1: t.number(stations.length), count: stations.length })}
           </p>
           <div className="map3d-station-list" role="list">
             {filteredStations.map(station => (
@@ -126,36 +131,38 @@ function Map3DStationPicker() {
                   <small>{station.locality} · {station.station_code}</small>
                 </span>
                 <span className="map3d-data-value">
-                  {Number.isFinite(station.current_leq_dbfs) ? `${station.current_leq_dbfs.toFixed(1)} dBFS` : 'Sin dato'}
+                  {Number.isFinite(station.current_leq_dbfs) ? `${t.fixed(station.current_leq_dbfs, 1)} dBFS` : t('common.no_reading')}
                 </span>
               </button>
             ))}
             {!filteredStations.length && !loadingStations && (
-              <p className="map3d-empty-state">No hay estaciones que coincidan con la búsqueda.</p>
+              <p className="map3d-empty-state">{t('maps.no_stations_match_your_search')}</p>
             )}
           </div>
         </div>
       )}
-      {hoveredStationCode && !open && <span className="sr-only">Estación enfocada en el mapa: {hoveredStationCode}</span>}
+      {hoveredStationCode && !open && <span className="sr-only">{t('maps.station_focused_on_the_map') + ' '}{hoveredStationCode}</span>}
     </aside>
   )
 }
 
 function Map3DMapStatus() {
+  const { t } = useLanguage()
   const { stationsError, summaryError, refreshStations, refreshingStations } = useMap3DContext()
   const message = stationsError ?? summaryError
   if (!message) return null
   return (
     <div className="map3d-map-status" role="alert">
-      <span>{message}</span>
+      <span>{t(message)}</span>
       <button type="button" onClick={() => refreshStations()} disabled={refreshingStations}>
-        {refreshingStations ? 'Actualizando…' : 'Reintentar'}
+        {refreshingStations ? t('maps.updating') : t('maps.retry')}
       </button>
     </div>
   )
 }
 
 export default function Map3DLayout() {
+  const { t } = useLanguage()
   const location = useLocation()
   const navigate = useNavigate()
   const { stations, selectedStation, selectedStationCode, hoveredStationCode, highlightedStationCodes, selectStation, setHoveredStationCode } = useMap3DContext()
@@ -181,10 +188,10 @@ export default function Map3DLayout() {
   }
 
   const pageTitle = mode === 'station'
-    ? `${stationPageTitle(selectedStation?.name ?? selectedStationCode ?? 'seleccionada')} en el mapa 3D`
+    ? t('maps.on_the_3d_map', { p0: stationPageTitle(selectedStation?.name ?? selectedStationCode ?? t('common.selected'), t) })
     : mode === 'data'
-      ? 'Datos abiertos en el mapa 3D'
-      : 'Mapa acústico 3D'
+      ? t('maps.open_data_on_the_3d_map')
+      : t('maps.3d_acoustic_map')
 
   return (
     <div className={`map3d-shell map3d-shell--${mode}`}>
@@ -201,7 +208,7 @@ export default function Map3DLayout() {
         <Map3DStationPicker />
         <Map3DNav />
         <p className="sr-only" aria-live="polite">
-          {selectedStation ? `Estación seleccionada: ${selectedStation.name}. La tarjeta contextual y el rail temporal están disponibles.` : 'Sin estación seleccionada. El rail muestra el estado general de la red.'}
+          {selectedStation ? t('maps.selected_station_the_contextual_card_and_timeline_are_available', { p0: selectedStation.name }) : t('maps.no_station_selected_the_timeline_shows_the_overall_network')}
         </p>
         <Map3DMapStatus />
 

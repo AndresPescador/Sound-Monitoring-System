@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { FlyToInterpolator } from '@deck.gl/core'
@@ -188,6 +189,7 @@ function NoiseTwinMap({
   onStationScreenPosition,
   columnRadius = 35,
 }) {
+  const { t } = useLanguage()
   const { isDark } = useTheme()
   const [cameraTarget, setCameraTarget] = useState(null)
   const [legendOpen, setLegendOpen] = useState(false)
@@ -326,7 +328,7 @@ function NoiseTwinMap({
       id: 'station-hover-label',
       data: hoveredStation ? [hoveredStation] : [],
       getPosition: d => [d.longitude, d.latitude],
-      getText: d => `${d.name}\nLeq: ${Number.isFinite(d.current_leq_dbfs) ? `${d.current_leq_dbfs.toFixed(1)} dBFS` : 'sin dato reciente'}`,
+      getText: d => `${d.name}\nLeq: ${Number.isFinite(d.current_leq_dbfs) ? `${d.current_leq_dbfs.toFixed(1)} dBFS` : '—'}`,
       getColor: [241, 245, 249, 255],
       getSize: 14,
       sizeUnits: 'pixels',
@@ -416,12 +418,12 @@ function NoiseTwinMap({
           if (!object) return null
           if (layer?.id === 'stations-points') {
             return {
-              text: `${object.name}\n${object.current_leq_dbfs != null ? `${object.current_leq_dbfs.toFixed(1)} dBFS` : 'Sin dato reciente'} · ${object.locality}`,
+              text: `${object.name}\n${object.current_leq_dbfs != null ? `${t.fixed(object.current_leq_dbfs, 1)} dBFS` : t('maps.no_recent_reading_2')} · ${object.locality}`,
             }
           }
           if (layer?.id === 'noise-columns') {
             return {
-              text: `${object.name}\nLeq: ${object.current_leq_dbfs.toFixed(1)} dBFS`,
+              text: `${object.name}\nLeq: ${t.fixed(object.current_leq_dbfs, 1)} dBFS`,
             }
           }
           return null
@@ -455,16 +457,16 @@ function NoiseTwinMap({
           aria-controls="map3d-noise-legend-content"
           onClick={() => setLegendOpen(current => !current)}
         >
-          <span className="map3d-noise-legend__title">Leyenda Leq</span>
+          <span className="map3d-noise-legend__title">{t('maps.leq_legend')}</span>
           <span aria-hidden="true">{legendOpen ? '−' : '+'}</span>
         </button>
         <div id="map3d-noise-legend-content" className="map3d-noise-legend__content">
           <div className="map3d-noise-legend__items">
-            <span><i className="map3d-level-dot is-low" aria-hidden="true" />Bajo</span>
-            <span><i className="map3d-level-dot is-medium" aria-hidden="true" />Medio</span>
-            <span><i className="map3d-level-dot is-high" aria-hidden="true" />Alto</span>
+            <span><i className="map3d-level-dot is-low" aria-hidden="true" />{t('common.low')}</span>
+            <span><i className="map3d-level-dot is-medium" aria-hidden="true" />{t('maps.medium')}</span>
+            <span><i className="map3d-level-dot is-high" aria-hidden="true" />{t('common.high')}</span>
           </div>
-          <small>La altura compara intensidad; no representa metros reales.</small>
+          <small>{t('maps.height_compares_intensity_it_does_not_represent_actual_meters')}</small>
         </div>
       </div>
 
@@ -473,16 +475,12 @@ function NoiseTwinMap({
           type="button"
           onClick={resetToCityView}
           className="pointer-events-auto min-h-11 whitespace-nowrap rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
-        >
-          Vista general
-        </button>
+        >{t('maps.overview')}</button>
         <button
           type="button"
           onClick={resetTo3dView}
           className="pointer-events-auto min-h-11 whitespace-nowrap rounded-md border border-slate-300 bg-white/95 px-3 py-2 text-xs font-display font-semibold text-slate-700 transition-colors hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
-        >
-          Restablecer ángulo
-        </button>
+        >{t('maps.reset_angle')}</button>
       </div>
     </div>
   )

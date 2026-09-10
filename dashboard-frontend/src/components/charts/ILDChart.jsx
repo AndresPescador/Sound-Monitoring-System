@@ -1,33 +1,35 @@
+import { useLanguage } from '../../context/LanguageContext'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Cell, ReferenceLine, ResponsiveContainer
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 import ChartCursor from './ChartCursor'
 import { getChartDataWindow, getTimeAxis } from './timeAxis'
 
 function ILDTooltip({ active, payload, label }) {
+  const { t } = useLanguage()
   if (!active || !payload?.length) return null
   const point = payload[0].payload
   let dateLabel = label
-  try { dateLabel = format(parseISO(label), "d MMM HH:mm", { locale: es }) } catch { /* keep ISO */ }
+  try { dateLabel = format(parseISO(label), "d MMM HH:mm", { locale: t.dateLocale }) } catch { /* keep ISO */ }
   return (
     <div className="dashboard-chart-tooltip">
       <p>{dateLabel}</p>
-      <strong>ILD: {point.ild.toFixed(1)} dB</strong>
+      <strong>ILD: {t.fixed(point.ild, 1)} dB</strong>
       {Number.isFinite(point.ildMin) && Number.isFinite(point.ildMax) && (
-        <span>Rango: {point.ildMin.toFixed(1)}–{point.ildMax.toFixed(1)} dB</span>
+        <span>{t('charts.range') + ' '}{t.fixed(point.ildMin, 1)}–{t.fixed(point.ildMax, 1)} dB</span>
       )}
       {Number.isFinite(point.sourceCount) && (
-        <span>{point.sourceCount.toLocaleString('es-CO')} mediciones en esta ventana</span>
+        <span>{point.sourceCount.toLocaleString(t.locale)}{' ' + t('charts.measurements_in_this_window')}</span>
       )}
     </div>
   )
 }
 
 export default function ILDChart({ data = [], axisMode = 'range' }) {
-  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos en este rango.</p>
+  const { t } = useLanguage()
+  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_data_in_this_range')}</p>
 
   const chartData = data.map(d => ({
     t:   d.recorded_at,
@@ -37,7 +39,7 @@ export default function ILDChart({ data = [], axisMode = 'range' }) {
     sourceCount: d.source_count == null ? null : Number(d.source_count),
   }))
   const visibleData = getChartDataWindow(chartData, axisMode, ['ild'])
-  const timeAxis = getTimeAxis(visibleData)
+  const timeAxis = getTimeAxis(visibleData, undefined, undefined, t)
 
   return (
     <ResponsiveContainer width="100%" height={200}>
@@ -51,12 +53,12 @@ export default function ILDChart({ data = [], axisMode = 'range' }) {
           tickLine={false}
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
         />
-        <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
+        <YAxis tickFormatter={t.number} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
         <ReferenceLine y={0} stroke="#1e293b" strokeWidth={1.5} />
         <Tooltip
           cursor={<ChartCursor />}
           formatter={(v) => [`${v} dB`, 'ILD']}
-          labelFormatter={l => { try { return format(parseISO(l), "d MMM HH:mm", { locale: es }) } catch { return l } }}
+          labelFormatter={l => { try { return format(parseISO(l), "d MMM HH:mm", { locale: t.dateLocale }) } catch { return l } }}
           content={<ILDTooltip />}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
         />

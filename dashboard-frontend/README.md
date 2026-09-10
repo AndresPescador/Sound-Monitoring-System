@@ -120,3 +120,34 @@ no publica un puerto propio en el host: Nginx Docker lo sirve mediante la ruta
 el sitemap. Como toda variable con prefijo `VITE_`, se incluye en el bundle y
 no debe contener secretos. La clave de MapTiler también es pública y debe
 restringirse al dominio de la aplicación desde MapTiler.
+
+### Idiomas de la interfaz
+
+El selector **ES | EN** está disponible en portada, mapas 2D/3D, administración y
+modales. La primera visita usa español; la elección se guarda en
+`localStorage` (`sound-monitoring-language`). Si el almacenamiento está bloqueado,
+el selector sigue funcionando durante la sesión. Cambiar de idioma no navega,
+reinicia formularios, altera consultas ni vuelve a crear los mapas.
+
+Los catálogos de `src/i18n/*.mjs` contienen español e inglés por área. Para añadir
+texto, agrega la misma clave semántica a ambos idiomas y usa
+`const { t } = useLanguage()` con `t('area.clave', { parametro })`. Las frases con
+conteos pueden definir variantes `one`/`other` y recibir `count`. Los helpers puros
+reciben un traductor opcional y utilizan `defaultT` (español) por defecto. Las
+pruebas comprueban claves, interpolaciones y variantes de plural.
+
+Los errores y avisos persistentes se guardan como `message(clave, parametros)` y
+se resuelven con `t(aviso)` al renderizar, para que también cambien mientras están
+visibles. `serverMessages.js` mapea respuestas conocidas del servidor y mantiene
+avisos de sincronización pendiente; los errores desconocidos usan un mensaje por
+operación. Los nombres propios y valores enviados a las APIs no se traducen.
+
+La cartografía conserva los estilos, proveedores y etiquetas actuales. Se
+traducen controles, fichas, leyendas y ayudas. Los CSV mantienen encabezados,
+valores y nombres de archivo compatibles con español; las imágenes PNG/SVG de
+gráficas usan el idioma visible. Fechas y números de pantalla usan `es-CO` o
+`en-US` sin cambiar instantes, precisión ni zonas horarias de las consultas. Los
+controles nativos de fecha pueden seguir el idioma del navegador o del sistema.
+
+Se conservan las URLs y el prerenderizado SEO en español. Los títulos y metadatos
+en el navegador se actualizan con el idioma seleccionado; no hay rutas `/en/`.

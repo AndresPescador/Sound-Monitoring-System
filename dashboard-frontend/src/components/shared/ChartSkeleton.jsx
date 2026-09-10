@@ -1,15 +1,18 @@
+import { message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 export default function ChartSkeleton({
   height = 280,
-  label = 'Cargando datos...',
+  label = localizedMessage('common.loading_data'),
   showLegend = true,
 }) {
+  const { t } = useLanguage()
   return (
     <div
       className="dashboard-chart-skeleton"
       style={{ '--chart-skeleton-height': `${height}px` }}
       role="status"
       aria-live="polite"
-      aria-label={label}
+      aria-label={t(label)}
     >
       <div className="dashboard-chart-skeleton__plot" aria-hidden="true">
         <span className="dashboard-chart-skeleton__axis dashboard-chart-skeleton__axis--y" />
@@ -27,7 +30,7 @@ export default function ChartSkeleton({
           <span />
         </div>
       )}
-      <span className="dashboard-chart-skeleton__label">{label}</span>
+      <span className="dashboard-chart-skeleton__label">{t(label)}</span>
     </div>
   )
 }

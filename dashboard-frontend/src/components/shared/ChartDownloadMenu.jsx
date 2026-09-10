@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { useState, useRef, useEffect } from 'react'
 
 /**
@@ -10,6 +11,7 @@ import { useState, useRef, useEffect } from 'react'
  * @param {boolean}    downloading - muestra spinner mientras descarga PNG
  */
 export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = false }) {
+  const { t } = useLanguage()
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -37,7 +39,7 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
         type="button"
         onClick={() => setOpen(v => !v)}
         disabled={downloading}
-        title="Exportar gráfica"
+        title={t('common.export_chart')}
         className="dashboard-export__trigger"
       >
         {downloading ? (
@@ -73,9 +75,7 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
               <rect x="1" y="1" width="14" height="14" rx="2"/>
               <path d="M4 6h2a1.5 1.5 0 010 3H4V6z"/>
               <path d="M10 6v7M10 6l3 3M10 6l-3 3"/>
-            </svg>
-            Imagen PNG
-          </button>
+            </svg>{t('common.png_image')}</button>
 
           {/* SVG */}
           <button
@@ -89,9 +89,7 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
               <rect x="1" y="1" width="14" height="14" rx="2"/>
               <path d="M4 9.5C4 10.9 5 11.5 6 11.5s2-.5 2-1.5-1-1.5-2-1.5-2-.6-2-1.5S5 5.5 6 5.5s2 .6 2 1.5"/>
               <path d="M10 5.5l1.5 6 1.5-6"/>
-            </svg>
-            Gráfica SVG
-          </button>
+            </svg>{t('common.svg_chart')}</button>
 
           {/* Separador */}
           <div className="my-1 border-t border-border" />
@@ -108,9 +106,7 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
                  strokeLinecap="round" strokeLinejoin="round">
               <rect x="1" y="1" width="14" height="14" rx="2"/>
               <path d="M4 5h8M4 8h8M4 11h5"/>
-            </svg>
-            Datos CSV
-          </button>
+            </svg>{t('common.csv_data')}</button>
         </div>
       )}
     </div>

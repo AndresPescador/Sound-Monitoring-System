@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { useEffect } from 'react'
 import { useLocation, useNavigationType } from 'react-router-dom'
 import { applyNoIndexMetadata, applySeoMetadata, routeSeo, siteUrl } from '../../seo.mjs'
@@ -13,8 +14,18 @@ function findMainHeading() {
 }
 
 export default function RouteNavigationManager() {
+  const { t } = useLanguage()
   const location = useLocation()
   const navigationType = useNavigationType()
+
+  useEffect(() => {
+    if (isAdminPath(location.pathname)) {
+      document.title = `${t('admin.administration_panel')} | ${t('admin.acoustic_monitoring')}`
+      applyNoIndexMetadata()
+      return
+    }
+    applySeoMetadata(routeSeo(location.pathname, { siteUrl: SITE_URL }, t))
+  }, [location.pathname, t])
 
   useEffect(() => {
     if (isAdminPath(location.pathname)) {
@@ -22,7 +33,6 @@ export default function RouteNavigationManager() {
       return undefined
     }
 
-    applySeoMetadata(routeSeo(location.pathname, { siteUrl: SITE_URL }))
     if (navigationType === 'POP') return undefined
 
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })

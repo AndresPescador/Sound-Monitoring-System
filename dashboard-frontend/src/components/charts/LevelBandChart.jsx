@@ -1,14 +1,15 @@
+import { useLanguage } from '../../context/LanguageContext'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 import ChartCursor from './ChartCursor'
 import { ACTIVE_DOT, getChartDataWindow, getTimeAxis } from './timeAxis'
 
 export default function LevelBandChart({ data = [], axisMode = 'range' }) {
-  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos en este rango.</p>
+  const { t } = useLanguage()
+  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_data_in_this_range')}</p>
 
   const chartData = data.map(d => ({
     t:   d.hour_start,
@@ -18,7 +19,7 @@ export default function LevelBandChart({ data = [], axisMode = 'range' }) {
     l90: +d.l90.toFixed(2),
   }))
   const visibleData = getChartDataWindow(chartData, axisMode, ['leq', 'l10', 'l50', 'l90'])
-  const timeAxis = getTimeAxis(visibleData)
+  const timeAxis = getTimeAxis(visibleData, undefined, undefined, t)
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -47,17 +48,17 @@ export default function LevelBandChart({ data = [], axisMode = 'range' }) {
           tickLine={false}
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
         />
-        <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
+        <YAxis tickFormatter={t.number} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
         <Tooltip
           cursor={<ChartCursor />}
           formatter={(v, name) => [`${v} dBFS`, name.toUpperCase()]}
-          labelFormatter={(l) => format(parseISO(l), "d MMM HH:mm", { locale: es })}
+          labelFormatter={(l) => format(parseISO(l), "d MMM HH:mm", { locale: t.dateLocale })}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
         />
         <Legend wrapperStyle={{ fontFamily: 'DM Sans', fontSize: 12 }} />
-        <Area type="monotone" dataKey="l10" name="L10 (picos)"   stroke="#dc2626" fill="url(#gradL10)" strokeWidth={1.5} dot={false} activeDot={ACTIVE_DOT} />
+        <Area type="monotone" dataKey="l10" name={t('common.noise_peaks')}   stroke="#dc2626" fill="url(#gradL10)" strokeWidth={1.5} dot={false} activeDot={ACTIVE_DOT} />
         <Area type="monotone" dataKey="leq" name="Leq"           stroke="#1d4ed8" fill="url(#gradL50)" strokeWidth={2}   dot={false} activeDot={ACTIVE_DOT} />
-        <Area type="monotone" dataKey="l90" name="L90 (fondo)"   stroke="#16a34a" fill="url(#gradL90)" strokeWidth={1.5} dot={false} activeDot={ACTIVE_DOT} />
+        <Area type="monotone" dataKey="l90" name={t('common.noise_background')}   stroke="#16a34a" fill="url(#gradL90)" strokeWidth={1.5} dot={false} activeDot={ACTIVE_DOT} />
       </AreaChart>
     </ResponsiveContainer>
   )

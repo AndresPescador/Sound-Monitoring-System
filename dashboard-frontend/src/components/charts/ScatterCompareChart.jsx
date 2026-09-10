@@ -1,3 +1,5 @@
+import { defaultT, message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import {
   CartesianGrid,
   Legend,
@@ -9,13 +11,12 @@ import {
   YAxis,
 } from 'recharts'
 import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 import useChartAxisTransition from '../../hooks/useChartAxisTransition'
 import { getCompareSeriesStyles } from './compareSeriesColors'
 
-function formatTimestamp(value) {
+function formatTimestamp(value, t = defaultT) {
   try {
-    return format(new Date(value), 'dd/MM/yyyy HH:mm:ss', { locale: es })
+    return format(new Date(value), 'dd/MM/yyyy HH:mm:ss', { locale: t.dateLocale })
   } catch {
     return String(value)
   }
@@ -29,7 +30,7 @@ function createTimeTicks(domain, count = 7) {
   ))
 }
 
-function buildCompactLayout(points, range) {
+function buildCompactLayout(points, range, t = defaultT) {
   const timestamps = [...new Set(points.map(point => point.originalX))].sort((a, b) => a - b)
   const selectedFrom = Date.parse(range?.from)
   const selectedTo = Date.parse(range?.to)
@@ -69,31 +70,34 @@ function buildCompactLayout(points, range) {
     ticks,
     tickFormatter: value => {
       const rounded = Math.round(Number(value))
-      return gapPositions.has(rounded) ? '…' : formatTimestamp(timestampByPosition.get(rounded))
+      return gapPositions.has(rounded) ? '…' : formatTimestamp(timestampByPosition.get(rounded), t)
     },
   }
 }
 
 function ScatterTooltip({ active, payload }) {
+  const { t } = useLanguage()
   if (!active || !payload?.length) return null
   const point = payload[0]?.payload
   if (!point) return null
 
   return (
     <div className="dashboard-chart-tooltip">
-      <p>{formatTimestamp(point.originalX)}</p>
+      <p>{formatTimestamp(point.originalX, t)}</p>
       <strong>{point.stationName}</strong>
-      <span>{point.valueLabel}: {Number(point.y).toFixed(2)}</span>
+      <span>{point.valueLabel}: {t.fixed(Number(point.y), 2)}</span>
     </div>
   )
 }
 
 export default function ScatterCompareChart({
   series = [],
-  metricLabel = 'Valor',
+  metricLabel: metricLabelMessage = localizedMessage('charts.value'),
   axisMode = 'range',
   range = null,
 }) {
+  const { t } = useLanguage()
+  const metricLabel = metricLabelMessage
   const { renderedAxisMode, phase } = useChartAxisTransition(axisMode)
   const seriesStyles = getCompareSeriesStyles(series.map(station => station.station_code ?? station.locality))
   const pointSeries = series
@@ -115,7 +119,7 @@ export default function ScatterCompareChart({
     .filter(station => station.data.length > 0)
 
   const points = pointSeries.flatMap(station => station.data)
-  if (!points.length) return <p className="text-center text-sm text-text-muted py-8">No hay puntos exactos para este rango.</p>
+  if (!points.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_exact_points_for_this_range')}</p>
 
   const observedMin = Math.min(...points.map(point => point.x))
   const observedMax = Math.max(...points.map(point => point.x))
@@ -124,13 +128,13 @@ export default function ScatterCompareChart({
   const selectedFrom = Date.parse(range?.from)
   const selectedTo = Date.parse(range?.to)
   const hasSelectedRange = Number.isFinite(selectedFrom) && Number.isFinite(selectedTo) && selectedTo > selectedFrom
-  const compactLayout = renderedAxisMode === 'data' ? buildCompactLayout(points, range) : null
+  const compactLayout = renderedAxisMode === 'data' ? buildCompactLayout(points, range, t) : null
   const chartPoints = compactLayout?.data ?? points.map(point => ({ ...point, x: point.originalX }))
   const domain = renderedAxisMode === 'range' && hasSelectedRange
     ? [selectedFrom, selectedTo]
     : compactLayout?.domain ?? [observedMin - padding, observedMax + padding]
   const ticks = compactLayout?.ticks ?? createTimeTicks(domain)
-  const tickFormatter = compactLayout?.tickFormatter ?? formatTimestamp
+  const tickFormatter = compactLayout?.tickFormatter ?? (value => formatTimestamp(value, t))
 
   return (
     <div className={`dashboard-chart-transition dashboard-chart-transition--${phase}`}>
@@ -147,7 +151,7 @@ export default function ScatterCompareChart({
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
           height={42}
         />
-        <YAxis
+        <YAxis tickFormatter={t.number}
           type="number"
           dataKey="y"
           domain={['auto', 'auto']}

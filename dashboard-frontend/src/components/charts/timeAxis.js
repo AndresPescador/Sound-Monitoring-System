@@ -1,5 +1,5 @@
+import { defaultT } from '../../i18n/core.mjs'
 import { format, isSameDay, isValid, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 const DEFAULT_MAX_TICKS = 10
 export const AUTO_FOCUS_THRESHOLD = 0.55
@@ -117,7 +117,7 @@ export function getEvenlySpacedTicks(values, maxTicks = DEFAULT_MAX_TICKS) {
   ))
 }
 
-export function getTimeAxis(data, dataKey = 't', { maxTicks = DEFAULT_MAX_TICKS } = {}) {
+export function getTimeAxis(data, dataKey = 't', { maxTicks = DEFAULT_MAX_TICKS } = {}, t = defaultT) {
   const values = data.map(item => item[dataKey]).filter(value => value != null && value !== '')
   const gapValues = values.filter(value => String(value).startsWith('__gap__'))
   const realValues = values.filter(value => !String(value).startsWith('__gap__'))
@@ -129,14 +129,14 @@ export function getTimeAxis(data, dataKey = 't', { maxTicks = DEFAULT_MAX_TICKS 
 
   return {
     ticks: [...new Set(values)].filter(value => tickValues.has(value)),
-    tickFormatter: value => formatTimeTick(value, { includeDate: spansMultipleDays }),
+    tickFormatter: value => formatTimeTick(value, { includeDate: spansMultipleDays }, t),
   }
 }
 
-export function formatTimeTick(value, { includeDate = false } = {}) {
+export function formatTimeTick(value, { includeDate = false } = {}, t = defaultT) {
   if (String(value).startsWith('__gap__')) return '…'
   try {
-    return format(parseISO(value), includeDate ? 'dd/MM HH:mm' : 'HH:mm', { locale: es })
+    return format(parseISO(value), includeDate ? 'dd/MM HH:mm' : 'HH:mm', { locale: t.dateLocale })
   } catch {
     return value
   }

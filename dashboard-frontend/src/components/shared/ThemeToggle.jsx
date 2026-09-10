@@ -1,6 +1,8 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { useTheme } from '../../context/ThemeContext'
 
 export default function ThemeToggle({ className = '' }) {
+  const { t } = useLanguage()
   const { isDark, toggleTheme } = useTheme()
 
   const handleClick = (event) => {
@@ -16,9 +18,9 @@ export default function ThemeToggle({ className = '' }) {
       type="button"
       className={`theme-toggle ${className}`.trim()}
       onClick={handleClick}
-      aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      aria-label={isDark ? t('common.switch_to_light_mode') : t('common.switch_to_dark_mode')}
       aria-pressed={isDark}
-      title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      title={isDark ? t('common.switch_to_light_mode') : t('common.switch_to_dark_mode')}
     >
       <span className="theme-toggle__icon" aria-hidden="true">
         {isDark ? (

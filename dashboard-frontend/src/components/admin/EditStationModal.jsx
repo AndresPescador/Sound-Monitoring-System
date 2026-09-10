@@ -1,3 +1,6 @@
+import { operationError } from '../../i18n/serverMessages'
+import { message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import { useState } from 'react'
 import { updateStationMetadata } from '../../api/admin'
 import { Field, Modal } from './ModalComponents'
@@ -10,6 +13,7 @@ const matchingBogotaLocality = locality => {
 }
 
 export function EditStationModal({ station, onClose, onSaved }) {
+  const { t } = useLanguage()
   const [form, setForm] = useState({
     name: station.name || '',
     locality: station.locality || '',
@@ -46,20 +50,20 @@ export function EditStationModal({ station, onClose, onSaved }) {
       const response = await updateStationMetadata(station.stationCode, payload)
       onSaved(response.data)
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudieron sincronizar los cambios en ambos servicios. Inténtalo nuevamente.')
+      setError(operationError(err, 'admin.could_not_synchronize_changes_across_both_services_try_again'))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal title={`Editar ${station.stationCode}`} onClose={saving ? null : onClose}>
+    <Modal title={t('admin.edit', { p0: station.stationCode })} onClose={saving ? null : onClose}>
       <form onSubmit={handleSubmit} className="admin-form">
         <div className="admin-form-grid">
-          <Field label="Nombre de la estación" name="name" value={form.name} onChange={handleChange} required maxLength={150} disabled={saving} />
-          <Field label="Código de estación" name="stationCode" value={station.stationCode} readOnly disabled />
+          <Field label={t('admin.station_name_2')} name="name" value={form.name} onChange={handleChange} required maxLength={150} disabled={saving} />
+          <Field label={t('admin.station_code')} name="stationCode" value={station.stationCode} readOnly disabled />
           <div className="admin-field">
-            <label htmlFor="edit-station-locality">Localidad</label>
+            <label htmlFor="edit-station-locality">{t('admin.locality_2')}</label>
             <input
               id="edit-station-locality"
               className="admin-input"
@@ -73,21 +77,21 @@ export function EditStationModal({ station, onClose, onSaved }) {
               required
               maxLength={100}
               disabled={saving}
-              placeholder="Ej. Fontibón"
+              placeholder={t('admin.e_g_fontibon')}
             />
             <datalist id="edit-station-localities">
               {BOGOTA_LOCALITIES.map(item => <option key={item.value} value={item.value} />)}
             </datalist>
-            <p className="admin-field__hint">Cambiarla no modifica el código técnico de la estación.</p>
+            <p className="admin-field__hint">{t('admin.changing_it_does_not_change_the_station_s_technical')}</p>
           </div>
           <div aria-hidden="true" />
           <div className="admin-field--wide">
             <StationLocationPicker latitude={form.latitude} longitude={form.longitude} onPick={handleMapPick} />
           </div>
-          <Field label="Dirección" name="address" value={form.address} onChange={handleChange} disabled={saving} />
+          <Field label={t('admin.address')} name="address" value={form.address} onChange={handleChange} disabled={saving} />
           <div aria-hidden="true" />
           <Field
-            label="Latitud"
+            label={t('admin.latitude_2')}
             name="latitude"
             value={form.latitude}
             onChange={handleChange}
@@ -97,7 +101,7 @@ export function EditStationModal({ station, onClose, onSaved }) {
             disabled={saving}
           />
           <Field
-            label="Longitud"
+            label={t('admin.longitude_2')}
             name="longitude"
             value={form.longitude}
             onChange={handleChange}
@@ -107,7 +111,7 @@ export function EditStationModal({ station, onClose, onSaved }) {
             disabled={saving}
           />
           <div className="admin-field admin-field--wide">
-            <label htmlFor="edit-station-description">Descripción</label>
+            <label htmlFor="edit-station-description">{t('admin.description')}</label>
             <textarea
               id="edit-station-description"
               className="admin-textarea"
@@ -120,7 +124,7 @@ export function EditStationModal({ station, onClose, onSaved }) {
           </div>
         </div>
 
-        {error && <div className="admin-alert" role="alert">{error}</div>}
+        {error && <div className="admin-alert" role="alert">{t(error)}</div>}
 
         <div className="admin-form__actions">
           <button
@@ -128,11 +132,9 @@ export function EditStationModal({ station, onClose, onSaved }) {
             onClick={onClose}
             disabled={saving}
             className="admin-button admin-button--secondary"
-          >
-            Cancelar
-          </button>
+          >{t('admin.cancel')}</button>
           <button type="submit" disabled={saving} className="admin-button admin-button--primary">
-            {saving ? 'Guardando…' : 'Guardar cambios'}
+            {saving ? t('admin.saving') : t('admin.save_changes')}
           </button>
         </div>
       </form>

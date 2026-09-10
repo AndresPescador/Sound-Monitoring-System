@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { Navigate } from 'react-router-dom'
 import { useAdminAuth } from '../../context/AdminAuthContext'
 
@@ -8,6 +9,7 @@ import { useAdminAuth } from '../../context/AdminAuthContext'
  * - Si autenticado: renderiza children
  */
 export default function PrivateAdminRoute({ children }) {
+  const { t } = useLanguage()
   const { user, loading } = useAdminAuth()
 
   if (loading) {
@@ -15,7 +17,7 @@ export default function PrivateAdminRoute({ children }) {
       <div className="admin-auth-loading" role="status" aria-live="polite">
         <div className="admin-auth-loading__content">
           <span className="admin-auth-loading__bars" aria-hidden="true"><i /><i /><i /></span>
-          <span>Verificando sesión…</span>
+          <span>{t('admin.checking_session')}</span>
         </div>
       </div>
     )

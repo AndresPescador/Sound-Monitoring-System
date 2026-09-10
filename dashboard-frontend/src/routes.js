@@ -1,3 +1,4 @@
+import { defaultT } from './i18n/core.mjs'
 export const ROUTES = Object.freeze({
   landing: '/',
   map2D: '/mapa-2d',
@@ -20,7 +21,8 @@ export const map3DComparePath = () => ROUTES.map3DCompare
 
 export const map3DDataPath = () => ROUTES.map3DData
 
-export const stationPageTitle = (name) => {
-  const normalizedName = String(name ?? 'seleccionada').replace(/^Estación\s+/i, '')
-  return `Estación ${normalizedName}`
+export const stationPageTitle = (name, t = defaultT) => {
+  if (t.language === 'en') return name == null ? t('maps.selected_station') : String(name)
+  const normalizedName = String(name ?? t('common.selected')).replace(/^Estación\s+/i, '')
+  return t('admin.station', { p0: normalizedName })
 }

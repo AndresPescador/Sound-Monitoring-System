@@ -1,3 +1,6 @@
+import { operationError } from '../../i18n/serverMessages'
+import { message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout'
@@ -5,6 +8,7 @@ import { useAdminAuth } from '../../context/AdminAuthContext'
 import { changeAdminPassword } from '../../api/admin'
 
 export default function AdminProfile() {
+  const { t } = useLanguage()
   const { user, logout } = useAdminAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -20,11 +24,11 @@ export default function AdminProfile() {
     setError('')
 
     if (form.newPassword !== form.confirmPassword) {
-      setError('La nueva contraseña y su confirmación no coinciden.')
+      setError(localizedMessage('admin.the_new_password_and_its_confirmation_do_not_match'))
       return
     }
     if (form.newPassword.length < 12) {
-      setError('La nueva contraseña debe tener al menos 12 caracteres.')
+      setError(localizedMessage('admin.the_new_password_must_contain_at_least_12_characters'))
       return
     }
 
@@ -37,7 +41,7 @@ export default function AdminProfile() {
         state: { passwordChanged: true },
       })
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo actualizar la contraseña.')
+      setError(operationError(err, 'admin.could_not_update_the_password'))
     } finally {
       setSaving(false)
     }
@@ -48,38 +52,38 @@ export default function AdminProfile() {
       <div className="admin-page">
         <header className="admin-page-header">
           <div>
-            <h1 tabIndex={-1}>Mi perfil</h1>
-            <p>Consulta tu nivel de acceso y protege las credenciales de la cuenta.</p>
+            <h1 tabIndex={-1}>{t('admin.my_profile')}</h1>
+            <p>{t('admin.check_your_access_level_and_protect_your_account_credentials')}</p>
           </div>
         </header>
 
         <div className="admin-profile-grid">
           <section className="admin-account-card" aria-labelledby="account-title">
             <div className="admin-account-card__header">
-              <p id="account-title">Cuenta autenticada</p>
+              <p id="account-title">{t('admin.authenticated_account')}</p>
               <strong>{user?.username}</strong>
             </div>
             <dl>
               <div>
-                <dt>Rol</dt>
-                <dd>{user?.superAdmin ? 'Superadministrador' : 'Administrador'}</dd>
+                <dt>{t('admin.role')}</dt>
+                <dd>{user?.superAdmin ? t('admin.super_administrator') : t('admin.administrator')}</dd>
               </div>
               <div>
-                <dt>Sesión</dt>
-                <dd>Activa en este navegador</dd>
+                <dt>{t('admin.session')}</dt>
+                <dd>{t('admin.active_in_this_browser')}</dd>
               </div>
             </dl>
           </section>
 
           <section className="admin-form-panel" aria-labelledby="password-title">
             <div className="admin-form-panel__heading">
-              <h2 id="password-title">Cambiar contraseña</h2>
-              <p>Usa al menos 12 caracteres y evita reutilizar credenciales de otros servicios.</p>
+              <h2 id="password-title">{t('admin.change_password')}</h2>
+              <p>{t('admin.use_at_least_12_characters_and_avoid_reusing_credentials')}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="admin-form">
               <div className="admin-field">
-                <label htmlFor="current-password">Contraseña actual</label>
+                <label htmlFor="current-password">{t('admin.current_password')}</label>
                 <input
                   id="current-password"
                   className="admin-input"
@@ -95,7 +99,7 @@ export default function AdminProfile() {
 
               <div className="admin-form-grid">
                 <div className="admin-field">
-                  <label htmlFor="new-password">Nueva contraseña</label>
+                  <label htmlFor="new-password">{t('admin.new_password')}</label>
                   <input
                     id="new-password"
                     className="admin-input"
@@ -110,7 +114,7 @@ export default function AdminProfile() {
                   />
                 </div>
                 <div className="admin-field">
-                  <label htmlFor="confirm-password">Confirmar contraseña</label>
+                  <label htmlFor="confirm-password">{t('admin.confirm_password')}</label>
                   <input
                     id="confirm-password"
                     className="admin-input"
@@ -126,10 +130,10 @@ export default function AdminProfile() {
                 </div>
               </div>
 
-              {error && <div className="admin-alert" role="alert">{error}</div>}
+              {error && <div className="admin-alert" role="alert">{t(error)}</div>}
               <div className="admin-form__actions">
                 <button type="submit" disabled={saving} className="admin-button admin-button--primary">
-                  {saving ? 'Actualizando…' : 'Actualizar contraseña'}
+                  {saving ? t('maps.updating') : t('admin.update_password')}
                 </button>
               </div>
             </form>

@@ -1,6 +1,7 @@
+import { defaultT } from '../i18n/core.mjs'
+import { useLanguage } from '../context/LanguageContext'
 import { useState, useEffect, useRef } from 'react'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { getStationSummary, getStations }    from '../api/stations'
 import { getRawMeasurements, getAllRawMeasurements } from '../api/measurements'
 import { getHourly }       from '../api/aggregations'
@@ -10,8 +11,8 @@ import { buildPresetRange, DEFAULT_RANGE_HOURS, formatDateTime, hasRecentData } 
 import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/shared/RangeAvailabilityNotice'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const fmtDate = (iso) => {
-  try { return format(parseISO(iso), "d MMM yyyy HH:mm", { locale: es }) }
+const fmtDate = (iso, t = defaultT) => {
+  try { return format(parseISO(iso), "d MMM yyyy HH:mm", { locale: t.dateLocale }) }
   catch { return iso }
 }
 
@@ -39,35 +40,36 @@ const downloadCSV = (content, filename) => {
 }
 
 // ── Columnas de cada tabla ────────────────────────────────────────────────────
-const RAW_COLS = [
-  { key: 'recorded_at',           label: 'Fecha y hora (UTC)' },
-  { key: 'dbfs_level',            label: 'dBFS nivel (dBFS)' },
-  { key: 'leq_dbfs',              label: 'Leq ponderado A (dBFS)' },
-  { key: 'rms_energy',            label: 'Energía RMS' },
-  { key: 'ch_left_dbfs',          label: 'Canal izquierdo (dBFS)' },
-  { key: 'ch_right_dbfs',         label: 'Canal derecho (dBFS)' },
+const RAW_COLS = (t = defaultT) => ([
+  { key: 'recorded_at',           label: t('common.date_and_time_utc') },
+  { key: 'dbfs_level',            label: t('common.dbfs_level_dbfs') },
+  { key: 'leq_dbfs',              label: t('common.a_weighted_leq_dbfs') },
+  { key: 'rms_energy',            label: t('maps.rms_energy') },
+  { key: 'ch_left_dbfs',          label: t('common.left_channel_dbfs') },
+  { key: 'ch_right_dbfs',         label: t('common.right_channel_dbfs') },
   { key: 'ild_db',                label: 'ILD (dB)' },
-  { key: 'interaural_correlation',label: 'Correlación interaural' },
-  { key: 'dominant_frequency',    label: 'Frec. dominante (Hz)' },
-  { key: 'spectral_centroid',     label: 'Centroide espectral (Hz)' },
-  { key: 'spectral_rolloff',      label: 'Rolloff espectral (Hz)' },
-  { key: 'zero_crossing_rate',    label: 'Tasa cruces por cero' },
-]
+  { key: 'interaural_correlation',label: t('maps.interaural_correlation') },
+  { key: 'dominant_frequency',    label: t('common.dominant_freq_hz') },
+  { key: 'spectral_centroid',     label: t('common.spectral_centroid_hz') },
+  { key: 'spectral_rolloff',      label: t('common.spectral_rolloff_hz') },
+  { key: 'zero_crossing_rate',    label: t('common.zero_crossing_rate') },
+])
 
-const AGG_COLS = [
-  { key: 'hour_start',        label: 'Hora inicio (UTC)' },
-  { key: 'leq_hour',          label: 'Leq hora (dBFS)' },
+const AGG_COLS = (t = defaultT) => ([
+  { key: 'hour_start',        label: t('common.start_hour_utc') },
+  { key: 'leq_hour',          label: t('common.hourly_leq_dbfs') },
   { key: 'l10',               label: 'L10 (dBFS)' },
   { key: 'l50',               label: 'L50 (dBFS)' },
   { key: 'l90',               label: 'L90 (dBFS)' },
-  { key: 'dbfs_min',          label: 'dBFS mín' },
-  { key: 'dbfs_max',          label: 'dBFS máx' },
-  { key: 'dbfs_avg',          label: 'dBFS prom' },
-  { key: 'measurement_count', label: 'Mediciones' },
-]
+  { key: 'dbfs_min',          label: t('common.min_dbfs') },
+  { key: 'dbfs_max',          label: t('common.max_dbfs') },
+  { key: 'dbfs_avg',          label: t('common.avg_dbfs') },
+  { key: 'measurement_count', label: t('maps.measurements') },
+])
 
 // ── Componente de tabla ───────────────────────────────────────────────────────
 function DataTable({ columns, rows, loading, totalCount, footer = null }) {
+  const { t } = useLanguage()
   const regionRef = useRef(null)
   const tableWrapRef = useRef(null)
   const horizontalScrollRef = useRef(null)
@@ -156,22 +158,16 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
 
   if (loading) return <LoadingSpinner />
   if (!rows.length) return (
-    <p className="dashboard-empty-state">
-      Sin datos en el rango seleccionado.
-    </p>
+    <p className="dashboard-empty-state">{t('common.no_data_in_the_selected_range')}</p>
   )
 
   return (
     <div ref={regionRef} className="dashboard-data-table-region">
-      <div className="dashboard-data-table__toolbar" role="group" aria-label="Navegación rápida de registros">
-        <span>Registros visibles</span>
+      <div className="dashboard-data-table__toolbar" role="group" aria-label={t('common.quick_record_navigation')}>
+        <span>{t('common.visible_records')}</span>
         <div className="dashboard-data-table__quick-nav">
-          <button type="button" className="dashboard-data-jump-button" onClick={() => scrollToDataPosition('start')}>
-            Ir al inicio
-          </button>
-          <button type="button" className="dashboard-data-jump-button" onClick={() => scrollToDataPosition('end')}>
-            Ir al final
-          </button>
+          <button type="button" className="dashboard-data-jump-button" onClick={() => scrollToDataPosition('start')}>{t('common.go_to_start')}</button>
+          <button type="button" className="dashboard-data-jump-button" onClick={() => scrollToDataPosition('end')}>{t('common.go_to_end')}</button>
         </div>
       </div>
       <div ref={tableWrapRef} className="dashboard-data-table-wrap" onScroll={() => syncTableHorizontalScroll('table')}>
@@ -191,10 +187,10 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
                 {columns.map(c => (
                   <td key={c.key}>
                     {c.key.endsWith('_at') || c.key === 'hour_start'
-                      ? fmtDate(row[c.key])
+                      ? fmtDate(row[c.key], t)
                       : typeof row[c.key] === 'number'
-                        ? row[c.key].toFixed(4)
-                        : row[c.key] ?? 'Sin dato'}
+                        ? t.fixed(row[c.key], 4)
+                        : row[c.key] ?? t('common.no_reading')}
                   </td>
                 ))}
               </tr>
@@ -202,8 +198,7 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
           </tbody>
         </table>
         <p className="dashboard-data-table__count">
-          {rows.length.toLocaleString('es-CO')} registros cargados
-          {totalCount > rows.length ? ` de ${totalCount.toLocaleString('es-CO')}` : ''}
+          {rows.length.toLocaleString(t.locale)}{' ' + t('common.loaded_records')}{totalCount > rows.length ? ` de ${totalCount.toLocaleString(t.locale)}` : ''}
         </p>
       </div>
       {footer}
@@ -211,7 +206,7 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
         ref={horizontalScrollRef}
         className="dashboard-data-horizontal-scrollbar"
         role="region"
-        aria-label="Desplazamiento horizontal de la tabla"
+        aria-label={t('common.horizontal_table_scrolling')}
         tabIndex={0}
         onScroll={() => syncTableHorizontalScroll('mirror')}
       >
@@ -223,6 +218,7 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function OpenData({ onStationChange, embedded3D = false } = {}) {
+  const { t } = useLanguage()
   const RAW_PAGE_SIZE = 1000
   const [stations,   setStations]   = useState([])
   const [station,    setStation]    = useState('')
@@ -332,7 +328,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
       const rows = isRaw
         ? (await getAllRawMeasurements(station, { from: range.from, to: range.to })).data
         : hourlyData
-      downloadCSV(toCSV(rows, isRaw ? RAW_COLS : AGG_COLS), filename)
+      downloadCSV(toCSV(rows, isRaw ? RAW_COLS(defaultT) : AGG_COLS(defaultT)), filename)
     } catch {
       // No se borra la tabla si una descarga completa falla.
     } finally {
@@ -341,7 +337,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
   }
 
   const activeRows = tab === 'raw' ? rawData : hourlyData
-  const activeCols = tab === 'raw' ? RAW_COLS : AGG_COLS
+  const activeCols = tab === 'raw' ? RAW_COLS(t) : AGG_COLS(t)
   const activeTotal = tab === 'raw' ? (rawMeta?.total_count ?? rawData.length) : hourlyData.length
   const loadMoreControl = tab === 'raw' && rawMeta?.has_more ? (
     <button
@@ -350,7 +346,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
       disabled={loadingMore}
       className="dashboard-load-more-button"
     >
-      {loadingMore ? 'Cargando más registros...' : `Cargar más (${rawData.length.toLocaleString('es-CO')} de ${rawMeta.total_count.toLocaleString('es-CO')})`}
+      {loadingMore ? t('common.loading_more_records') : t('common.load_more_of', { p0: rawData.length.toLocaleString(t.locale), p1: rawMeta.total_count.toLocaleString(t.locale) })}
     </button>
   ) : null
 
@@ -369,13 +365,10 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
     <div className="dashboard-page dashboard-open-data-page">
       <header className="dashboard-open-data-intro">
         <div>
-            {embedded3D ? <h2>Portal de datos abiertos</h2> : <h1 tabIndex={-1}>Portal de datos abiertos</h1>}
-          <p>
-            Datos acústicos del Sistema de Monitoreo Binaural de Bogotá D.C.
-            Consulta y descarga mediciones en formato CSV para análisis externos.
-          </p>
+            {embedded3D ? <h2>{t('common.open_data_portal')}</h2> : <h1 tabIndex={-1}>{t('common.open_data_portal')}</h1>}
+          <p>{t('common.acoustic_data_from_the_bogota_d_c_binaural_monitoring')}</p>
         </div>
-        <span className="dashboard-open-data-badge">Datos abiertos. Libre uso.</span>
+        <span className="dashboard-open-data-badge">{t('common.open_data_free_to_use')}</span>
       </header>
 
       {/* Controles */}
@@ -383,7 +376,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
 
         {/* Selector de estación */}
         <div className="dashboard-field">
-          <label htmlFor="open-data-station">Estación</label>
+          <label htmlFor="open-data-station">{t('admin.station_2')}</label>
           <select
             id="open-data-station"
             value={station}
@@ -399,7 +392,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
         </div>
 
         <div className="dashboard-field">
-          <label>Rango de tiempo</label>
+          <label>{t('common.time_range')}</label>
           <DateRangePicker
             value={range}
             preset={rangePreset}
@@ -423,23 +416,20 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
       )}
 
       {summary?.latest_recorded_at && (
-        <p className="dashboard-open-data-last-update">
-          Última medición disponible: {formatDateTime(summary.latest_recorded_at)}
+        <p className="dashboard-open-data-last-update">{t('common.latest_available_measurement') + ' '}{formatDateTime(summary.latest_recorded_at, t)}
         </p>
       )}
 
       {rangeState.initialized && summary?.total_measurements === 0 && (
-        <NoMeasurementsNotice>
-          Esta estación todavía no tiene mediciones registradas para descargar.
-        </NoMeasurementsNotice>
+        <NoMeasurementsNotice>{t('common.this_station_has_no_recorded_measurements_to_download_yet')}</NoMeasurementsNotice>
       )}
 
       {/* Tabs + botón descarga */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="dashboard-tabs" role="tablist" aria-label="Tipo de datos">
+        <div className="dashboard-tabs" role="tablist" aria-label={t('common.data_type')}>
           {[
-            { key: 'raw',    label: `Mediciones crudas (${activeTotal.toLocaleString('es-CO')})` },
-            { key: 'hourly', label: `Agregaciones horarias (${hourlyData.length})` },
+            { key: 'raw',    label: t('common.raw_measurements', { p0: activeTotal.toLocaleString(t.locale) }) },
+            { key: 'hourly', label: t('common.hourly_aggregations', { p0: hourlyData.length }) },
           ].map(t => (
             <button
               key={t.key}
@@ -464,13 +454,12 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          {exporting ? 'Preparando descarga completa...' : `Descargar CSV completo (${activeTotal.toLocaleString('es-CO')} filas)`}
+          {exporting ? t('common.preparing_full_download') : t('common.download_full_csv_rows', { p0: activeTotal.toLocaleString(t.locale) })}
         </button>
       </div>
 
       <div className="dashboard-open-data-note">
-        <strong>Sobre estos datos.</strong> El rango seleccionado se consulta en UTC y los niveles acústicos están expresados en dBFS. El Leq usa ponderación A según IEC 61672. La tabla se carga por páginas; la descarga solicita todas las mediciones exactas del rango.
-      </div>
+        <strong>{t('common.about_these_data')}</strong>{' ' + t('common.the_selected_range_is_queried_in_utc_and_acoustic')}</div>
 
       {stations.length > 0
         ? <DataTable
@@ -480,7 +469,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
             totalCount={activeTotal}
             footer={loadMoreControl}
           />
-        : <NoMeasurementsNotice>No hay estaciones disponibles para consultar.</NoMeasurementsNotice>}
+        : <NoMeasurementsNotice>{t('common.no_stations_available_to_query')}</NoMeasurementsNotice>}
 
     </div>
   )

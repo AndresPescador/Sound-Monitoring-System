@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { useState } from 'react'
 
 /**
@@ -7,6 +8,7 @@ import { useState } from 'react'
  * @param {string} text - Texto descriptivo a mostrar en el tooltip
  */
 export default function ChartInfo({ text }) {
+  const { t } = useLanguage()
   const [open, setOpen] = useState(false)
 
   return (
@@ -18,7 +20,7 @@ export default function ChartInfo({ text }) {
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         className="dashboard-info__button"
-        aria-label="Información sobre esta métrica"
+        aria-label={t('common.about_this_metric')}
       >
         ?
       </button>

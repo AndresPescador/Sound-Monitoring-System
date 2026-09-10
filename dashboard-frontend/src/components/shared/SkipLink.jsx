@@ -1,6 +1,8 @@
+import { useLanguage } from '../../context/LanguageContext'
 import { useLocation } from 'react-router-dom'
 
 export default function SkipLink() {
+  const { t } = useLanguage()
   const { pathname } = useLocation()
   if (pathname.startsWith('/admin')) return null
 
@@ -20,8 +22,6 @@ export default function SkipLink() {
       onClick={focusContent}
       onMouseUp={event => { if (event.button === 0) focusContent(event) }}
       onKeyUp={event => { if (event.key === 'Enter' || event.key === ' ') focusContent(event) }}
-    >
-      Saltar al contenido principal
-    </a>
+    >{t('common.skip_to_main_content')}</a>
   )
 }

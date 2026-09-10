@@ -1,3 +1,5 @@
+import { defaultT } from '../i18n/core.mjs'
+import { useLanguage } from '../context/LanguageContext'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate }    from 'react-router-dom'
 import { subHours }            from 'date-fns'
@@ -29,19 +31,19 @@ import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/share
 // info       : texto para ChartInfo (tooltip)
 // downloadData: array de datos crudos para el CSV (opcional)
 // Labels legibles por métrica para títulos de SVG/PNG
-const METRIC_LABELS = {
-  leq_dbfs:               'Leq (ponderación A)',
-  dbfs_level:             'Nivel dBFS',
-  rms_energy:             'Energía RMS',
-  ch_left_dbfs:           'Canal izquierdo (dBFS)',
-  ch_right_dbfs:          'Canal derecho (dBFS)',
-  ild_db:                 'ILD: diferencia interaural',
-  interaural_correlation: 'Correlación interaural',
-  dominant_frequency:     'Frecuencia dominante (Hz)',
-  spectral_centroid:      'Centroide espectral (Hz)',
-  spectral_rolloff:       'Rolloff espectral (Hz)',
-  zero_crossing_rate:     'Tasa de cruces por cero',
-}
+const METRIC_LABELS = (t = defaultT) => ({
+  leq_dbfs:               t('maps.leq_a_weighted'),
+  dbfs_level:             t('maps.dbfs_level'),
+  rms_energy:             t('maps.rms_energy'),
+  ch_left_dbfs:           t('common.left_channel_dbfs'),
+  ch_right_dbfs:          t('common.right_channel_dbfs'),
+  ild_db:                 t('maps.ild_interaural_difference_2'),
+  interaural_correlation: t('maps.interaural_correlation'),
+  dominant_frequency:     t('common.dominant_frequency_hz'),
+  spectral_centroid:      t('common.spectral_centroid_hz'),
+  spectral_rolloff:       t('common.spectral_rolloff_hz'),
+  zero_crossing_rate:     t('maps.zero_crossing_rate'),
+})
 
 const bogotaDate = (iso) => {
   try {
@@ -58,10 +60,11 @@ const bogotaDate = (iso) => {
   }
 }
 
-const SectionCard = ({ title, info, downloadData, fileLabel, svgTitle, stationCode, children }) => {
+const SectionCard = ({ title, info, downloadData, fileLabel, svgTitle, csvTitle, stationCode, children }) => {
+  const { t } = useLanguage()
   const cardRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
-  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData, fileLabel, svgTitle, stationCode)
+  const { downloadPNG, downloadSVG, downloadCSV } = useChartDownload(cardRef, title, downloadData, fileLabel, svgTitle, stationCode, csvTitle)
 
   const handlePNG = useCallback(async () => {
     setDownloading(true)
@@ -89,6 +92,7 @@ const SectionCard = ({ title, info, downloadData, fileLabel, svgTitle, stationCo
 }
 
 export default function StationDetail() {
+  const { t } = useLanguage()
   const { code } = useParams()
   const navigate = useNavigate()
 
@@ -125,7 +129,7 @@ export default function StationDetail() {
   useEffect(() => {
     getStations()
       .then(r => setStations(r.data))
-      .catch(err => console.error('Error cargando estaciones:', err))
+      .catch(err => console.error(t('common.error_loading_stations'), err))
   }, [])
 
   // Cargar resumen de la estación actual
@@ -291,8 +295,8 @@ export default function StationDetail() {
     applySeoMetadata(routeSeo(`/mapa-2d/stations/${encodeURIComponent(code)}`, {
       siteUrl: siteUrl(import.meta.env.VITE_SITE_URL),
       station: { name: summary.name, locality: summary.locality },
-    }))
-  }, [code, summary?.locality, summary?.name])
+    }, t))
+  }, [code, summary?.locality, summary?.name, t])
 
   const handleStationChange = (newCode) => {
     navigate(map2DStationPath(newCode))
@@ -316,28 +320,28 @@ export default function StationDetail() {
       <header className="dashboard-station-header">
         <div>
           <p className="dashboard-breadcrumb">
-            <Link to={ROUTES.map2D}>Mapa 2D</Link> / <span>{stationName}</span>
+            <Link to={ROUTES.map2D}>{t('landing.2d_map')}</Link> / <span>{stationName}</span>
           </p>
           <h1 tabIndex={-1}>{stationName}</h1>
-          <p className="dashboard-station-header__meta">{summary?.locality} · {summary?.is_active ? 'Activa' : 'Inactiva'}</p>
+          <p className="dashboard-station-header__meta">{summary?.locality} · {summary?.is_active ? t('maps.active_2') : t('common.inactive')}</p>
         </div>
 
         {summary && (
           <div className="dashboard-station-header__stats">
             <div className="dashboard-inline-stat">
-              <p className="dashboard-inline-stat__label">Último Leq</p>
+              <p className="dashboard-inline-stat__label">{t('maps.latest_leq')}</p>
               <p className="dashboard-inline-stat__value">
-                {summary.latest_leq_dbfs?.toFixed(1) ?? 'Sin dato'} <span className="dashboard-inline-stat__unit">dBFS</span>
+                {t.number(summary.latest_leq_dbfs, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) ?? t('common.no_reading')} <span className="dashboard-inline-stat__unit">dBFS</span>
               </p>
             </div>
             <div className="dashboard-inline-stat">
-              <p className="dashboard-inline-stat__label">Total mediciones</p>
-              <p className="dashboard-inline-stat__value">{summary.total_measurements?.toLocaleString('es-CO')}</p>
+              <p className="dashboard-inline-stat__label">{t('common.total_measurements')}</p>
+              <p className="dashboard-inline-stat__value">{summary.total_measurements?.toLocaleString(t.locale)}</p>
             </div>
             <div className="dashboard-inline-stat">
-              <p className="dashboard-inline-stat__label">Última medición</p>
+              <p className="dashboard-inline-stat__label">{t('common.latest_measurement_2')}</p>
               <p className="dashboard-inline-stat__value dashboard-inline-stat__value--date">
-                {formatDateTime(summary.latest_recorded_at)}
+                {formatDateTime(summary.latest_recorded_at, t)}
               </p>
             </div>
           </div>
@@ -347,7 +351,7 @@ export default function StationDetail() {
       <div className="dashboard-controls">
         {stations.length > 0 && (
           <div className="dashboard-field">
-            <label htmlFor="station-select">Cambiar estación</label>
+            <label htmlFor="station-select">{t('common.change_station')}</label>
             <select
               id="station-select"
               value={code}
@@ -393,9 +397,7 @@ export default function StationDetail() {
       )}
 
       {rangeState.initialized && summary?.total_measurements === 0 && (
-        <NoMeasurementsNotice>
-          Esta estación todavía no tiene mediciones registradas. Cuando llegue el primer fragmento, aparecerá aquí.
-        </NoMeasurementsNotice>
+        <NoMeasurementsNotice>{t('common.this_station_has_no_recorded_measurements_yet_they_will')}</NoMeasurementsNotice>
       )}
 
       <div className="dashboard-chart-axis-toolbar">
@@ -412,27 +414,29 @@ export default function StationDetail() {
 
           {/* Banda L10/L50/L90 */}
           <SectionCard
-            title="Niveles horarios: Leq / L10 / L90"
-            info="Esta gráfica muestra tres bandas de nivel de ruido por hora. La banda verde (L90) es el ruido de fondo que casi siempre está presente. La línea azul (Leq) es el nivel promedio. La banda roja (L10) son los picos ocasionales, como bocinas o frenadas. Mientras más separadas estén las bandas, más variable es el ambiente sonoro."
+            title={t('maps.hourly_levels_leq_l10_l90')}
+        csvTitle={defaultT('maps.hourly_levels_leq_l10_l90')}
+            info={t('common.level_bands_help')}
             stationCode={code}
             downloadData={hourly}
           >
             {loadingHourly
-              ? <ChartSkeleton height={220} showLegend={false} label="Cargando niveles horarios..." />
+              ? <ChartSkeleton height={220} showLegend={false} label={t('common.loading_hourly_levels')} />
               : <LevelBandChart data={hourly} axisMode={activeAxisMode} />
             }
-            <p className="text-xs text-text-light mt-1">L90 = ruido de fondo · Leq = nivel equivalente · L10 = picos de ruido</p>
+            <p className="text-xs text-text-light mt-1">{t('common.l90_background_noise_leq_equivalent_level_l10_noise_peaks')}</p>
           </SectionCard>
 
           {/* Perfil diario */}
           <SectionCard
-            title={`Perfil diario: ${profileDate}`}
-            info="Muestra el nivel de ruido promedio para cada hora del día (0 a 23 horas). Las barras verdes indican horas tranquilas, amarillas un nivel moderado, y rojas un nivel alto. Permite identificar las horas pico de ruido, como el tráfico matutino o el silencio nocturno."
+            title={t('maps.daily_profile', { p0: profileDate })}
+        csvTitle={defaultT('maps.daily_profile', { p0: profileDate })}
+            info={t('common.daily_bars_help')}
             stationCode={code}
             downloadData={daily}
           >
             <div className="dashboard-field dashboard-profile-date-field">
-              <label htmlFor="station-profile-date">Día del perfil (hora Bogotá)</label>
+              <label htmlFor="station-profile-date">{t('maps.profile_day_bogota_time')}</label>
               <input
                 id="station-profile-date"
                 type="date"
@@ -444,27 +448,28 @@ export default function StationDetail() {
               />
             </div>
             {loadingDaily
-              ? <ChartSkeleton height={220} showLegend={false} label="Cargando perfil diario..." />
+              ? <ChartSkeleton height={220} showLegend={false} label={t('common.loading_daily_profile')} />
               : <DailyBarChart data={daily} />
             }
-            <p className="text-xs text-text-light mt-1">Leq por hora del día · Color indica nivel</p>
+            <p className="text-xs text-text-light mt-1">{t('common.leq_by_hour_of_day_color_indicates_level')}</p>
           </SectionCard>
 
           {/* Serie temporal con selector de métrica */}
           <SectionCard
-            title="Serie temporal por métrica"
-            info={getMetricDescription(metric)}
+            title={t('common.time_series_by_metric')}
+        csvTitle={defaultT('common.time_series_by_metric')}
+            info={getMetricDescription(metric, t)}
             fileLabel={metric}
-            svgTitle={METRIC_LABELS[metric] ?? metric}
+            svgTitle={METRIC_LABELS(t)[metric] ?? metric}
             stationCode={code}
             downloadData={timeseries.map(d => ({ timestamp: d.recorded_at, [metric]: d.value }))}
           >
             <div className="dashboard-field">
-              <label htmlFor="station-metric-selector">Métrica de la serie</label>
+              <label htmlFor="station-metric-selector">{t('common.series_metric')}</label>
               <MetricSelector value={metric} onChange={setMetric} className="dashboard-select" id="station-metric-selector" />
             </div>
             {loadingMetric
-              ? <ChartSkeleton height={220} showLegend={false} label="Actualizando gráfica..." />
+              ? <ChartSkeleton height={220} showLegend={false} label={t('common.updating_chart')} />
               : <TimeSeriesChart data={timeseries} metricLabel={metric} unit="dBFS" axisMode={activeAxisMode} />
             }
             <ResolutionNotice meta={timeseriesMeta} />
@@ -475,30 +480,32 @@ export default function StationDetail() {
           <ResolutionNotice meta={binauralMeta} />
           <div className="dashboard-chart-grid">
             <SectionCard
-              title="ILD: diferencia interaural"
-              info={getMetricDescription('ild_db')}
+              title={t('maps.ild_interaural_difference_2')}
+        csvTitle={defaultT('maps.ild_interaural_difference_2')}
+              info={getMetricDescription('ild_db', t)}
             stationCode={code}
               downloadData={binaural.map(d => ({ timestamp: d.recorded_at, ild_db: d.ild_db }))}
             >
               {!loadBinaural
-                ? <ChartSkeleton height={220} showLegend={false} label="La gráfica binaural se cargará al acercarte..." />
+                ? <ChartSkeleton height={220} showLegend={false} label={t('common.the_binaural_chart_will_load_as_you_scroll_closer')} />
                 : loadingBinaural
-                  ? <ChartSkeleton height={220} showLegend={false} label="Cargando ILD..." />
+                  ? <ChartSkeleton height={220} showLegend={false} label={t('common.loading_ild')} />
                   : <ILDChart data={binaural} axisMode={activeAxisMode} />
               }
-              <p className="text-xs text-text-light mt-1">Azul = predominio izquierdo · Naranja = derecho</p>
+              <p className="text-xs text-text-light mt-1">{t('common.blue_left_dominance_orange_right')}</p>
             </SectionCard>
 
             <SectionCard
-              title="Correlación interaural"
-              info={getMetricDescription('interaural_correlation')}
+              title={t('maps.interaural_correlation')}
+        csvTitle={defaultT('maps.interaural_correlation')}
+              info={getMetricDescription('interaural_correlation', t)}
             stationCode={code}
               downloadData={binaural.map(d => ({ timestamp: d.recorded_at, interaural_correlation: d.interaural_correlation }))}
             >
               {!loadBinaural
-                ? <ChartSkeleton height={220} showLegend={false} label="La gráfica binaural se cargará al acercarte..." />
+                ? <ChartSkeleton height={220} showLegend={false} label={t('common.the_binaural_chart_will_load_as_you_scroll_closer')} />
                 : loadingBinaural
-                  ? <ChartSkeleton height={220} showLegend={false} label="Cargando correlación interaural..." />
+                  ? <ChartSkeleton height={220} showLegend={false} label={t('common.loading_interaural_correlation')} />
                   : <TimeSeriesChart
                       data={binaural.map(d => ({
                         recorded_at: d.recorded_at,
@@ -507,12 +514,12 @@ export default function StationDetail() {
                         value_max: d.interaural_correlation_max,
                         source_count: d.source_count,
                       }))}
-                      metricLabel="Correlación"
+                      metricLabel={t('landing.correlation')}
                       unit=""
                       axisMode={activeAxisMode}
                     />
               }
-              <p className="text-xs text-text-light mt-1">+1 = campo difuso/frontal · 0 = fuente lateral</p>
+              <p className="text-xs text-text-light mt-1">{t('common.1_diffuse_frontal_field_0_lateral_source')}</p>
             </SectionCard>
           </div>
           </div>
@@ -522,15 +529,16 @@ export default function StationDetail() {
           <ResolutionNotice meta={spectralMeta} />
           <div className="dashboard-chart-grid">
             <SectionCard
-              title="Centroide espectral (Hz)"
-              info={getMetricDescription('spectral_centroid')}
+              title={t('common.spectral_centroid_hz')}
+        csvTitle={defaultT('common.spectral_centroid_hz')}
+              info={getMetricDescription('spectral_centroid', t)}
             stationCode={code}
               downloadData={spectral.map(d => ({ timestamp: d.recorded_at, spectral_centroid_hz: d.spectral_centroid }))}
             >
               {!loadSpectral
-                ? <ChartSkeleton height={220} showLegend={false} label="La gráfica espectral se cargará al acercarte..." />
+                ? <ChartSkeleton height={220} showLegend={false} label={t('common.the_spectral_chart_will_load_as_you_scroll_closer')} />
                 : loadingSpectral
-                  ? <ChartSkeleton height={220} showLegend={false} label="Cargando centroide espectral..." />
+                  ? <ChartSkeleton height={220} showLegend={false} label={t('common.loading_spectral_centroid')} />
                   : <TimeSeriesChart
                       data={spectral.map(d => ({
                         recorded_at: d.recorded_at,
@@ -546,15 +554,16 @@ export default function StationDetail() {
               }
             </SectionCard>
             <SectionCard
-              title="Frecuencia dominante (Hz)"
-              info={getMetricDescription('dominant_frequency')}
+              title={t('common.dominant_frequency_hz')}
+        csvTitle={defaultT('common.dominant_frequency_hz')}
+              info={getMetricDescription('dominant_frequency', t)}
             stationCode={code}
               downloadData={spectral.map(d => ({ timestamp: d.recorded_at, dominant_frequency_hz: d.dominant_frequency }))}
             >
               {!loadSpectral
-                ? <ChartSkeleton height={220} showLegend={false} label="La gráfica espectral se cargará al acercarte..." />
+                ? <ChartSkeleton height={220} showLegend={false} label={t('common.the_spectral_chart_will_load_as_you_scroll_closer')} />
                 : loadingSpectral
-                  ? <ChartSkeleton height={220} showLegend={false} label="Cargando frecuencia dominante..." />
+                  ? <ChartSkeleton height={220} showLegend={false} label={t('common.loading_dominant_frequency')} />
                   : <TimeSeriesChart
                       data={spectral.map(d => ({
                         recorded_at: d.recorded_at,

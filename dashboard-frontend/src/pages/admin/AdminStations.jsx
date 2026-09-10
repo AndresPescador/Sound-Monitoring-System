@@ -1,3 +1,6 @@
+import { serverMessage, operationStatus } from '../../i18n/serverMessages'
+import { defaultT, message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { CreateStationModal } from '../../components/admin/CreateStationModal'
@@ -15,17 +18,18 @@ import {
   retryStationLifecycleOperation,
 } from '../../api/admin'
 
-const formatDateTime = (value) => {
+const formatDateTime = (value, t = defaultT) => {
   if (!value) return null
-  return new Intl.DateTimeFormat('es-CO', {
+  return new Intl.DateTimeFormat(t.locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
 }
 
 function StationSkeleton() {
+  const { t } = useLanguage()
   return (
-    <div className="admin-skeleton-list" role="status" aria-label="Cargando estaciones">
+    <div className="admin-skeleton-list" role="status" aria-label={t('admin.loading_stations')}>
       {[0, 1, 2].map(item => (
         <div className="admin-skeleton-row" key={item} aria-hidden="true"><span /><span /></div>
       ))}
@@ -34,6 +38,7 @@ function StationSkeleton() {
 }
 
 export default function AdminStations() {
+  const { t } = useLanguage()
   const [stations, setStations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -81,7 +86,7 @@ export default function AdminStations() {
       })
       setStations(Array.from(byCode.values()))
     } catch {
-      setError('No se pudieron cargar las estaciones. Revisa la conexión e inténtalo de nuevo.')
+      setError(localizedMessage('admin.could_not_load_stations_check_your_connection_and_try'))
     } finally {
       setLoading(false)
     }
@@ -107,7 +112,7 @@ export default function AdminStations() {
         item.stationCode === station.stationCode ? { ...item, active: nextActive } : item
       )))
     } catch {
-      setError('No se pudo cambiar el estado en ambos servicios. Verifica la sincronización de la estación.')
+      setError(localizedMessage('admin.could_not_change_the_status_in_both_services_check'))
     } finally {
       setActionLoading('')
     }
@@ -120,7 +125,7 @@ export default function AdminStations() {
       const response = await rotateStationSecret(stationCode)
       setSecretData(response.data)
     } catch {
-      setError('No se pudo rotar el secret. Inténtalo nuevamente.')
+      setError(localizedMessage('admin.could_not_rotate_the_secret_try_again'))
     } finally {
       setActionLoading('')
     }
@@ -130,10 +135,10 @@ export default function AdminStations() {
     setActionLoading(stationCode)
     try {
       const response = await retryStationSync(stationCode)
-      setSyncNotice(response.data.message)
+      setSyncNotice(serverMessage(response.data.message))
       fetchStations()
     } catch {
-      setError('No se pudo reintentar la sincronización. Inténtalo nuevamente.')
+      setError(localizedMessage('admin.could_not_retry_synchronization_try_again'))
     } finally {
       setActionLoading('')
     }
@@ -143,11 +148,11 @@ export default function AdminStations() {
     setActionLoading(stationCode)
     try {
       const response = await retryStationLifecycleOperation(operationId)
-      setSyncNotice(response.data.message)
+      setSyncNotice(serverMessage(response.data.message))
       setLoading(true)
       fetchStations()
     } catch {
-      setError('No se pudo reintentar la operación de ciclo de vida.')
+      setError(localizedMessage('admin.could_not_retry_the_lifecycle_operation'))
     } finally {
       setActionLoading('')
     }
@@ -158,12 +163,12 @@ export default function AdminStations() {
     setActionLoading(stationCode)
     try {
       const response = await deleteStationAuth(stationCode)
-      setSyncNotice(response.data.message)
+      setSyncNotice(serverMessage(response.data.message))
       setDeletingCode('')
       setLoading(true)
       fetchStations()
     } catch {
-      setError('No se pudo iniciar la eliminación coordinada de la estación.')
+      setError(localizedMessage('admin.could_not_start_the_coordinated_station_deletion'))
     } finally {
       setActionLoading('')
     }
@@ -184,81 +189,75 @@ export default function AdminStations() {
       <div className="admin-page">
         <header className="admin-page-header">
           <div>
-            <h1 tabIndex={-1}>Estaciones</h1>
-            <p>Coordina el registro, estado operativo y credenciales de la red binaural.</p>
+            <h1 tabIndex={-1}>{t('admin.stations')}</h1>
+            <p>{t('admin.coordinate_registration_operational_status_and_credentials_for_the_binaural')}</p>
           </div>
           <div className="admin-page-header__actions">
             <button
               type="button"
               onClick={() => setShowCreate(true)}
               className="admin-button admin-button--primary"
-            >
-              Nueva estación
-            </button>
+            >{t('admin.new_station')}</button>
           </div>
         </header>
 
-        <dl className="admin-summary" aria-label="Resumen de estaciones">
+        <dl className="admin-summary" aria-label={t('admin.station_summary')}>
           <div className="admin-summary__item admin-summary__item--accent">
-            <dt>Estaciones activas</dt>
+            <dt>{t('maps.active_stations')}</dt>
             <dd>{loading ? '—' : totals.active}</dd>
           </div>
           <div className="admin-summary__item">
-            <dt>Total registradas</dt>
+            <dt>{t('admin.total_registered')}</dt>
             <dd>{loading ? '—' : totals.total}</dd>
           </div>
           <div className="admin-summary__item">
-            <dt>Fuera de operación</dt>
+            <dt>{t('admin.out_of_operation')}</dt>
             <dd>{loading ? '—' : totals.inactive}</dd>
           </div>
         </dl>
 
         {error && (
           <div className="admin-alert" role="alert">
-            <span>{error}</span>
-            <button type="button" onClick={() => setError('')} className="admin-alert__dismiss">
-              Cerrar
-            </button>
+            <span>{t(error)}</span>
+            <button type="button" onClick={() => setError('')} className="admin-alert__dismiss">{t('admin.close')}</button>
           </div>
         )}
         {syncNotice && (
           <div className="admin-alert" role="status">
-            <span>{syncNotice}</span>
-            <button type="button" onClick={() => setSyncNotice('')} className="admin-alert__dismiss">Cerrar</button>
+            <span>{t(syncNotice)}</span>
+            <button type="button" onClick={() => setSyncNotice('')} className="admin-alert__dismiss">{t('admin.close')}</button>
           </div>
         )}
 
         <section className="admin-panel" aria-labelledby="station-list-title">
           <div className="admin-panel__header">
             <div>
-              <h2 id="station-list-title">Red registrada</h2>
-              <p>Los cambios de estado se coordinan entre Auth y Processing.</p>
+              <h2 id="station-list-title">{t('admin.registered_network')}</h2>
+              <p>{t('admin.status_changes_are_coordinated_between_auth_and_processing')}</p>
             </div>
-            <span className="admin-panel__count">{loading ? '…' : `${stations.length} estaciones`}</span>
+            <span className="admin-panel__count">{loading ? '…' : t('common.station_count', { count: stations.length, value: t.number(stations.length) })}</span>
           </div>
 
           {loading ? (
             <StationSkeleton />
           ) : stations.length === 0 ? (
             <div className="admin-empty">
-              <h2>La red aún no tiene estaciones</h2>
-              <p>Registra primero las credenciales y luego los datos geográficos desde un único flujo.</p>
+              <h2>{t('admin.the_network_has_no_stations_yet')}</h2>
+              <p>{t('admin.register_credentials_first_then_geographic_details_through_a_single')}</p>
               <button
                 type="button"
                 onClick={() => setShowCreate(true)}
                 className="admin-button admin-button--secondary"
-              >
-                Registrar la primera estación
-              </button>
+              >{t('admin.register_the_first_station')}</button>
             </div>
           ) : (
             <div className="admin-station-list">
               {stations.map(station => {
                 const isBusy = actionLoading === station.stationCode
                 const lifecyclePending = Boolean(station.lifecycleOperation)
-                const lastSeen = formatDateTime(station.lastSeenAt)
-                const latitude = Number.isFinite(station.latitude) ? station.latitude.toFixed(4) : '—'
-                const longitude = Number.isFinite(station.longitude) ? station.longitude.toFixed(4) : '—'
+                const lastSeen = formatDateTime(station.lastSeenAt, t)
+                const latitude = Number.isFinite(station.latitude) ? t.fixed(station.latitude, 4) : '—'
+                const longitude = Number.isFinite(station.longitude) ? t.fixed(station.longitude, 4) : '—'
 
                 return (
                   <article className="admin-station-row" key={station.stationCode}>
@@ -267,30 +266,28 @@ export default function AdminStations() {
                         <h3 className="admin-station-row__name">{station.name}</h3>
                         <span className={`admin-status admin-status--${lifecyclePending ? 'pending' : station.active ? 'active' : 'inactive'}`}>
                           {lifecyclePending
-                            ? station.lifecycleStatus === 'DELETING' ? 'Eliminando' : 'Aprovisionando'
-                            : station.active ? 'Activa' : 'Inactiva'}
+                            ? station.lifecycleStatus === 'DELETING' ? t('admin.deleting') : t('admin.provisioning')
+                            : station.active ? t('maps.active_2') : t('common.inactive')}
                         </span>
                         <span className="admin-station-row__code">{station.stationCode}</span>
                       </div>
                       <p className="admin-station-row__meta">
-                        <span>{station.locality || 'Localidad sin registrar'}</span>
+                        <span>{station.locality || t('admin.locality_not_registered')}</span>
                         <span className="admin-station-row__coords">{latitude}, {longitude}</span>
-                        <span>{lastSeen ? `Última señal: ${lastSeen}` : 'Sin señal registrada'}</span>
+                        <span>{lastSeen ? t('admin.last_signal', { p0: lastSeen }) : t('admin.no_signal_recorded')}</span>
                       </p>
                       {station.sync && (
-                        <p className="admin-station-row__meta" role="status">
-                          Sincronización pendiente ({station.sync.attempts} intento{station.sync.attempts === 1 ? '' : 's'}).
+                        <p className="admin-station-row__meta" role="status">{t('admin.synchronization_pending')}{station.sync.attempts}{' ' + t('admin.attempt')}{station.sync.attempts === 1 ? '' : 's'}).
                         </p>
                       )}
                       {station.lifecycleOperation && (
-                        <p className="admin-station-row__meta" role="status">
-                          Operación {station.lifecycleOperation.status.toLowerCase()} ({station.lifecycleOperation.attempts} intento{station.lifecycleOperation.attempts === 1 ? '' : 's'}).
-                          {station.lifecycleOperation.lastError ? ` ${station.lifecycleOperation.lastError}` : ''}
+                        <p className="admin-station-row__meta" role="status">{t('admin.operation') + ' '}{t(operationStatus(station.lifecycleOperation.status))} ({station.lifecycleOperation.attempts}{' ' + t('admin.attempt')}{station.lifecycleOperation.attempts === 1 ? '' : 's'}).
+                          {station.lifecycleOperation.lastError ? ' ' + t(serverMessage(station.lifecycleOperation.lastError)) : ''}
                         </p>
                       )}
                     </div>
 
-                    <div className="admin-station-row__actions" aria-label={`Acciones para ${station.name}`}>
+                    <div className="admin-station-row__actions" aria-label={t('admin.actions_for', { p0: station.name })}>
                       {lifecyclePending ? (
                         <>
                           <button
@@ -299,7 +296,7 @@ export default function AdminStations() {
                             disabled={isBusy}
                             className="admin-button admin-button--quiet"
                           >
-                            {isBusy ? 'Reintentando…' : 'Reintentar operación'}
+                            {isBusy ? t('admin.retrying') : t('admin.retry_operation')}
                           </button>
                           {station.lifecycleStatus === 'PROVISIONING' && (
                             <button
@@ -307,9 +304,7 @@ export default function AdminStations() {
                               onClick={() => handleRotateSecret(station.stationCode)}
                               disabled={isBusy}
                               className="admin-button admin-button--warning"
-                            >
-                              Rotar secret
-                            </button>
+                            >{t('admin.rotate_secret')}</button>
                           )}
                         </>
                       ) : <>
@@ -318,9 +313,7 @@ export default function AdminStations() {
                         onClick={() => setEditStation(station)}
                         disabled={isBusy}
                         className="admin-button admin-button--quiet"
-                      >
-                        Editar
-                      </button>
+                      >{t('admin.edit_2')}</button>
                       {station.sync && (
                         <button
                           type="button"
@@ -328,7 +321,7 @@ export default function AdminStations() {
                           disabled={isBusy}
                           className="admin-button admin-button--quiet"
                         >
-                          {isBusy ? 'Actualizando…' : 'Reintentar sincronización'}
+                          {isBusy ? t('maps.updating') : t('admin.retry_synchronization')}
                         </button>
                       )}
                       <button
@@ -337,50 +330,41 @@ export default function AdminStations() {
                         disabled={isBusy}
                         className="admin-button admin-button--quiet"
                       >
-                        {isBusy ? 'Actualizando…' : station.active ? 'Desactivar' : 'Activar'}
+                        {isBusy ? t('maps.updating') : station.active ? t('admin.deactivate') : t('admin.activate')}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleRotateSecret(station.stationCode)}
                         disabled={isBusy}
                         className="admin-button admin-button--warning"
-                      >
-                        Rotar secret
-                      </button>
+                      >{t('admin.rotate_secret')}</button>
                       {deletingCode !== station.stationCode && (
                         <button
                           type="button"
                           onClick={() => setDeletingCode(station.stationCode)}
                           disabled={isBusy}
                           className="admin-button admin-button--danger"
-                        >
-                          Eliminar
-                        </button>
+                        >{t('admin.delete') + ' '}</button>
                       )}
                       </>}
                     </div>
 
                     {deletingCode === station.stationCode && (
                       <div className="admin-confirmation" role="alert">
-                        <p>
-                          Eliminar <strong>{station.stationCode}</strong> bloqueará inmediatamente sus credenciales,
-                          borrará sus mediciones y agregaciones y retirará su identidad de Auth. No se puede deshacer.
-                        </p>
+                        <p>{t('admin.delete') + ' '}<strong>{station.stationCode}</strong>{' ' + t('admin.will_immediately_block_its_credentials_delete_its_measurements_and')}</p>
                         <div className="admin-confirmation__actions">
                           <button
                             type="button"
                             onClick={() => setDeletingCode('')}
                             className="admin-button admin-button--secondary"
-                          >
-                            Cancelar
-                          </button>
+                          >{t('admin.cancel')}</button>
                           <button
                             type="button"
                             onClick={() => handleDelete(station.stationCode)}
                             disabled={isBusy}
                             className="admin-button admin-button--danger-solid"
                           >
-                            {isBusy ? 'Eliminando…' : 'Sí, retirar y purgar'}
+                            {isBusy ? t('admin.deleting_2') : t('admin.yes_remove_and_purge')}
                           </button>
                         </div>
                       </div>
@@ -410,7 +394,7 @@ export default function AdminStations() {
           onClose={() => setEditStation(null)}
           onSaved={(result) => {
             setEditStation(null)
-            if (result?.syncStatus === 'PENDING') setSyncNotice(result.message)
+            if (result?.syncStatus === 'PENDING') setSyncNotice(serverMessage(result.message, 'admin.changes_pending'))
             setLoading(true)
             fetchStations()
           }}

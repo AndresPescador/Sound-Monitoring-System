@@ -1,28 +1,30 @@
+import { message as localizedMessage } from '../../i18n/core.mjs'
+import { useLanguage } from '../../context/LanguageContext'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 import ChartCursor from './ChartCursor'
 import { ACTIVE_DOT, getChartDataWindow, getTimeAxis } from './timeAxis'
 
 function AggregatedTooltip({ active, payload, label, unit, metricLabel }) {
+  const { t } = useLanguage()
   if (!active || !payload?.length) return null
   const point = payload[0]?.payload
   const suffix = unit ? ` ${unit}` : ''
   let dateLabel = label
-  try { dateLabel = format(parseISO(label), "d MMM HH:mm:ss", { locale: es }) } catch { /* keep ISO */ }
+  try { dateLabel = format(parseISO(label), "d MMM HH:mm:ss", { locale: t.dateLocale }) } catch { /* keep ISO */ }
 
   return (
     <div className="dashboard-chart-tooltip">
       <p>{dateLabel}</p>
-      <strong>{metricLabel}: {Number(point.v).toFixed(1)}{suffix}</strong>
+      <strong>{metricLabel}: {t.fixed(Number(point.v), 1)}{suffix}</strong>
       {Number.isFinite(point.vMin) && Number.isFinite(point.vMax) && (
-        <span>Rango: {point.vMin.toFixed(1)}–{point.vMax.toFixed(1)}{suffix}</span>
+        <span>{t('charts.range') + ' '}{t.fixed(point.vMin, 1)}–{t.fixed(point.vMax, 1)}{suffix}</span>
       )}
       {Number.isFinite(point.sourceCount) && (
-        <span>{point.sourceCount.toLocaleString('es-CO')} mediciones en esta ventana</span>
+        <span>{point.sourceCount.toLocaleString(t.locale)}{' ' + t('charts.measurements_in_this_window')}</span>
       )}
     </div>
   )
@@ -30,14 +32,16 @@ function AggregatedTooltip({ active, payload, label, unit, metricLabel }) {
 
 export default function TimeSeriesChart({
   data = [],
-  metricLabel = 'Valor',
+  metricLabel: metricLabelMessage = localizedMessage('charts.value'),
   unit = '',
   compact = false,
   height = 220,
   series = null,
   axisMode = 'range',
 }) {
-  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos en este rango.</p>
+  const { t } = useLanguage()
+  const metricLabel = metricLabelMessage
+  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_data_in_this_range')}</p>
 
   const chartData = series?.length
     ? data.map(d => ({
@@ -59,7 +63,7 @@ export default function TimeSeriesChart({
     axisMode,
     series?.length ? series.map(item => item.dataKey) : ['v'],
   )
-  const timeAxis = getTimeAxis(visibleData)
+  const timeAxis = getTimeAxis(visibleData, undefined, undefined, t)
   const hasAggregatedRange = !series?.length && visibleData.some(d => Number.isFinite(d.vMin) && Number.isFinite(d.vMax))
 
   return (
@@ -76,11 +80,11 @@ export default function TimeSeriesChart({
           tickLine={false}
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
         />
-        <YAxis hide={compact} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit={unit ? ` ${unit}` : ''} />
+        <YAxis tickFormatter={t.number} hide={compact} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit={unit ? ` ${unit}` : ''} />
         <Tooltip
           cursor={<ChartCursor />}
-          formatter={(v, name) => [`${Number(v).toFixed(1)}${unit ? ' ' + unit : ''}`, name ?? metricLabel]}
-          labelFormatter={(l) => { try { return format(parseISO(l), "d MMM HH:mm:ss", { locale: es }) } catch { return l } }}
+          formatter={(v, name) => [`${t.fixed(Number(v), 1)}${unit ? ' ' + unit : ''}`, name ?? metricLabel]}
+          labelFormatter={(l) => { try { return format(parseISO(l), "d MMM HH:mm:ss", { locale: t.dateLocale }) } catch { return l } }}
           content={hasAggregatedRange ? <AggregatedTooltip unit={unit} metricLabel={metricLabel} /> : undefined}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
         />

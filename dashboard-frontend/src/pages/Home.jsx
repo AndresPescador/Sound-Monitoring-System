@@ -1,3 +1,4 @@
+import { useLanguage } from '../context/LanguageContext'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getSystemStats } from '../api/system'
@@ -7,10 +8,10 @@ import StationCard         from '../components/cards/StationCard'
 import StationMap          from '../components/map/StationMap'
 import LoadingSpinner      from '../components/shared/LoadingSpinner'
 import { format, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { ROUTES } from '../routes'
 
 export default function Home() {
+  const { t } = useLanguage()
   const [stats,    setStats]    = useState(null)
   const [stations, setStations] = useState([])
   const [stationQuery, setStationQuery] = useState('')
@@ -25,15 +26,15 @@ export default function Home() {
         setStats(sr.data)
         setStations(st.data)
       })
-      .catch(e => setError(e.message))
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <LoadingSpinner label="Cargando mapa 2D..." />
-  if (error)   return <p className="dashboard-error" role="alert">No fue posible cargar el mapa 2D: {error}</p>
+  if (loading) return <LoadingSpinner label={t('common.loading_2d_map')} />
+  if (error)   return <p className="dashboard-error" role="alert">{t('common.network_error')}</p>
 
   const lastSeen = stats?.last_measurement_received_at
-    ? format(parseISO(stats.last_measurement_received_at), "d MMM yyyy HH:mm", { locale: es })
+    ? format(parseISO(stats.last_measurement_received_at), "d MMM yyyy HH:mm", { locale: t.dateLocale })
     : null
   const normalizedQuery = stationQuery.trim().toLocaleLowerCase('es')
   const filteredStations = normalizedQuery
@@ -46,23 +47,23 @@ export default function Home() {
     <div className="dashboard-page dashboard-home">
       <header className="dashboard-home-header">
         <div className="dashboard-home-header__intro">
-          <h1 tabIndex={-1}>Mapa acústico 2D</h1>
-          <p>Explora la red binaural de Bogotá y abre cada estación para consultar su lectura actual.</p>
+          <h1 tabIndex={-1}>{t('common.2d_acoustic_map')}</h1>
+          <p>{t('common.explore_bogota_s_binaural_network_and_open_each_station')}</p>
         </div>
 
-        <div className="dashboard-stat-grid" aria-label="Resumen de la red acústica">
+        <div className="dashboard-stat-grid" aria-label={t('maps.acoustic_network_summary')}>
           <StatCard
-            label="Red activa"
-            value={`${stats?.active_stations ?? 0} de ${stats?.total_stations ?? 0}`}
-            sub="estaciones operativas"
+            label={t('common.active_network')}
+            value={t('common.of', { p0: stats?.active_stations ?? 0, p1: stats?.total_stations ?? 0 })}
+            sub={t('common.operational_stations')}
             accent
           />
-          <StatCard label="Mediciones" value={stats?.total_measurements?.toLocaleString('es-CO')} sub="registros acumulados" />
-          <StatCard label="Última medición" value={lastSeen ?? 'Sin registro'} sub="fecha y hora" />
+          <StatCard label={t('maps.measurements')} value={stats?.total_measurements?.toLocaleString(t.locale)} sub={t('common.total_records')} />
+          <StatCard label={t('common.latest_measurement_2')} value={lastSeen ?? t('common.no_record')} sub={t('common.date_and_time')} />
         </div>
 
         <div className="dashboard-page-header__actions">
-          <Link to={ROUTES.map2DCompare} className="dashboard-button dashboard-button--primary">Comparar datos</Link>
+          <Link to={ROUTES.map2DCompare} className="dashboard-button dashboard-button--primary">{t('common.compare_data')}</Link>
         </div>
       </header>
 
@@ -76,11 +77,11 @@ export default function Home() {
               onSelect={setSelectedStationCode}
             />
           </div>
-          <div className="dashboard-map-legend" aria-label="Niveles de ruido">
-            <span className="dashboard-map-legend__title">Nivel de ruido</span>
-            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--low" aria-hidden="true" />Bajo</span>
-            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--medium" aria-hidden="true" />Moderado</span>
-            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--high" aria-hidden="true" />Alto</span>
+          <div className="dashboard-map-legend" aria-label={t('common.noise_levels')}>
+            <span className="dashboard-map-legend__title">{t('common.noise_level')}</span>
+            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--low" aria-hidden="true" />{t('common.low')}</span>
+            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--medium" aria-hidden="true" />{t('common.moderate')}</span>
+            <span className="dashboard-map-legend__item"><i className="dashboard-map-legend__dot dashboard-map-legend__dot--high" aria-hidden="true" />{t('common.high')}</span>
           </div>
         </div>
 
@@ -94,19 +95,19 @@ export default function Home() {
                 aria-hidden="true"
               />
               <div>
-                <h2 id="stations-heading">Estaciones</h2>
-                <p>Red de escucha binaural</p>
+                <h2 id="stations-heading">{t('admin.stations')}</h2>
+                <p>{t('common.binaural_listening_network')}</p>
               </div>
             </div>
-            <span>{normalizedQuery ? `${filteredStations.length} de ${stations.length}` : `${stations.length} registradas`}</span>
+            <span>{normalizedQuery ? t('common.of', { p0: filteredStations.length, p1: stations.length }) : t('common.registered', { p0: t.number(stations.length), count: stations.length })}</span>
           </div>
           <label className="dashboard-station-search">
-            <span>Buscar una estación</span>
+            <span>{t('maps.find_a_station')}</span>
             <input
               type="search"
               value={stationQuery}
               onChange={event => setStationQuery(event.target.value)}
-              placeholder="Nombre, localidad o código"
+              placeholder={t('common.name_locality_or_code')}
             />
           </label>
           <div className="dashboard-station-list">
@@ -119,9 +120,9 @@ export default function Home() {
                 onSelect={setSelectedStationCode}
               />
             ))}
-            {!stations.length && <p className="dashboard-empty-state">No hay estaciones registradas.</p>}
+            {!stations.length && <p className="dashboard-empty-state">{t('common.no_stations_registered')}</p>}
             {stations.length > 0 && !filteredStations.length && (
-              <p className="dashboard-empty-state">No hay estaciones que coincidan con la búsqueda.</p>
+              <p className="dashboard-empty-state">{t('maps.no_stations_match_your_search')}</p>
             )}
           </div>
         </aside>

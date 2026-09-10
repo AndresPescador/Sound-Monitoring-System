@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Cell, ResponsiveContainer
@@ -13,7 +14,8 @@ const levelColor = (leq) => {
 }
 
 export default function DailyBarChart({ data = [] }) {
-  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">Sin datos para este día.</p>
+  const { t } = useLanguage()
+  if (!data.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_data_for_this_day')}</p>
 
   const chartData = Array.from({ length: 24 }, (_, h) => {
     const row = data.find(d => d.hour === h)
@@ -33,13 +35,13 @@ export default function DailyBarChart({ data = [] }) {
           tickLine={false}
           tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
         />
-        <YAxis tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
+        <YAxis tickFormatter={t.number} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
         <Tooltip
           cursor={<ChartCursor />}
-          formatter={(v) => v != null ? [`${v} dBFS`, 'Leq hora'] : ['Sin datos', '']}
+          formatter={(v) => v != null ? [`${v} dBFS`, t('charts.hourly_leq')] : [t('common.no_data'), '']}
           contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
         />
-        <Bar dataKey="leq" name="Leq/hora" radius={[3, 3, 0, 0]}>
+        <Bar dataKey="leq" name={t('charts.leq_hour')} radius={[3, 3, 0, 0]}>
           {chartData.map((entry, i) => (
             <Cell key={i} fill={levelColor(entry.leq)} fillOpacity={entry.leq != null ? 0.85 : 0.2} />
           ))}

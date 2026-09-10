@@ -1,3 +1,5 @@
+import LocalizedMapControls from '../map/LocalizedMapControls'
+import { useLanguage } from '../../context/LanguageContext'
 import { useEffect } from 'react'
 import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { useTheme } from '../../context/ThemeContext'
@@ -37,6 +39,7 @@ function MapViewport({ latitude, longitude }) {
 }
 
 export default function StationLocationPicker({ latitude, longitude, onPick }) {
+  const { t } = useLanguage()
   const { isDark } = useTheme()
   const parsedLatitude = Number.parseFloat(latitude)
   const parsedLongitude = Number.parseFloat(longitude)
@@ -46,11 +49,11 @@ export default function StationLocationPicker({ latitude, longitude, onPick }) {
     <div className="admin-location-picker">
       <div className="admin-location-picker__heading">
         <div>
-          <h3>Ubica la estación en el mapa</h3>
-          <p>Haz clic en el punto de instalación. También puedes escribir las coordenadas debajo.</p>
+          <h3>{t('admin.locate_the_station_on_the_map')}</h3>
+          <p>{t('admin.click_the_installation_point_you_can_also_enter_the')}</p>
         </div>
         <output className="admin-location-picker__status" aria-live="polite">
-          {hasLocation ? 'Ubicación seleccionada' : 'Pendiente de ubicación'}
+          {hasLocation ? t('admin.selected_location') : t('admin.location_pending')}
         </output>
       </div>
       <MapContainer
@@ -58,8 +61,9 @@ export default function StationLocationPicker({ latitude, longitude, onPick }) {
         zoom={INITIAL_VIEW.zoom}
         className="admin-location-picker__map"
         scrollWheelZoom
-        aria-label="Mapa para seleccionar la ubicación de la estación"
+        aria-label={t('admin.map_for_selecting_the_station_location')}
       >
+        <LocalizedMapControls />
         <TileLayer url={TILE_URLS.light} opacity={isDark ? 0 : 1} zIndex={1} />
         <TileLayer url={TILE_URLS.dark} opacity={isDark ? 1 : 0} zIndex={2} />
         <MapClickHandler onPick={onPick} />

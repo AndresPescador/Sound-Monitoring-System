@@ -1,5 +1,5 @@
+import { defaultT } from '../../i18n/core.mjs'
 import { format, isValid, subHours } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 export const DEFAULT_RANGE_HOURS = 24
 
@@ -38,20 +38,20 @@ export function getStationLatestTimestamp(station) {
     ?? null
 }
 
-export function formatDateTime(value) {
+export function formatDateTime(value, t = defaultT) {
   const date = toDate(value)
-  return date ? format(date, "d MMM yyyy HH:mm", { locale: es }) : 'Sin registro'
+  return date ? format(date, "d MMM yyyy HH:mm", { locale: t.dateLocale }) : t('common.no_record')
 }
 
-export function formatRangeLabel(range) {
+export function formatRangeLabel(range, t = defaultT) {
   const from = toDate(range?.from)
   const to = toDate(range?.to)
-  if (!from || !to) return 'el último período disponible'
+  if (!from || !to) return t('common.the_latest_available_period')
 
   const sameDay = format(from, 'yyyy-MM-dd') === format(to, 'yyyy-MM-dd')
   return sameDay
-    ? format(to, "d MMM yyyy", { locale: es })
-    : `${format(from, "d MMM", { locale: es })}–${format(to, "d MMM yyyy", { locale: es })}`
+    ? format(to, "d MMM yyyy", { locale: t.dateLocale })
+    : `${format(from, "d MMM", { locale: t.dateLocale })}–${format(to, "d MMM yyyy", { locale: t.dateLocale })}`
 }
 
 export function toDatetimeLocalValue(value) {
