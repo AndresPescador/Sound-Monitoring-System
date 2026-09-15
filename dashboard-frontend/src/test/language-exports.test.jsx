@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { useRef } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
@@ -51,15 +52,15 @@ it('translates open-data column headings without refetching or changing download
   api.raw.mockResolvedValue({ data: { data: rows, count: 1, total_count: 1, has_more: false } })
   api.allRaw.mockResolvedValue({ data: rows })
   api.hourly.mockResolvedValue({ data: { data: [] } })
-  render(<LanguageProvider><LanguageSwitcher /><OpenData /></LanguageProvider>)
-  await screen.findByRole('columnheader', { name: 'Fecha y hora (UTC)' })
+  render(<LanguageProvider><LanguageSwitcher /><MemoryRouter><OpenData /></MemoryRouter></LanguageProvider>)
+  await screen.findByRole('columnheader', { name: 'Fecha y hora · Bogotá' })
   await waitFor(() => expect(screen.getByRole('button', { name: /Descargar CSV completo/ })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: /Descargar CSV completo/ }))
   await waitFor(() => expect(blobs).toHaveLength(1))
   const csv = await readBlob(blobs[0]), filename = downloads[0]
   const request = api.raw.mock.calls[0][1]
   fireEvent.click(screen.getByRole('button', { name: 'English' }))
-  expect(screen.getByRole('columnheader', { name: 'Date and time (UTC)' })).toBeInTheDocument()
+  expect(screen.getByRole('columnheader', { name: 'Date and time · Bogotá' })).toBeInTheDocument()
   expect(api.raw).toHaveBeenCalledTimes(1)
   expect(api.summary).toHaveBeenCalledTimes(1)
   fireEvent.click(screen.getByRole('button', { name: /Download full CSV/ }))
@@ -68,4 +69,56 @@ it('translates open-data column headings without refetching or changing download
   expect(downloads[1]).toBe(filename)
   expect(csv).toContain('Fecha y hora (UTC),dBFS nivel (dBFS),Leq ponderado A (dBFS)')
   expect(api.allRaw.mock.calls[1][1]).toEqual({ from: request.from, to: request.to })
+})
+
+it('reports download progress and failure, then allows a complete retry', async () => {
+  api.stations.mockResolvedValue({ data: [{ station_code: 'ST-TEST-01', name: 'Test' }] })
+  api.summary.mockResolvedValue({ data: { latest_recorded_at: rows[0].recorded_at } })
+  api.raw.mockResolvedValue({ data: { data: rows, total_count: 2 } })
+  let rejectDownload
+  api.allRaw.mockImplementationOnce((_station, _range, progress) => {
+    progress({ loaded: 1, total: 2 })
+    return new Promise((_resolve, reject) => { rejectDownload = reject })
+  }).mockResolvedValueOnce({ data: [...rows, { ...rows[0], leq_dbfs: -40 }] })
+  render(<MemoryRouter><OpenData /></MemoryRouter>)
+  const button = await screen.findByRole('button', { name: /Descargar CSV completo/ })
+  await waitFor(() => expect(button).toBeEnabled())
+  fireEvent.click(button)
+  expect(await screen.findByText('Descargando 1 de 2 registros…')).toHaveAttribute('role', 'status')
+  expect(button).toBeDisabled()
+  rejectDownload(new Error('Synthetic network error'))
+  expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo completar')
+  fireEvent.click(button)
+  await waitFor(() => expect(blobs).toHaveLength(1))
+  expect(await readBlob(blobs[0])).toContain('-40')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+it('cancels export when its query is unmounted and never downloads the old result', async () => {
+  api.stations.mockResolvedValue({ data: [{ station_code: 'ST-TEST-01', name: 'Test' }] })
+  api.summary.mockResolvedValue({ data: { latest_recorded_at: rows[0].recorded_at } })
+  api.raw.mockResolvedValue({ data: { data: rows, total_count: 1 } })
+  let finish, signal
+  api.allRaw.mockImplementationOnce((_station, _range, _progress, config) => {
+    signal = config.signal
+    return new Promise(resolve => { finish = resolve })
+  })
+  const view = render(<MemoryRouter><OpenData /></MemoryRouter>)
+  const button = await screen.findByRole('button', { name: /Descargar CSV completo/ })
+  await waitFor(() => expect(button).toBeEnabled())
+  fireEvent.click(button)
+  view.unmount()
+  expect(signal.aborted).toBe(true)
+  finish({ data: rows })
+  await Promise.resolve()
+  expect(downloads).toHaveLength(0)
+})
+
+it('distinguishes no stations from a connection failure and retries the list', async () => {
+  api.stations.mockRejectedValueOnce(new Error('Synthetic failure')).mockResolvedValueOnce({ data: [] })
+  render(<MemoryRouter><OpenData /></MemoryRouter>)
+  expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos consultar')
+  fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+  expect(await screen.findByText('No hay estaciones disponibles.')).toHaveAttribute('role', 'status')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })

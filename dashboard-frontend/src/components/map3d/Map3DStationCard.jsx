@@ -1,10 +1,7 @@
+import { formatMetric } from '../shared/metricCatalog'
 import { useLanguage } from '../../context/LanguageContext'
 import { useMemo } from 'react'
 import { useMap3DContext } from '../../context/Map3DContext'
-
-function formatValue(value, digits = 1, t) {
-  return Number.isFinite(Number(value)) ? t.fixed(Number(value), digits) : '—'
-}
 
 function getCardPlacement(position) {
   if (!position) return { side: 'right', style: undefined }
@@ -54,7 +51,7 @@ export default function Map3DStationCard({ position, onOpenAnalysis, onHideCard 
           <h2>{name}</h2>
           <p>{locality}</p>
         </div>
-        <div className={`map3d-status ${isActive ? 'is-active' : 'is-inactive'}`}>
+        <div className={`map3d-status ${isActive == null ? 'is-unknown' : isActive ? 'is-active' : 'is-inactive'}`}>
           {isActive == null ? t('maps.no_status') : isActive ? t('maps.active_2') : t('common.inactive')}
         </div>
       </header>
@@ -62,11 +59,11 @@ export default function Map3DStationCard({ position, onOpenAnalysis, onHideCard 
       <div className="map3d-station-card__metrics">
         <div>
           <span>{t('maps.current_leq')}</span>
-          <strong>{formatValue(latest, undefined, t)} <small>dBFS</small></strong>
+          <strong>{formatMetric(latest, 'leq_dbfs', t)}</strong>
         </div>
         <div>
           <span>{t('maps.last_hour')}</span>
-          <strong>{formatValue(selectedSummary?.last_hour_leq, undefined, t)} <small>dBFS</small></strong>
+          <strong>{formatMetric(selectedSummary?.last_hour_leq, 'leq_hour', t)}</strong>
         </div>
         <div>
           <span>{t('maps.measurements')}</span>
@@ -77,7 +74,7 @@ export default function Map3DStationCard({ position, onOpenAnalysis, onHideCard 
       {summaryError && <p className="map3d-station-card__error">{summaryError}</p>}
 
       <footer className="map3d-station-card__actions">
-        <button type="button" className="map3d-primary-button" onClick={onOpenAnalysis}>{t('maps.open_detailed_analysis_in_2d')}</button>
+        <button type="button" className="map3d-primary-button" onClick={onOpenAnalysis}>{t('ux.openAnalysis')}</button>
         <button type="button" className="map3d-card-link" onClick={onHideCard}>{t('maps.hide_card')}</button>
       </footer>
     </article>

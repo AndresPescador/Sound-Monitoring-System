@@ -1,0 +1,150 @@
+/* Public analysis surfaces use the existing theme and semantic chart palette. */
+:is(.dashboard-shell, .map3d-shell) {
+  --ux-control-size: 44px;
+  --ux-card-space: 16px;
+  --ux-body-size: 16px;
+  --ux-help-size: 14px;
+}
+:is(.dashboard-shell, .map3d-shell) :is(button, a, input, select, summary) { touch-action: manipulation; }
+:is(.dashboard-shell, .map3d-shell) :is(.dashboard-input, .dashboard-select, .dashboard-range-picker__button) { font-size: var(--ux-body-size); min-height: 44px; max-width: 100%; }
+:is(.dashboard-shell, .map3d-shell) .dashboard-field { min-width: 0; }
+:is(.dashboard-shell, .map3d-shell) :is(.dashboard-field label, .dashboard-field > span, .dashboard-axis-mode-control__description, .dashboard-resolution-note) { font-size: 14px; }
+:is(.dashboard-shell, .map3d-shell) .dashboard-data-table { font-size: 14px; }
+:is(.dashboard-shell, .map3d-shell) .dashboard-data-table th { font-size: 14px; }
+:is(.dashboard-shell, .map3d-shell) .dashboard-info__button { width: 44px; height: 44px; flex: 0 0 44px; font-size: 16px; }
+.dashboard-info { display: inline-flex; vertical-align: middle; margin-left: 4px; }
+.ux-help { position: fixed; z-index: 1000; width: min(320px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 16px; border-radius: 12px; border: 1px solid rgb(var(--theme-line-rgb)); background: rgb(var(--theme-paper-rgb)); color: rgb(var(--theme-ink-rgb)); box-shadow: 0 12px 40px rgb(0 0 0 / .2); font-size: 14px; line-height: 1.6; }
+.ux-station-analysis { container-type: inline-size; }
+.ux-station-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+.ux-station-heading > div { min-width: 0; }
+.ux-station-heading h1 { margin: 4px 0; font: 700 clamp(1.5rem, 2.6vw, 2.4rem)/1.12 'DM Sans', sans-serif; overflow-wrap: anywhere; letter-spacing: -.035em; }
+.ux-station-heading p { margin: 4px 0; font-size: 14px; color: var(--dashboard-muted); }
+.ux-station-select { display: grid; gap: 4px; max-width: 260px; font-size: 14px; }
+.ux-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--dashboard-line); padding-bottom: 6px; max-width: 100%; }
+.ux-tabs > button { min-height: 44px; padding: 8px 16px; border-radius: 10px; font: 650 16px/1.2 'DM Sans', sans-serif; color: var(--dashboard-muted); }
+.ux-tabs > button[aria-selected='true'] { background: var(--dashboard-blue); color: var(--dashboard-white); }
+.ux-tab-content { display: grid; gap: 16px; min-width: 0; }
+.ux-summary-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; }
+.ux-summary-grid > div { display: grid; gap: 4px; padding: 12px 16px; border-radius: 12px; background: var(--dashboard-sky); }
+.ux-summary-grid span, .ux-summary-grid small { color: var(--dashboard-muted); font-size: 14px; }
+.ux-summary-grid strong { font: 700 24px/1.2 'DM Sans', sans-serif; color: var(--dashboard-ink); }
+.ux-filters { border: 1px solid var(--dashboard-line); border-radius: 12px; padding: 0 12px; color: var(--dashboard-ink); }
+.ux-filters > summary { min-height: 52px; cursor: pointer; font-size: 14px; padding: 10px 0; }
+.ux-filters > summary strong { font-size: 16px; margin-right: 12px; }
+.ux-filters > summary span { color: var(--dashboard-muted); }
+.ux-filter-content { display: grid; gap: 16px; padding-bottom: 16px; min-width: 0; }
+@media (min-width: 1024px) {
+  .ux-filter-content { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
+}
+/* Reserve card padding/borders so each plot retains at least 420px in two columns. */
+.ux-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 456px), 1fr)); gap: 16px; min-width: 0; }
+.ux-analysis-card { min-width: 0; padding: var(--ux-card-space); gap: 12px; }
+.ux-analysis-card .dashboard-section-card__heading { padding-bottom: 8px; gap: 8px; align-items: center; }
+.ux-analysis-card .dashboard-section-card__heading h2 { font-size: 18px; margin: 0; line-height: 1.3; }
+.ux-plot { min-width: 0; width: 100%; }
+.ux-chart-empty { min-height: 260px; display: grid; place-items: center; color: var(--dashboard-muted); font-size: 16px; }
+.ux-note { font-size: 14px; line-height: 1.5; color: var(--dashboard-muted); margin: 0; }
+.ux-series { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0; }
+.ux-series button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--dashboard-ink); padding: 4px; font-size: 14px; text-align: left; }
+.ux-series button:disabled { opacity: 1; cursor: default; }
+.ux-series button[aria-pressed='false'] { text-decoration: line-through; opacity: .65; }
+.ux-point-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; }
+.ux-point-controls button, .ux-selection-actions button, .ux-map-view button, .ux-expand-analysis { min-width: 44px; min-height: 44px; border: 1px solid var(--dashboard-line); border-radius: 10px; padding: 8px; background: var(--dashboard-white); color: var(--dashboard-ink); }
+.ux-point-controls button:disabled { opacity: .45; }
+.ux-point-controls output { flex: 1; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.ux-point-controls output span { display: block; }
+.ux-reading details, .ux-exact { border-top: 1px solid var(--dashboard-line); font-size: 14px; }
+.ux-reading summary, .ux-exact > summary { min-height: 44px; padding: 12px 0; cursor: pointer; }
+.ux-table-scroll { overflow: auto; max-height: 400px; }
+.ux-selection-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dashboard-tag[aria-pressed='true'] { background: var(--dashboard-blue); color: var(--dashboard-white); }
+.ux-preferences { position: relative; }
+.ux-preferences > summary { list-style: none; cursor: pointer; min-width: 44px; min-height: 44px; display: grid; place-items: center; border: 1px solid var(--dashboard-line); border-radius: 12px; font-size: 20px; }
+.ux-preferences > summary::-webkit-details-marker { display: none; }
+.ux-preferences > div { position: absolute; right: 0; top: calc(100% + 8px); z-index: 90; display: flex; gap: 12px; padding: 12px; background: var(--dashboard-paper); border: 1px solid var(--dashboard-line); border-radius: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.ux-map-view, .ux-data-cards, .ux-data-view-control { display: none; }
+.ux-data-cards details { border: 1px solid var(--dashboard-line); border-radius: 12px; padding: 12px; }
+.ux-data-cards summary { cursor: pointer; font-size: 16px; min-height: 44px; }
+.ux-data-cards summary span { display: block; font-size: 14px; padding-top: 6px; }
+.ux-data-cards dl > div { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--dashboard-line); padding: 8px 0; font-size: 14px; }
+.ux-data-cards dd { text-align: right; overflow-wrap: anywhere; }
+.ux-map-fallback { position: absolute; inset: 120px 16px 150px; display: grid; align-content: center; justify-items: center; background: var(--dashboard-paper); color: var(--dashboard-ink); }
+.map3d-analysis-panel.is-expanded { inset: 90px 16px 16px; width: auto; max-width: none; z-index: 55; }
+.map3d-analysis-panel__scroll .ux-station-heading h1 { font-size: 22px; }
+.map3d-analysis-panel__scroll .ux-station-select { max-width: 180px; }
+.map3d-analysis-panel__header { gap: 8px; }
+.map3d-analysis-panel__header > div { min-width: 0; flex: 1; }
+.ux-reopen-analysis { position: absolute; z-index: 48; right: 16px; top: 100px; background: var(--dashboard-paper); }
+@media (max-width: 767px), (max-height: 500px) and (max-width: 1023px) {
+  .dashboard-nav__inner { grid-template-columns: 1fr auto; min-height: 48px; gap: 0; padding-top: 0; }
+  .dashboard-nav__mark { width: 32px; height: 32px; }
+  .dashboard-nav__links { padding-bottom: 4px; gap: 0; justify-content: space-between; }
+  .dashboard-nav__link { font-size: 14px; min-height: 44px; padding: 8px; }
+  .dashboard-nav__mode-switch { font-size: 14px; min-height: 44px; display: inline-flex; align-items: center; border: 0; }
+  .dashboard-main { padding-top: 12px; width: calc(100% - 24px); }
+  .dashboard-page { gap: 12px; }
+  .dashboard-page-header { padding-bottom: 12px; }
+  .dashboard-page-header h1, .dashboard-open-data-intro h1 { font-size: 28px; }
+  .dashboard-page-header p, .dashboard-open-data-intro p { font-size: 14px; line-height: 1.5; margin-top: 8px; }
+  .ux-station-heading { gap: 8px; }
+  .ux-station-heading h1 { font-size: 22px; }
+  .ux-station-heading .dashboard-breadcrumb { font-size: 14px; }
+  .ux-station-select { max-width: 120px; flex: 0 0 120px; }
+  .ux-station-select > span { font-size: 12px; }
+  .ux-station-select .dashboard-select { padding: 6px; }
+  .ux-tabs { gap: 2px; }
+  .ux-tabs > button { flex: 1; padding: 8px 4px; font-size: 16px; }
+  .ux-filters > summary { font-size: 14px; }
+  .ux-filters > summary span { display: block; font-size: 14px; padding-top: 4px; }
+  .ux-summary-grid > div { padding: 8px 10px; }
+  .ux-summary-grid strong { font-size: 22px; }
+  .ux-summary-grid small { font-size: 14px; }
+  .ux-station-analysis { --ux-card-space: 12px; }
+  .ux-map-view { display: flex; gap: 8px; }
+  .ux-map-view button { flex: 1; }
+  .ux-map-view button[aria-pressed='true'] { background: var(--dashboard-blue); color: var(--dashboard-white); }
+  .ux-map-view--map .dashboard-station-panel, .ux-map-view--list .dashboard-map-panel { display: none; }
+  .dashboard-home .ux-map-view--list .dashboard-station-panel { height: auto; }
+  .dashboard-home .dashboard-station-list { max-height: none; overflow-y: visible; }
+  .dashboard-home-header .dashboard-stat-grid { display: none; }
+  .ux-data-view-control { display: block; }
+  .ux-data-view--cards .ux-data-cards { display: grid; gap: 8px; margin: 12px 0; }
+  .ux-data-view--cards :is(.dashboard-data-table-wrap, .dashboard-data-table__toolbar, .dashboard-data-horizontal-scrollbar) { display: none; }
+  .map3d-shell { min-height: 0; }
+  .map3d-topbar { grid-template-columns: auto 1fr; top: 4px; gap: 4px; padding: 4px 8px; }
+  .map3d-topbar__brand > span { display: none; }
+  .map3d-topbar__nav { grid-row: 2; grid-column: 1 / -1; justify-content: space-between; }
+  .map3d-topbar__actions { grid-column: 2; grid-row: 1; }
+  .map3d-topbar__link { font-size: 14px; padding: 4px; }
+  .map3d-analysis-panel, .map3d-analysis-panel.is-expanded { inset: 8px; width: auto; height: auto; min-width: 0; max-height: none; z-index: 60; }
+  .map3d-analysis-panel__header { min-height: 56px; padding: 8px 12px; }
+  .map3d-analysis-panel__header :is(p, .map3d-code) { display: none; }
+  .map3d-analysis-panel__header h2 { font-size: 16px; }
+  .map3d-analysis-panel__scroll > * { padding: 12px; }
+  .ux-expand-analysis { display: none; }
+  .map3d-analysis-panel__close { width: auto; min-height: 44px; white-space: nowrap; font-size: 14px; }
+  .ux-analysis-open :is(.map3d-topbar, .map3d-station-picker, .map3d-temporal-rail, .map3d-rail) { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.dashboard-shell, .map3d-shell) *, .ux-help { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+.ux-map-workspace { height: 100%; }
+:is(.dashboard-shell, .map3d-shell) :is(.ux-note, .dashboard-chart-tooltip, .dashboard-export__item, .dashboard-axis-mode-control__option) { font-size: 14px; }
+:is(.dashboard-shell, .map3d-shell) .dashboard-chart-tooltip { max-height: 280px; overflow-y: auto; }
+:is(.dashboard-shell, .map3d-shell) button:disabled { cursor: default; }
+@media (max-width: 767px), (max-height: 500px) and (max-width: 1023px) {
+  .ux-station-heading { flex-wrap: wrap; }
+  .ux-station-heading > div { flex: 1 1 160px; }
+  .ux-station-select { flex-basis: 100%; max-width: none; }
+  .ux-station-select > span { font-size: 14px; }
+  .ux-station-heading .dashboard-breadcrumb { display: none; }
+  .ux-station-heading h1 { font-size: 22px; }
+}
+
+.ux-filter-content > * { min-width: 0; max-width: 100%; }
+.ux-filter-content .dashboard-axis-mode-control__heading { flex-wrap: wrap; }
+.ux-filter-content .dashboard-axis-mode-control__description { overflow-wrap: anywhere; }
+
+:is(.dashboard-shell, .map3d-shell) .dashboard-axis-mode-control__option { font-size: 16px; }
+
+:is(.dashboard-shell, .map3d-shell) .dashboard-export__item { min-height: 44px; font-size: 16px; }

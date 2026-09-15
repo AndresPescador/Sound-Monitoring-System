@@ -1,120 +1,18 @@
-import { message as localizedMessage } from '../../i18n/core.mjs'
-import { useLanguage } from '../../context/LanguageContext'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer
-} from 'recharts'
-import { format, parseISO } from 'date-fns'
-import ChartCursor from './ChartCursor'
-import { ACTIVE_DOT, compactEmptyTimeBuckets, getChartDataWindow, getTimeAxis } from './timeAxis'
-import useChartAxisTransition from '../../hooks/useChartAxisTransition'
+import MetricPlot from './MetricPlot'
+import { compactEmptyTimeBuckets, getChartDataWindow } from './timeAxis'
 import { getCompareSeriesStyles } from './compareSeriesColors'
-
-function CompareTooltip({ active, payload, label }) {
-  const { t } = useLanguage()
-  if (!active || !payload?.length) return null
-
-  let dateLabel = label
-  try { dateLabel = format(parseISO(label), 'd MMM HH:mm', { locale: t.dateLocale }) } catch { /* keep label */ }
-
-  const visiblePoints = payload.filter(item => item.value != null)
-  if (!visiblePoints.length) return null
-
-  return (
-    <div className="dashboard-chart-tooltip">
-      <p>{dateLabel}</p>
-      {visiblePoints.map(item => {
-        const point = item.payload
-        const min = point[`${item.dataKey}__min`]
-        const max = point[`${item.dataKey}__max`]
-        const sourceCount = point[`${item.dataKey}__sourceCount`]
-        return (
-          <div key={item.dataKey}>
-            <strong>{item.name}: {t.fixed(Number(item.value), 2)} dBFS</strong>
-            {Number.isFinite(Number(min)) && Number.isFinite(Number(max)) && (
-              <span>{t('charts.range') + ' '}{t.fixed(Number(min), 2)}–{t.fixed(Number(max), 2)} dBFS</span>
-            )}
-            {Number.isFinite(Number(sourceCount)) && (
-              <span>{Number(sourceCount).toLocaleString(t.locale)}{' ' + t('charts.measurements_in_this_window')}</span>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-export default function CompareChart({ series = [], metricLabel: metricLabelMessage = localizedMessage('charts.hourly_leq'), axisMode = 'range' }) {
-  const { t } = useLanguage()
-  const metricLabel = metricLabelMessage
-  const { renderedAxisMode, phase } = useChartAxisTransition(axisMode)
-  if (!series.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_data')}</p>
-
-  // Pivot: merge all series by hour_start timestamp
-  const timeMap = {}
-  series.forEach(s => {
-    s.data.forEach(pt => {
-      const key = pt.hour_start
-      if (!timeMap[key]) timeMap[key] = { t: key }
-      timeMap[key][s.station_code] = pt.value == null ? null : +Number(pt.value).toFixed(2)
-      timeMap[key][`${s.station_code}__min`] = pt.value_min
-      timeMap[key][`${s.station_code}__max`] = pt.value_max
-      timeMap[key][`${s.station_code}__sourceCount`] = pt.source_count
-    })
-  })
-  const chartData = Object.values(timeMap).sort((a, b) => a.t.localeCompare(b.t))
-  const valueKeys = series.map(s => s.station_code)
-  const focusedData = getChartDataWindow(chartData, renderedAxisMode, valueKeys)
-  const visibleData = renderedAxisMode === 'data'
-    ? compactEmptyTimeBuckets(focusedData, valueKeys)
-    : focusedData
-  const timeAxis = getTimeAxis(visibleData, undefined, undefined, t)
-  const seriesStyles = getCompareSeriesStyles(series.map(s => s.station_code ?? s.locality))
-
-  return (
-    <div className={`dashboard-chart-transition dashboard-chart-transition--${phase}`}>
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart key={`${renderedAxisMode}-${visibleData.length}`} data={visibleData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-        <XAxis
-          dataKey="t"
-          ticks={timeAxis.ticks}
-          tickFormatter={timeAxis.tickFormatter}
-          interval={0}
-          height={28}
-          tickLine={false}
-          tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }}
-        />
-        <YAxis tickFormatter={t.number} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} unit=" dB" />
-        <Tooltip
-          cursor={<ChartCursor />}
-          content={<CompareTooltip />}
-          contentStyle={{ fontFamily: 'Source Sans 3', fontSize: 12 }}
-        />
-        <Legend wrapperStyle={{ fontFamily: 'DM Sans', fontSize: 12 }} />
-        {series.map(s => {
-          const seriesKey = String(s.station_code ?? s.locality ?? '')
-          const style = seriesStyles.get(seriesKey)
-          return (
-            <Line
-              key={s.station_code}
-              type="monotone"
-              dataKey={s.station_code}
-              // displayName existe en sección 2 (estaciones individuales).
-              // En sección 1 (localidades) no existe y se usa locality como antes.
-              name={s.displayName ?? s.locality ?? s.station_code}
-              stroke={style.color}
-              strokeDasharray={style.strokeDasharray}
-              strokeWidth={2}
-              dot={false}
-              activeDot={ACTIVE_DOT}
-              connectNulls={false}
-              isAnimationActive={false}
-            />
-          )
-        })}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  )
+export default function CompareChart({ series = [], metric = 'leq_hour', axisMode = 'range', range = null }) {
+  const styles = getCompareSeriesStyles(series.map(s => s.station_code))
+  const columns = series.map(s => ({ key: s.station_code, label: s.displayName ?? s.locality ?? s.station_code, metric, color: styles.get(s.station_code)?.color, dash: styles.get(s.station_code)?.strokeDasharray }))
+  const rows = new Map()
+  series.forEach(s => s.data.forEach(point => {
+    const row = rows.get(point.hour_start) ?? { t: point.hour_start }
+    row[s.station_code] = point.value
+    row[`${s.station_code}_min`] = point.value_min
+    row[`${s.station_code}_max`] = point.value_max
+    rows.set(point.hour_start, row)
+  }))
+  const data = [...rows.values()].sort((a, b) => a.t.localeCompare(b.t))
+  const focused = getChartDataWindow(data, axisMode, columns.map(col => col.key))
+  return <MetricPlot data={axisMode === 'data' ? compactEmptyTimeBuckets(focused, columns.map(col => col.key)) : focused} columns={columns} metric={metric} height={280} axisMode={axisMode} range={range} interactiveLegend compressed />
 }

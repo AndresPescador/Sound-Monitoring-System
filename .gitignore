@@ -42,6 +42,13 @@ send_metrics/audio_env/
 # ── Datos de prueba local ────────────────────────────────────────────────────
 /api-testing/test_data
 
+# ── Datos y utilidades locales de validación UX (no versionar) ─────────────
+api-testing/seed_local_synthetic.py
+api-testing/SYNTHETIC_DATA.md
+dashboard-frontend/PUBLIC_UX_VALIDATION.md
+dashboard-frontend/scripts/preview-public-ux.mjs
+dashboard-frontend/src/test/fixtures/
+
 # ── Skills de agentes (openCode: UI UX Pro Max + Impeccable) ────────────────
 .opencode/
 PRODUCT.md

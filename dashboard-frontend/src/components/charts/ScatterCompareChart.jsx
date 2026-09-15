@@ -1,8 +1,11 @@
+import { useState } from 'react'
+import { usePlotWidth, tickBudget, PointReading } from './MetricPlot'
+import { bogotaTime } from '../shared/dateRangeUtils'
+import { getMetric, metricAxis, formatMetric } from '../shared/metricCatalog'
 import { defaultT, message as localizedMessage } from '../../i18n/core.mjs'
 import { useLanguage } from '../../context/LanguageContext'
 import {
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Scatter,
   ScatterChart,
@@ -10,13 +13,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { format } from 'date-fns'
 import useChartAxisTransition from '../../hooks/useChartAxisTransition'
 import { getCompareSeriesStyles } from './compareSeriesColors'
 
 function formatTimestamp(value, t = defaultT) {
   try {
-    return format(new Date(value), 'dd/MM/yyyy HH:mm:ss', { locale: t.dateLocale })
+    return bogotaTime(value, t, { seconds: true })
   } catch {
     return String(value)
   }
@@ -75,7 +77,7 @@ function buildCompactLayout(points, range, t = defaultT) {
   }
 }
 
-function ScatterTooltip({ active, payload }) {
+function ScatterTooltip({ active, payload, metric }) {
   const { t } = useLanguage()
   if (!active || !payload?.length) return null
   const point = payload[0]?.payload
@@ -85,22 +87,26 @@ function ScatterTooltip({ active, payload }) {
     <div className="dashboard-chart-tooltip">
       <p>{formatTimestamp(point.originalX, t)}</p>
       <strong>{point.stationName}</strong>
-      <span>{point.valueLabel}: {t.fixed(Number(point.y), 2)}</span>
+      <span>{point.valueLabel}: {formatMetric(point.y, metric, t)}</span>
     </div>
   )
 }
 
 export default function ScatterCompareChart({
   series = [],
+  metric = 'leq_dbfs',
   metricLabel: metricLabelMessage = localizedMessage('charts.value'),
   axisMode = 'range',
   range = null,
 }) {
   const { t } = useLanguage()
-  const metricLabel = metricLabelMessage
+  const metricLabel = typeof metricLabelMessage === 'string' ? metricLabelMessage : t(metricLabelMessage)
+  const [ref, width] = usePlotWidth()
+  const [hidden, setHidden] = useState(new Set())
+  const [pointIndex, setPointIndex] = useState(0)
   const { renderedAxisMode, phase } = useChartAxisTransition(axisMode)
   const seriesStyles = getCompareSeriesStyles(series.map(station => station.station_code ?? station.locality))
-  const pointSeries = series
+  const pointSeries = series.filter(s => !hidden.has(s.station_code))
     .map(station => ({
       ...station,
       data: (station.rawData ?? [])
@@ -119,7 +125,7 @@ export default function ScatterCompareChart({
     .filter(station => station.data.length > 0)
 
   const points = pointSeries.flatMap(station => station.data)
-  if (!points.length) return <p className="text-center text-sm text-text-muted py-8">{t('charts.no_exact_points_for_this_range')}</p>
+
 
   const observedMin = Math.min(...points.map(point => point.x))
   const observedMax = Math.max(...points.map(point => point.x))
@@ -133,35 +139,42 @@ export default function ScatterCompareChart({
   const domain = renderedAxisMode === 'range' && hasSelectedRange
     ? [selectedFrom, selectedTo]
     : compactLayout?.domain ?? [observedMin - padding, observedMax + padding]
-  const ticks = compactLayout?.ticks ?? createTimeTicks(domain)
+  const allTicks = compactLayout?.ticks ?? createTimeTicks(domain, tickBudget(width, true))
+  const budget = tickBudget(width, true)
+  const ticks = allTicks.length <= budget ? allTicks : Array.from({ length: budget }, (_, i) => allTicks[Math.round(i * (allTicks.length - 1) / (budget - 1))])
   const tickFormatter = compactLayout?.tickFormatter ?? (value => formatTimestamp(value, t))
 
   return (
-    <div className={`dashboard-chart-transition dashboard-chart-transition--${phase}`}>
+    <div ref={ref} className={`dashboard-chart-transition dashboard-chart-transition--${phase}`}>
+      {!points.length ? <p className="ux-chart-empty">{t('ux.empty')}</p> : <>
       <ResponsiveContainer width="100%" height={300}>
-        <ScatterChart key={`${renderedAxisMode}-${chartPoints.length}`} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <ScatterChart onClick={state => { const point = state?.activePayload?.[0]?.payload; const index = points.findIndex(p => p.station_code === point?.station_code && p.originalX === point?.originalX); if (index >= 0) setPointIndex(index) }} key={`${renderedAxisMode}-${chartPoints.length}`} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--theme-chart-grid-rgb))" />
         <XAxis
           type="number"
           dataKey="x"
           domain={domain}
           ticks={ticks}
-          tickFormatter={tickFormatter}
+          tickFormatter={value => { const label = tickFormatter(value); return String(label).replace(/:\d\d$/, '') }}
           tickLine={false}
-          tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }}
-          height={42}
+          stroke="rgb(var(--theme-muted-rgb))"
+          interval={0}
+          tick={({ x, y, payload, index }) => {
+            const parts = String(tickFormatter(payload.value)).replace(/:\d\d$/, '').split(', ')
+            return <text x={x} y={y + 14} fill="rgb(var(--theme-muted-rgb))" fontSize={12} textAnchor={index === 0 ? 'start' : index === ticks.length - 1 ? 'end' : 'middle'}>{parts.map((part, i) => <tspan key={i} x={x} dy={i ? 14 : 0}>{part}</tspan>)}</text>
+          }}
+          height={48}
         />
-        <YAxis tickFormatter={t.number}
+        <YAxis width={66} stroke="rgb(var(--theme-muted-rgb))" {...metricAxis(metric, t)}
           type="number"
           dataKey="y"
-          domain={['auto', 'auto']}
-          tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }}
+          tick={{ fontSize: 12, fontFamily: 'JetBrains Mono' }}
         />
         <Tooltip
           cursor={{ strokeDasharray: '3 3' }}
-          content={<ScatterTooltip />}
+          content={<ScatterTooltip metric={metric} />}
         />
-        <Legend wrapperStyle={{ fontFamily: 'DM Sans', fontSize: 12 }} />
+
         {pointSeries.map(station => (
           <Scatter
             key={station.station_code}
@@ -176,6 +189,10 @@ export default function ScatterCompareChart({
         ))}
         </ScatterChart>
       </ResponsiveContainer>
+      <PointReading data={points} columns={[{ key: 'stationName', label: t('admin.station_2'), text: true }, { key: 'y', label: getMetric(metric, t).label, metric }]} timeKey="originalX" index={pointIndex} onIndex={setPointIndex} />
+      </>}
+      <div className="ux-series" role="group" aria-label={t('ux.series')}>{series.map(s => <button type="button" key={s.station_code} aria-pressed={!hidden.has(s.station_code)} onClick={() => setHidden(prev => { const next = new Set(prev); next.has(s.station_code) ? next.delete(s.station_code) : next.add(s.station_code); return next })}><svg width="24" height="12" aria-hidden="true"><line x1="0" x2="24" y1="6" y2="6" stroke={seriesStyles.get(s.station_code)?.color} strokeWidth="3" /></svg>{s.displayName ?? s.station_code}</button>)}</div>
+      {axisMode === 'data' && <p className="ux-note">{t('ux.compressed')}</p>}
     </div>
   )
 }

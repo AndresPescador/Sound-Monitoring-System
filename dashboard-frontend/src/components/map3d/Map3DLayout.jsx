@@ -3,14 +3,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NoiseTwinMap from '../map/NoiseTwinMap'
 import { useMap3DContext } from '../../context/Map3DContext'
-import { map2DStationPath, ROUTES, stationPageTitle } from '../../routes'
+import { ROUTES, stationPageTitle } from '../../routes'
 import Map3DStationCard from './Map3DStationCard'
 import Map3DTemporalRail from './Map3DTemporalRail'
 import Map3DAnalysisPanel from './Map3DAnalysisPanel'
-import ThemeToggle from '../shared/ThemeToggle'
-import LanguageSwitcher from '../shared/LanguageSwitcher'
+import PublicPreferences from '../shared/PublicPreferences'
+import MapRenderBoundary from './MapRenderBoundary'
 
 function getMode(pathname) {
+  if (pathname.includes('/compare')) return 'compare'
   if (pathname.includes('/data')) return 'data'
   if (pathname.includes('/stations/')) return 'station'
   return 'overview'
@@ -21,6 +22,7 @@ function Map3DNav() {
   const location = useLocation()
   const links = [
     { to: ROUTES.map3D, label: t('landing.3d_map'), end: true },
+    { to: ROUTES.map3DCompare, label: t('maps.compare_stations') },
     { to: ROUTES.map3DData, label: t('maps.open_data') },
   ]
 
@@ -55,9 +57,8 @@ function Map3DNav() {
       </nav>
 
       <div className="map3d-topbar__actions">
-        <LanguageSwitcher />
-          <ThemeToggle />
-        <Link to={ROUTES.map2D} className="map3d-topbar__switch">{t('maps.switch_to_2d_map')}</Link>
+        <PublicPreferences />
+        <Link to={`${location.pathname.replace('/mapa-3d', '/mapa-2d')}${location.search}`} className="map3d-topbar__switch">{t('maps.switch_to_2d_map')}</Link>
       </div>
     </header>
   )
@@ -106,7 +107,7 @@ function Map3DStationPicker() {
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder={t('maps.e_g_usaquen')}
-              autoFocus
+
             />
           </label>
           <p className="map3d-station-picker__hint">
@@ -168,23 +169,31 @@ export default function Map3DLayout() {
   const { stations, selectedStation, selectedStationCode, hoveredStationCode, highlightedStationCodes, selectStation, setHoveredStationCode } = useMap3DContext()
   const mode = getMode(location.pathname)
   const [stationScreenPosition, setStationScreenPosition] = useState(null)
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768)
+  useEffect(() => { const query = window.matchMedia('(max-width: 767px), (max-height: 500px) and (max-width: 1023px)'); const update = () => setMobile(query.matches); update(); query.addEventListener('change', update); return () => query.removeEventListener('change', update) }, [])
   const [analysisOpen, setAnalysisOpen] = useState(false)
   const [stationCardVisible, setStationCardVisible] = useState(mode === 'station')
 
+  useEffect(() => { setStationScreenPosition(null) }, [location.pathname])
+
   useEffect(() => {
-    setStationScreenPosition(null)
-    setAnalysisOpen(mode === 'data')
+    setAnalysisOpen(['data', 'compare', 'station'].includes(mode) && !new URLSearchParams(location.search).has('map'))
     setStationCardVisible(mode === 'station')
-  }, [mode, location.pathname])
+  }, [mode, location.pathname, new URLSearchParams(location.search).get('map')])
 
   const openAnalysis = () => {
-    if (!selectedStationCode) return
-    navigate(map2DStationPath(selectedStationCode))
+    const search = new URLSearchParams(location.search)
+    search.delete('map')
+    setAnalysisOpen(true)
+    navigate(`${location.pathname}?${search}`, { replace: true })
   }
 
   const closeAnalysis = () => {
     setAnalysisOpen(false)
-    navigate(ROUTES.map3D)
+    const search = new URLSearchParams(location.search)
+    search.set('map', '1')
+    navigate(`${location.pathname}?${search}`, { replace: true })
+    window.requestAnimationFrame(() => document.querySelector('.ux-reopen-analysis, .map3d-station-card button, .map3d-topbar a')?.focus())
   }
 
   const pageTitle = mode === 'station'
@@ -194,17 +203,18 @@ export default function Map3DLayout() {
       : t('maps.3d_acoustic_map')
 
   return (
-    <div className={`map3d-shell map3d-shell--${mode}`}>
+    <div className={`map3d-shell map3d-shell--${mode} ${analysisOpen ? 'ux-analysis-open' : ''}`}>
       <main id="main-content" className="map3d-main" tabIndex={-1}>
         <h1 className="sr-only" tabIndex={-1}>{pageTitle}</h1>
-        <NoiseTwinMap
+        <div className="ux-map-workspace" inert={analysisOpen && mobile ? '' : undefined}>
+        <MapRenderBoundary><NoiseTwinMap
           stations={stations}
           selectedStationCode={selectedStationCode}
           highlightedStationCodes={highlightedStationCodes}
           hoveredStationCode={hoveredStationCode}
           onSelectStation={selectStation}
           onStationScreenPosition={setStationScreenPosition}
-        />
+        /></MapRenderBoundary>
         <Map3DStationPicker />
         <Map3DNav />
         <p className="sr-only" aria-live="polite">
@@ -221,8 +231,10 @@ export default function Map3DLayout() {
         )}
 
         <Map3DTemporalRail mode={mode} />
+        {!analysisOpen && ['compare', 'data'].includes(mode) && <button className="ux-reopen-analysis dashboard-button" onClick={openAnalysis}>{t('maps.station_analysis')}</button>}
 
-        <Map3DAnalysisPanel mode={mode} open={analysisOpen} onClose={closeAnalysis}>
+        </div>
+        <Map3DAnalysisPanel mobile={mobile} mode={mode} open={analysisOpen} onClose={closeAnalysis}>
           <Outlet />
         </Map3DAnalysisPanel>
       </main>

@@ -7,6 +7,7 @@ import './dashboard.css'
 import './map3d.css'
 import './admin.css'
 import './theme.css'
+import './public-ux.css'
 import { LanguageProvider } from './context/LanguageContext'
 import { ThemeProvider } from './context/ThemeContext'
 

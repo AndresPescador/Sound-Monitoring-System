@@ -62,7 +62,7 @@ export default function RouteNavigationManager() {
       observer?.disconnect()
       window.clearTimeout(timeoutId)
     }
-  }, [location.key, location.pathname, navigationType])
+  }, [location.pathname])
 
   return null
 }

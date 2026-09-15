@@ -18,7 +18,7 @@ export const getBinaural = (code, params, config = {}) =>
 export const getSpectral = (code, params, config = {}) =>
   client.get(`/stations/${code}/spectral`, { params, ...config })
 
-export const getAllRawMeasurements = async (code, params, onPage) => {
+export const getAllRawMeasurements = async (code, params, onPage, config = {}) => {
   const all = []
   let cursor
   let page = 0
@@ -29,7 +29,7 @@ export const getAllRawMeasurements = async (code, params, onPage) => {
       ...params,
       limit: 1000,
       ...(cursor ? { cursor } : {}),
-    })
+    }, config)
     const body = response.data
     metadata = body
     all.push(...(body.data ?? []))

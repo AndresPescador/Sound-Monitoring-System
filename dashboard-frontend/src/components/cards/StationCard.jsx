@@ -1,7 +1,7 @@
 import { defaultT } from '../../i18n/core.mjs'
 import { useLanguage } from '../../context/LanguageContext'
 import { Link } from 'react-router-dom'
-import { format, parseISO } from 'date-fns'
+import { bogotaTime } from '../shared/dateRangeUtils'
 import { map2DStationPath } from '../../routes'
 
 const NOISE_STYLES = (t = defaultT) => ({
@@ -23,8 +23,9 @@ export default function StationCard({ station, selected = false, onHover, onSele
       className={`dashboard-station-row ${selected ? 'is-selected' : ''}`}
       aria-current={selected ? 'true' : undefined}
       onClick={event => {
+        if (!onSelect || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
         event.preventDefault()
-        onSelect?.(station.station_code)
+        onSelect(station.station_code)
       }}
       onMouseEnter={() => onHover?.(station.station_code)}
       onMouseLeave={() => onHover?.(null)}
@@ -43,8 +44,9 @@ export default function StationCard({ station, selected = false, onHover, onSele
       <span className="dashboard-station-row__value">
         {station.current_leq_dbfs != null ? t.fixed(station.current_leq_dbfs, 1) : t('common.no_reading')}
         {station.current_leq_dbfs != null && <small>dBFS Leq</small>}
-        {station.last_seen_at && <small>{t('common.updated') + ' '}{format(parseISO(station.last_seen_at), "d MMM HH:mm", { locale: t.dateLocale })}</small>}
-        {!station.is_active && <small>{t('common.inactive')}</small>}
+        {station.last_seen_at && <small>{t('common.updated') + ' '}{bogotaTime(station.last_seen_at, t)}</small>}
+        {station.is_active === false && <small>{t('common.inactive')}</small>}
+        {station.is_active == null && <small>{t('ux.unavailable')}</small>}
       </span>
     </Link>
   )

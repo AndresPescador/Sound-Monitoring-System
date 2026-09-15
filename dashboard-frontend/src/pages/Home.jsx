@@ -1,3 +1,4 @@
+import { bogotaTime } from '../components/shared/dateRangeUtils'
 import { useLanguage } from '../context/LanguageContext'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -7,11 +8,12 @@ import StatCard            from '../components/cards/StatCard'
 import StationCard         from '../components/cards/StationCard'
 import StationMap          from '../components/map/StationMap'
 import LoadingSpinner      from '../components/shared/LoadingSpinner'
-import { format, parseISO } from 'date-fns'
 import { ROUTES } from '../routes'
 
 export default function Home() {
   const { t } = useLanguage()
+  const [view, setView] = useState('map')
+  const [attempt, setAttempt] = useState(0)
   const [stats,    setStats]    = useState(null)
   const [stations, setStations] = useState([])
   const [stationQuery, setStationQuery] = useState('')
@@ -21,20 +23,25 @@ export default function Home() {
   const [error,    setError]    = useState(null)
 
   useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
     Promise.all([getSystemStats(), getStations()])
       .then(([sr, st]) => {
+        if (!active) return
         setStats(sr.data)
         setStations(st.data)
       })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
-  }, [])
+      .catch(() => { if (active) setError(true) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [attempt])
 
   if (loading) return <LoadingSpinner label={t('common.loading_2d_map')} />
-  if (error)   return <p className="dashboard-error" role="alert">{t('common.network_error')}</p>
+  if (error)   return <p className="dashboard-error" role="alert">{t('common.network_error')}<button className="dashboard-button" onClick={() => setAttempt(v => v + 1)}>{t('ux.retry')}</button></p>
 
   const lastSeen = stats?.last_measurement_received_at
-    ? format(parseISO(stats.last_measurement_received_at), "d MMM yyyy HH:mm", { locale: t.dateLocale })
+    ? bogotaTime(stats.last_measurement_received_at, t)
     : null
   const normalizedQuery = stationQuery.trim().toLocaleLowerCase('es')
   const filteredStations = normalizedQuery
@@ -67,7 +74,8 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="dashboard-map-layout" aria-labelledby="map-heading">
+      <div className="ux-map-view" role="group" aria-label={t('ux.map')}>{['map', 'list'].map(id => <button type="button" key={id} aria-pressed={view === id} onClick={() => setView(id)}>{t(`ux.${id}`)}</button>)}</div>
+      <section className={`dashboard-map-layout ux-map-view--${view}`} aria-label={t('ux.map')}>
         <div className="dashboard-map-panel">
           <div className="dashboard-map-canvas">
             <StationMap
@@ -117,7 +125,7 @@ export default function Home() {
                 station={s}
                 selected={s.station_code === selectedStationCode}
                 onHover={setHoveredStationCode}
-                onSelect={setSelectedStationCode}
+                onSelect={view === 'list' ? undefined : setSelectedStationCode}
               />
             ))}
             {!stations.length && <p className="dashboard-empty-state">{t('common.no_stations_registered')}</p>}

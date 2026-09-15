@@ -15,6 +15,13 @@ export default function useChartAxisTransition(axisMode) {
   useEffect(() => {
     if (axisMode === renderedModeRef.current) return undefined
 
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      renderedModeRef.current = axisMode
+      setRenderedAxisMode(axisMode)
+      setPhase('idle')
+      return undefined
+    }
+
     setPhase('exit')
     timerRef.current = setTimeout(() => {
       renderedModeRef.current = axisMode

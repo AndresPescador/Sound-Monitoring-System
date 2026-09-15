@@ -54,10 +54,17 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
 
     if (!chartSvg) return null
 
-    const origW = chartSvg.viewBox?.baseVal?.width  || chartSvg.getBoundingClientRect().width
-    const origH = chartSvg.viewBox?.baseVal?.height || chartSvg.getBoundingClientRect().height
+    const origW = chartSvg.viewBox?.baseVal?.width || Number(chartSvg.getAttribute('viewBox')?.split(/\s+/)[2]) || chartSvg.getBoundingClientRect().width || Number(chartSvg.getAttribute('width'))
+    const origH = chartSvg.viewBox?.baseVal?.height || Number(chartSvg.getAttribute('viewBox')?.split(/\s+/)[3]) || chartSvg.getBoundingClientRect().height || Number(chartSvg.getAttribute('height'))
 
-    const TITLE_H   = 36
+    const heading = svgTitleRef.current || title
+    const maxChars = Math.max(18, Math.floor((origW - 24) / 7.5))
+    const headingLines = heading.split(/\s+/).reduce((lines, word) => {
+      if (!lines.length || (lines.at(-1) + ' ' + word).length > maxChars) lines.push(word)
+      else lines[lines.length - 1] += ' ' + word
+      return lines
+    }, [])
+    const TITLE_H = 18 + Math.max(1, headingLines.length) * 18
     const PADDING_X = 12
     const FONT_SIZE = 13
 
@@ -73,7 +80,6 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
 
     const ns     = 'http://www.w3.org/2000/svg'
     const newSvg = document.createElementNS(ns, 'svg')
-    newSvg.setAttribute('xmlns',   'http://www.w3.org/2000/svg')
     newSvg.setAttribute('width',   String(origW))
     newSvg.setAttribute('height',  String(origH + TITLE_H))
     newSvg.setAttribute('viewBox', `0 0 ${origW} ${origH + TITLE_H}`)
@@ -93,7 +99,7 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     text.setAttribute('font-size',   String(FONT_SIZE))
     text.setAttribute('font-weight', '600')
     text.setAttribute('fill',        themeInk)
-    text.textContent = svgTitleRef.current || title
+    headingLines.forEach((line, index) => { const span = document.createElementNS(ns, 'tspan'); span.setAttribute('x', String(PADDING_X)); span.setAttribute('y', String(22 + index * 18)); span.textContent = line; text.appendChild(span) })
     newSvg.appendChild(text)
 
     // Separador
@@ -132,12 +138,18 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
       }
     }
 
-    // Altura extra para la leyenda (solo si hay items)
-    const LEGEND_H      = legendItems.length > 0 ? 28 : 0
-    const SWATCH_SIZE   = 10
-    const LEGEND_FONT   = 11
-    const LEGEND_GAP    = 6    // espacio entre ícono y texto
-    const LEGEND_MARGIN = 16   // entre items
+    if (!legendItems.length) {
+      ref.current.querySelectorAll('.ux-series button[aria-pressed="true"]').forEach(item => {
+        const shape = item.querySelector('line')
+        legendItems.push({ label: item.textContent, color: shape ? getComputedStyle(shape).stroke : themeInk })
+      })
+    }
+    const legendLines = legendItems.map(item => ({ ...item, lines: item.label.split(/\s+/).reduce((lines, word) => {
+      if (!lines.length || (lines.at(-1) + ' ' + word).length > maxChars) lines.push(word)
+      else lines[lines.length - 1] += ' ' + word
+      return lines
+    }, []) }))
+    const LEGEND_H = legendLines.reduce((height, item) => height + item.lines.length * 18 + 8, 0)
 
     // Ajustar altura total del SVG contenedor
     const totalH = origH + TITLE_H + LEGEND_H
@@ -148,44 +160,32 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     const g = document.createElementNS(ns, 'g')
     g.setAttribute('transform', `translate(0, ${TITLE_H})`)
     const clone = chartSvg.cloneNode(true)
+    const originalNodes = [chartSvg, ...chartSvg.querySelectorAll('*')]
+    const copiedNodes = [clone, ...clone.querySelectorAll('*')]
+    copiedNodes.forEach((element, index) => {
+      const style = getComputedStyle(originalNodes[index])
+      for (const attribute of ['fill', 'stroke', 'font-family', 'font-size', 'font-weight']) {
+        const value = style.getPropertyValue(attribute)
+        if (value) element.setAttribute(attribute, value)
+      }
+    })
     Array.from(clone.childNodes).forEach(child => g.appendChild(child.cloneNode(true)))
     newSvg.appendChild(g)
 
-    // Dibujar leyenda debajo de la gráfica
-    if (legendItems.length > 0) {
-      const legendY = TITLE_H + origH  // parte superior del área de leyenda
-
-      // Calcular ancho total para centrar
-      const itemWidths = legendItems.map(it =>
-        SWATCH_SIZE + LEGEND_GAP + it.label.length * (LEGEND_FONT * 0.6)
-      )
-      const totalLegendW = itemWidths.reduce((a, b) => a + b, 0) + LEGEND_MARGIN * (legendItems.length - 1)
-      let x = (origW - totalLegendW) / 2
-
-      legendItems.forEach((item, i) => {
-        // Swatch (cuadrado de color)
-        const swatch = document.createElementNS(ns, 'rect')
-        swatch.setAttribute('x',      String(x))
-        swatch.setAttribute('y',      String(legendY + (LEGEND_H - SWATCH_SIZE) / 2))
-        swatch.setAttribute('width',  String(SWATCH_SIZE))
-        swatch.setAttribute('height', String(SWATCH_SIZE))
-        swatch.setAttribute('rx',     '2')
-        swatch.setAttribute('fill',   item.color)
-        newSvg.appendChild(swatch)
-
-        // Etiqueta
-        const lbl = document.createElementNS(ns, 'text')
-        lbl.setAttribute('x',           String(x + SWATCH_SIZE + LEGEND_GAP))
-        lbl.setAttribute('y',           String(legendY + LEGEND_H / 2 + LEGEND_FONT / 2 - 1))
-        lbl.setAttribute('font-family', 'DM Sans, system-ui, sans-serif')
-        lbl.setAttribute('font-size',   String(LEGEND_FONT))
-        lbl.setAttribute('fill',        themeMuted)
-        lbl.textContent = item.label
-        newSvg.appendChild(lbl)
-
-        x += itemWidths[i] + LEGEND_MARGIN
+    let legendY = TITLE_H + origH + 18
+    legendLines.forEach(item => {
+      const swatch = document.createElementNS(ns, 'rect')
+      swatch.setAttribute('x', '12'); swatch.setAttribute('y', String(legendY - 9))
+      swatch.setAttribute('width', '10'); swatch.setAttribute('height', '3'); swatch.setAttribute('fill', item.color)
+      newSvg.appendChild(swatch)
+      item.lines.forEach((line, index) => {
+        const label = document.createElementNS(ns, 'text')
+        label.setAttribute('x', '30'); label.setAttribute('y', String(legendY + index * 18))
+        label.setAttribute('font-family', 'system-ui, sans-serif'); label.setAttribute('font-size', '12'); label.setAttribute('fill', themeMuted)
+        label.textContent = line; newSvg.appendChild(label)
       })
-    }
+      legendY += item.lines.length * 18 + 8
+    })
 
     return { svg: newSvg, width: origW, height: totalH }
   }, [ref, title])
@@ -193,7 +193,7 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
   // ── SVG ───────────────────────────────────────────────────────────────────
   const downloadSVG = useCallback(() => {
     const result = buildExportSvg()
-    if (!result) { console.warn('No se encontró SVG de gráfica en este card.'); return }
+    if (!result) throw new Error('Chart unavailable')
 
     const serializer = new XMLSerializer()
     const svgStr = serializer.serializeToString(result.svg)
@@ -209,9 +209,9 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
 
   // ── PNG ───────────────────────────────────────────────────────────────────
   const downloadPNG = useCallback(() => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const result = buildExportSvg()
-      if (!result) { console.warn('No se encontró SVG de gráfica en este card.'); resolve(); return }
+      if (!result) { reject(new Error('Chart unavailable')); return }
 
       const SCALE = 2
       const { svg, width, height } = result
@@ -223,10 +223,12 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
 
       const img  = new Image()
       img.onload = () => {
+        try {
         const canvas  = document.createElement('canvas')
         canvas.width  = width  * SCALE
         canvas.height = height * SCALE
         const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('Canvas unavailable')
         ctx.scale(SCALE, SCALE)
         ctx.drawImage(img, 0, 0)
         URL.revokeObjectURL(url)
@@ -236,8 +238,9 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
         link.href     = canvas.toDataURL('image/png')
         link.click()
         resolve()
+        } catch (error) { URL.revokeObjectURL(url); reject(error) }
       }
-      img.onerror = () => { URL.revokeObjectURL(url); console.error('Error renderizando SVG.'); resolve() }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Chart image unavailable')) }
       img.src = url
     })
   }, [buildExportSvg])
@@ -251,7 +254,7 @@ export function useChartDownload(ref, title, data = [], fileLabel = '', svgTitle
     const rows    = current.map(row =>
       headers.map(h => {
         const val = row[h]
-        if (typeof val === 'string' && (val.includes(',') || val.includes('\n'))) return `"${val}"`
+        if (typeof val === 'string' && /[",\r\n]/.test(val)) return `"${val.replaceAll('"', '""')}"`
         return val ?? ''
       }).join(',')
     )

@@ -1,20 +1,23 @@
+import AnalysisFilters from '../components/shared/AnalysisFilters'
 import { defaultT } from '../i18n/core.mjs'
 import { useLanguage } from '../context/LanguageContext'
 import { useState, useEffect, useRef } from 'react'
-import { format, parseISO } from 'date-fns'
+import usePublicQuery, { queryRange, defaultRange, historicalAnchor } from '../hooks/usePublicQuery'
+import useRemoteData from '../hooks/useRemoteData'
+import { QueryError } from '../components/analysis/AnalysisCard'
+import { bogotaTime, validPublicRange } from '../components/shared/dateRangeUtils'
+import { formatMetric } from '../components/shared/metricCatalog'
+import AnalysisTabs from '../components/shared/AnalysisTabs'
 import { getStationSummary, getStations }    from '../api/stations'
 import { getRawMeasurements, getAllRawMeasurements } from '../api/measurements'
 import { getHourly }       from '../api/aggregations'
 import DateRangePicker     from '../components/shared/DateRangePicker'
 import LoadingSpinner      from '../components/shared/LoadingSpinner'
-import { buildPresetRange, DEFAULT_RANGE_HOURS, formatDateTime, hasRecentData } from '../components/shared/dateRangeUtils'
-import { HistoricalRangeNotice, NoMeasurementsNotice } from '../components/shared/RangeAvailabilityNotice'
+import { buildPresetRange, hasRecentData } from '../components/shared/dateRangeUtils'
+import { HistoricalRangeNotice } from '../components/shared/RangeAvailabilityNotice'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const fmtDate = (iso, t = defaultT) => {
-  try { return format(parseISO(iso), "d MMM yyyy HH:mm", { locale: t.dateLocale }) }
-  catch { return iso }
-}
+const fmtDate = (iso, t = defaultT) => bogotaTime(iso, t, { seconds: true })
 
 const toCSV = (rows, columns) => {
   const header = columns.map(c => c.label).join(',')
@@ -70,6 +73,9 @@ const AGG_COLS = (t = defaultT) => ([
 // ── Componente de tabla ───────────────────────────────────────────────────────
 function DataTable({ columns, rows, loading, totalCount, footer = null }) {
   const { t } = useLanguage()
+  const [view, setView] = useState('cards')
+  const [cardPage, setCardPage] = useState(0)
+  const page = Math.min(cardPage, Math.max(0, Math.ceil(rows.length / 50) - 1))
   const regionRef = useRef(null)
   const tableWrapRef = useRef(null)
   const horizontalScrollRef = useRef(null)
@@ -162,7 +168,12 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
   )
 
   return (
-    <div ref={regionRef} className="dashboard-data-table-region">
+    <div ref={regionRef} className={`dashboard-data-table-region ux-data-view--${view}`}>
+      <div className="ux-data-view-control"><button type="button" className="dashboard-button dashboard-button--secondary" onClick={() => setView(view === 'cards' ? 'table' : 'cards')}>{t(view === 'cards' ? 'ux.viewTable' : 'ux.viewCards')}</button></div>
+      <div className="ux-data-cards">{rows.slice(page * 50, (page + 1) * 50).map((row, index) => <details key={index}>
+        <summary><strong>{fmtDate(row.recorded_at ?? row.hour_start, t)}</strong><span>Leq: {formatMetric(row.leq_dbfs ?? row.leq_hour, 'leq_dbfs', t)} · {t('maps.dbfs_level')}: {formatMetric(row.dbfs_level ?? row.dbfs_avg, 'dbfs_level', t)}</span></summary>
+        <dl>{columns.filter(c => !['recorded_at', 'hour_start'].includes(c.key)).map(c => <div key={c.key}><dt>{c.label}</dt><dd>{formatMetric(row[c.key], c.key, t)}</dd></div>)}</dl>
+      </details>)}{rows.length > 50 && <div className="ux-point-controls"><button type="button" aria-label={t('ux.previousPage')} disabled={page === 0} onClick={() => setCardPage(page - 1)}>←</button><span>{page + 1} / {Math.ceil(rows.length / 50)}</span><button type="button" aria-label={t('ux.nextPage')} disabled={(page + 1) * 50 >= rows.length} onClick={() => setCardPage(page + 1)}>→</button></div>}</div>
       <div className="dashboard-data-table__toolbar" role="group" aria-label={t('common.quick_record_navigation')}>
         <span>{t('common.visible_records')}</span>
         <div className="dashboard-data-table__quick-nav">
@@ -176,7 +187,7 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
             <tr className="bg-surface border-b border-border">
               {columns.map(c => (
                 <th key={c.key}>
-                  {c.label}
+                  {['recorded_at', 'hour_start'].includes(c.key) ? t('ux.time') : c.label}
                 </th>
               ))}
             </tr>
@@ -189,8 +200,8 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
                     {c.key.endsWith('_at') || c.key === 'hour_start'
                       ? fmtDate(row[c.key], t)
                       : typeof row[c.key] === 'number'
-                        ? t.fixed(row[c.key], 4)
-                        : row[c.key] ?? t('common.no_reading')}
+                        ? formatMetric(row[c.key], c.key, t, false)
+                        : row[c.key] ?? '—'}
                   </td>
                 ))}
               </tr>
@@ -216,261 +227,84 @@ function DataTable({ columns, rows, loading, totalCount, footer = null }) {
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+// The presentation can change without changing the full CSV contract.
 export default function OpenData({ onStationChange, embedded3D = false } = {}) {
   const { t } = useLanguage()
-  const RAW_PAGE_SIZE = 1000
-  const [stations,   setStations]   = useState([])
-  const [station,    setStation]    = useState('')
-  const [summary,    setSummary]    = useState(null)
-  const [tab,        setTab]        = useState('raw')   // 'raw' | 'hourly'
-  const [rawData,    setRawData]    = useState([])
-  const [rawMeta,    setRawMeta]    = useState(null)
-  const [hourlyData, setHourlyData] = useState([])
-  const [loading,    setLoading]    = useState(false)
+  const { get, setQuery } = usePublicQuery('data_')
+  const [fallbackRange] = useState(defaultRange)
+  const stations = useRemoteData('data-stations', signal => getStations({ signal }).then(r => r.data))
+  const station = (stations.data ?? []).some(s => s.station_code === get('station')) ? get('station') : stations.data?.[0]?.station_code ?? ''
+  const summary = useRemoteData(`data-summary:${station}`, signal => getStationSummary(station, { signal }).then(r => r.data), Boolean(station))
+  const latest = summary.data?.latest_recorded_at
+  const explicit = validPublicRange(get('from'), get('to'))
+  const automaticHistorical = !explicit && latest && !hasRecentData(latest, 24)
+  const historical = Boolean(automaticHistorical || (explicit && get('historical') && historicalAnchor(get, latest)))
+  const implicit = automaticHistorical ? buildPresetRange(24, latest) : fallbackRange
+  const range = queryRange(get, implicit)
+  const tab = get('tab') === 'hourly' ? 'hourly' : 'raw'
+  const key = `${station}:${range.from}:${range.to}:${tab}`
+  const [pages, setPages] = useState({ key: '', rows: [], meta: null })
   const [loadingMore, setLoadingMore] = useState(false)
+  const [moreError, setMoreError] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [range,      setRange]      = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
-  const [rangePreset, setRangePreset] = useState('24h')
-  const [rangeState, setRangeState] = useState({ initialized: false, historical: false, anchorTimestamp: null })
-
+  const [exportError, setExportError] = useState(false)
+  const [progress, setProgress] = useState(null)
+  const currentKey = useRef(key)
+  currentKey.current = key
+  const exportController = useRef(null)
+  const resource = useRemoteData(`data:${key}`, signal => (tab === 'raw' ? getRawMeasurements(station, { ...range, limit: 1000 }, { signal }) : getHourly(station, range, { signal })).then(r => r.data), Boolean(station) && !summary.loading)
+  const rows = [...(resource.data?.data ?? []), ...(pages.key === key ? pages.rows : [])]
+  const meta = pages.key === key && pages.meta ? pages.meta : resource.data
+  const total = meta?.total_count ?? rows.length
+  const columns = tab === 'raw' ? RAW_COLS(t) : AGG_COLS(t)
+  useEffect(() => { if (station) onStationChange?.(station) }, [station, onStationChange])
   useEffect(() => {
-    getStations().then(r => {
-      setStations(r.data)
-      if (r.data.length) {
-        setStation(r.data[0].station_code)
-        onStationChange?.(r.data[0].station_code)
-      }
-      if (!r.data.length) setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
-    })
-  }, [onStationChange])
-
-  useEffect(() => {
-    if (!station) return undefined
-    let active = true
-    setSummary(null)
-    setRangeState({ initialized: false, historical: false, anchorTimestamp: null })
-    setRangePreset('24h')
-    setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
-
-    getStationSummary(station)
-      .then(response => {
-        if (!active) return
-        const nextSummary = response.data
-        const latestTimestamp = nextSummary.latest_recorded_at
-        const historical = latestTimestamp && !hasRecentData(latestTimestamp, DEFAULT_RANGE_HOURS)
-        setSummary(nextSummary)
-        setRange(historical ? buildPresetRange(DEFAULT_RANGE_HOURS, latestTimestamp) : buildPresetRange(DEFAULT_RANGE_HOURS))
-        setRangeState({
-          initialized: true,
-          historical: Boolean(historical),
-          anchorTimestamp: historical ? latestTimestamp : null,
-        })
-      })
-      .catch(() => {
-        if (!active) return
-        setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
-      })
-
-    return () => { active = false }
-  }, [station])
-
-  useEffect(() => {
-    if (station) onStationChange?.(station)
-  }, [onStationChange, station])
-
-  useEffect(() => {
-    if (!station || !rangeState.initialized) return
-    setLoading(true)
-    setRawData([])
-    setRawMeta(null)
-    const params = { from: range.from, to: range.to, limit: RAW_PAGE_SIZE }
-    Promise.all([
-      getRawMeasurements(station, params),
-      getHourly(station, { from: range.from, to: range.to }),
-    ])
-      .then(([m, h]) => {
-        setRawData(m.data.data)
-        setRawMeta(m.data)
-        setHourlyData(h.data.data)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [station, range, rangeState.initialized])
-
-  const handleLoadMore = async () => {
-    if (!rawMeta?.has_more || loadingMore) return
-    setLoadingMore(true)
+    setPages({ key, rows: [], meta: null }); setMoreError(false); setExportError(false); setProgress(null); setLoadingMore(false); setExporting(false)
+    return () => exportController.current?.abort()
+  }, [key])
+  const loadMore = async () => {
+    if (!meta?.has_more || loadingMore) return
+    const requestedKey = key
+    setLoadingMore(true); setMoreError(false)
     try {
-      const response = await getRawMeasurements(station, {
-        from: range.from,
-        to: range.to,
-        limit: RAW_PAGE_SIZE,
-        cursor: rawMeta.next_cursor,
-      })
-      setRawData(current => [...current, ...response.data.data])
-      setRawMeta(response.data)
-    } catch {
-      // La tabla conserva la página ya cargada si falla la siguiente.
-    } finally {
-      setLoadingMore(false)
-    }
+      const response = await getRawMeasurements(station, { ...range, limit: 1000, cursor: meta.next_cursor })
+      if (currentKey.current !== requestedKey) return
+      setPages(current => ({ key, rows: [...(current.key === key ? current.rows : []), ...response.data.data], meta: response.data }))
+    } catch { if (currentKey.current === requestedKey) setMoreError(true) }
+    finally { if (currentKey.current === requestedKey) setLoadingMore(false) }
   }
-
   const handleDownload = async () => {
-    if (!station) return
-    const isRaw     = tab === 'raw'
-    const fromLabel = range.from.slice(0, 10)
-    const toLabel   = range.to.slice(0, 10)
-    const filename  = `${station}_${isRaw ? 'mediciones' : 'agregaciones'}_${fromLabel}_${toLabel}.csv`
-    setExporting(true)
+    if (!station || !rows.length || exporting) return
+    const requestedKey = key
+    const controller = new AbortController()
+    exportController.current = controller
+    setExporting(true); setExportError(false); setProgress(null)
     try {
-      const rows = isRaw
-        ? (await getAllRawMeasurements(station, { from: range.from, to: range.to })).data
-        : hourlyData
-      downloadCSV(toCSV(rows, isRaw ? RAW_COLS(defaultT) : AGG_COLS(defaultT)), filename)
-    } catch {
-      // No se borra la tabla si una descarga completa falla.
-    } finally {
-      setExporting(false)
-    }
+      const allRows = tab === 'raw' ? (await getAllRawMeasurements(station, range, value => { if (currentKey.current === requestedKey) setProgress(value) }, { signal: controller.signal })).data : rows
+      if (controller.signal.aborted || currentKey.current !== requestedKey) return
+      downloadCSV(toCSV(allRows, tab === 'raw' ? RAW_COLS(defaultT) : AGG_COLS(defaultT)), `${station}_${tab === 'raw' ? 'mediciones' : 'agregaciones'}_${range.from.slice(0, 10)}_${range.to.slice(0, 10)}.csv`)
+    } catch { if (!controller.signal.aborted && currentKey.current === requestedKey) setExportError(true) }
+    finally { if (currentKey.current === requestedKey) setExporting(false) }
   }
-
-  const activeRows = tab === 'raw' ? rawData : hourlyData
-  const activeCols = tab === 'raw' ? RAW_COLS(t) : AGG_COLS(t)
-  const activeTotal = tab === 'raw' ? (rawMeta?.total_count ?? rawData.length) : hourlyData.length
-  const loadMoreControl = tab === 'raw' && rawMeta?.has_more ? (
-    <button
-      type="button"
-      onClick={handleLoadMore}
-      disabled={loadingMore}
-      className="dashboard-load-more-button"
-    >
-      {loadingMore ? t('common.loading_more_records') : t('common.load_more_of', { p0: rawData.length.toLocaleString(t.locale), p1: rawMeta.total_count.toLocaleString(t.locale) })}
-    </button>
-  ) : null
-
-  const handleRangeChange = (nextRange, metadata) => {
-    setRange(nextRange)
-    setRangePreset(metadata?.type === 'preset' ? metadata.label : '')
-    setRangeState(current => ({
-      ...current,
-      initialized: true,
-      historical: metadata?.type === 'preset' && current.historical,
-      anchorTimestamp: metadata?.type === 'preset' && current.historical ? current.anchorTimestamp : null,
-    }))
-  }
-
-  return (
-    <div className="dashboard-page dashboard-open-data-page">
-      <header className="dashboard-open-data-intro">
-        <div>
-            {embedded3D ? <h2>{t('common.open_data_portal')}</h2> : <h1 tabIndex={-1}>{t('common.open_data_portal')}</h1>}
-          <p>{t('common.acoustic_data_from_the_bogota_d_c_binaural_monitoring')}</p>
-        </div>
-        <span className="dashboard-open-data-badge">{t('common.open_data_free_to_use')}</span>
-      </header>
-
-      {/* Controles */}
-      <div className="dashboard-controls">
-
-        {/* Selector de estación */}
-        <div className="dashboard-field">
-          <label htmlFor="open-data-station">{t('admin.station_2')}</label>
-          <select
-            id="open-data-station"
-            value={station}
-            onChange={e => setStation(e.target.value)}
-            className="dashboard-select"
-          >
-            {stations.map(s => (
-              <option key={s.station_code} value={s.station_code}>
-                {s.name} ({s.locality})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="dashboard-field">
-          <label>{t('common.time_range')}</label>
-          <DateRangePicker
-            value={range}
-            preset={rangePreset}
-            anchorTimestamp={rangeState.anchorTimestamp}
-            isHistoricalRange={rangeState.historical}
-            onChange={handleRangeChange}
-          />
-        </div>
-      </div>
-
-      {rangeState.historical && (
-        <HistoricalRangeNotice
-          range={range}
-          latestTimestamp={summary?.latest_recorded_at}
-          onReturnToCurrent={() => {
-            setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
-            setRangePreset('24h')
-            setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
-          }}
-        />
-      )}
-
-      {summary?.latest_recorded_at && (
-        <p className="dashboard-open-data-last-update">{t('common.latest_available_measurement') + ' '}{formatDateTime(summary.latest_recorded_at, t)}
-        </p>
-      )}
-
-      {rangeState.initialized && summary?.total_measurements === 0 && (
-        <NoMeasurementsNotice>{t('common.this_station_has_no_recorded_measurements_to_download_yet')}</NoMeasurementsNotice>
-      )}
-
-      {/* Tabs + botón descarga */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="dashboard-tabs" role="tablist" aria-label={t('common.data_type')}>
-          {[
-            { key: 'raw',    label: t('common.raw_measurements', { p0: activeTotal.toLocaleString(t.locale) }) },
-            { key: 'hourly', label: t('common.hourly_aggregations', { p0: hourlyData.length }) },
-          ].map(t => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={`dashboard-tab ${tab === t.key ? 'dashboard-tab--active' : ''}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={handleDownload}
-          disabled={!activeRows.length || exporting}
-          className="dashboard-download-button"
-        >
-          <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          {exporting ? t('common.preparing_full_download') : t('common.download_full_csv_rows', { p0: activeTotal.toLocaleString(t.locale) })}
-        </button>
-      </div>
-
-      <div className="dashboard-open-data-note">
-        <strong>{t('common.about_these_data')}</strong>{' ' + t('common.the_selected_range_is_queried_in_utc_and_acoustic')}</div>
-
-      {stations.length > 0
-        ? <DataTable
-            columns={activeCols}
-            rows={activeRows}
-            loading={loading}
-            totalCount={activeTotal}
-            footer={loadMoreControl}
-          />
-        : <NoMeasurementsNotice>{t('common.no_stations_available_to_query')}</NoMeasurementsNotice>}
-
-    </div>
-  )
+  useEffect(() => {
+    if (station && !summary.loading && (!explicit || get('station') !== station)) setQuery({ ...range, station, ...(explicit ? {} : { preset: '24h', historical: automaticHistorical ? latest : null }) }, true)
+  }, [station, summary.loading, explicit, range.from, range.to])
+  const applyRange = (value, metadata) => setQuery({ ...value, preset: metadata?.label ?? null, historical: metadata?.label && historical ? historicalAnchor(get, latest) : null })
+  const footer = meta?.has_more ? <button type="button" className="dashboard-load-more-button" disabled={loadingMore} onClick={loadMore}>{loadingMore ? t('common.loading_more_records') : t('common.load_more_of', { p0: t.number(rows.length), p1: t.number(total) })}</button> : null
+  return <div className="dashboard-page dashboard-open-data-page">
+    <header className="dashboard-open-data-intro"><div>{embedded3D ? <h2>{t('common.open_data_portal')}</h2> : <h1 tabIndex={-1}>{t('common.open_data_portal')}</h1>}<p>{t('common.acoustic_data_from_the_bogota_d_c_binaural_monitoring')}</p></div></header>
+    {stations.error ? <QueryError error={stations.error} onRetry={stations.retry} /> : stations.loading ? <LoadingSpinner /> : !stations.data?.length ? <p role="status">{t('ux.noStations')}</p> : <>
+      <label className="dashboard-field" htmlFor="open-data-station">{t('admin.station_2')}<select id="open-data-station" className="dashboard-select" value={station} onChange={e => setQuery({ station: e.target.value })}>{stations.data.map(s => <option key={s.station_code} value={s.station_code}>{s.name} ({s.locality})</option>)}</select></label>
+      <AnalysisFilters><summary><strong>{t('ux.filters')}</strong><span>{t('ux.period')}: {bogotaTime(range.from, t)} – {bogotaTime(range.to, t)}</span></summary><div className="ux-filter-content"><DateRangePicker value={range} preset={explicit ? get('preset', '') : '24h'} onChange={applyRange} isHistoricalRange={Boolean(historical)} anchorTimestamp={historical ? historicalAnchor(get, latest) : null} /></div></AnalysisFilters>
+      {summary.error && <QueryError error={summary.error} onRetry={summary.retry} />}
+      {historical && <HistoricalRangeNotice range={range} latestTimestamp={latest} onReturnToCurrent={() => setQuery({ ...buildPresetRange(24), preset: '24h', historical: null })} />}
+      <AnalysisTabs items={[{ id: 'raw', label: t('common.raw_measurements', { p0: tab === 'raw' ? t.number(total) : '—' }) }, { id: 'hourly', label: t('common.hourly_aggregations', { p0: tab === 'hourly' ? t.number(total) : '—' }) }]} value={tab} onChange={tab => setQuery({ tab })} label={t('common.data_type')}>
+        <button type="button" onClick={handleDownload} disabled={!rows.length || exporting || resource.loading} className="dashboard-download-button">{exporting ? t('common.preparing_full_download') : t('common.download_full_csv_rows', { p0: t.number(total) })}</button>
+        {progress && <p role="status">{t('ux.downloadProgress', progress)}</p>}{exportError && <p role="alert">{t('ux.downloadError')}</p>}
+        <p className="ux-note">{t('ux.csvUtc')}</p>
+        {resource.error ? <QueryError error={resource.error} onRetry={resource.retry} /> : <DataTable key={key} columns={columns} rows={rows} loading={resource.loading} totalCount={total} footer={footer} />}
+        {moreError && <p role="alert">{t('ux.moreError')}</p>}
+      </AnalysisTabs>
+    </>}
+  </div>
 }

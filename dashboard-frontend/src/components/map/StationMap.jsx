@@ -68,10 +68,20 @@ function MapSelectionController({ station }) {
   const map = useMap()
 
   useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return
+    const container = map.getContainer()
+    const observer = new ResizeObserver(() => {
+      if (container.clientWidth && container.clientHeight) map.invalidateSize({ pan: false, animate: false })
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [map])
+
+  useEffect(() => {
     if (!station) return
 
     map.flyTo([station.latitude, station.longitude], 15, {
-      animate: true,
+      animate: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
       duration: 0.8,
     })
   }, [map, station?.station_code, station?.latitude, station?.longitude])

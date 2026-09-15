@@ -128,7 +128,7 @@ export function Map3DProvider({ children }) {
     if (!code) return
     setSelectedStationCode(code)
     setHighlightedStationCodes([code])
-    navigate(map3DStationPath(code), { state: { openAnalysis: false } })
+    navigate(`${map3DStationPath(code)}?map=1`, { state: { openAnalysis: false } })
   }, [navigate])
 
   const focusStation = useCallback((code) => {

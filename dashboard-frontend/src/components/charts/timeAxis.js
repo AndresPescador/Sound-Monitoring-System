@@ -1,3 +1,4 @@
+import { bogotaDay, bogotaTime } from '../shared/dateRangeUtils'
 import { defaultT } from '../../i18n/core.mjs'
 import { format, isSameDay, isValid, parseISO } from 'date-fns'
 
@@ -122,7 +123,7 @@ export function getTimeAxis(data, dataKey = 't', { maxTicks = DEFAULT_MAX_TICKS 
   const gapValues = values.filter(value => String(value).startsWith('__gap__'))
   const realValues = values.filter(value => !String(value).startsWith('__gap__'))
   const dates = realValues.map(value => parseISO(value)).filter(isValid)
-  const spansMultipleDays = dates.length > 1 && dates.some(date => !isSameDay(date, dates[0]))
+  const spansMultipleDays = dates.length > 1 && dates.some(date => bogotaDay(date) !== bogotaDay(dates[0]))
   const visibleTickCount = spansMultipleDays ? Math.min(maxTicks, 8) : maxTicks
   const ticks = getEvenlySpacedTicks(realValues, visibleTickCount)
   const tickValues = new Set([...ticks, ...gapValues])
@@ -136,7 +137,7 @@ export function getTimeAxis(data, dataKey = 't', { maxTicks = DEFAULT_MAX_TICKS 
 export function formatTimeTick(value, { includeDate = false } = {}, t = defaultT) {
   if (String(value).startsWith('__gap__')) return '…'
   try {
-    return format(parseISO(value), includeDate ? 'dd/MM HH:mm' : 'HH:mm', { locale: t.dateLocale })
+    return bogotaTime(value, t, { date: includeDate })
   } catch {
     return value
   }

@@ -31,16 +31,14 @@ export default function DateRangePicker({
   const [toVal, setToVal]     = useState('')
   const [error, setError]     = useState('')
 
+  // Applied URL changes (including Back) replace the draft and selected preset.
   useEffect(() => {
-    if (!custom) setActive(preset)
-  }, [custom, preset])
-
-  useEffect(() => {
-    if (!custom && value) {
-      setFromVal(toDatetimeLocalValue(value.from))
-      setToVal(toDatetimeLocalValue(value.to))
-    }
-  }, [custom, value])
+    setActive(preset)
+    setCustom(!preset)
+    setFromVal(toDatetimeLocalValue(value?.from))
+    setToVal(toDatetimeLocalValue(value?.to))
+    setError('')
+  }, [preset, value?.from, value?.to])
 
   const applyPreset = (preset) => {
     setActive(preset.label)
@@ -55,8 +53,8 @@ export default function DateRangePicker({
       setError(localizedMessage('common.select_the_start_and_end_of_the_range'))
       return
     }
-    const from = new Date(fromVal)
-    const to = new Date(toVal)
+    const from = new Date(`${fromVal}-05:00`)
+    const to = new Date(`${toVal}-05:00`)
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       setError(localizedMessage('common.the_range_contains_an_invalid_date'))
       return

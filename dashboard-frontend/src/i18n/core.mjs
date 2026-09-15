@@ -5,10 +5,11 @@ import maps from './maps.mjs'
 import charts from './charts.mjs'
 import landing from './landing.mjs'
 import seo from './seo.mjs'
+import ux from './ux.mjs'
 
 export const LANGUAGE_STORAGE_KEY = 'sound-monitoring-language'
 export const DEFAULT_LANGUAGE = 'es'
-export const catalogs = { common, admin, maps, charts, landing, seo }
+export const catalogs = { common, admin, maps, charts, landing, seo, ux }
 export const message = (key, params = {}) => ({ i18nKey: key, params })
 
 export function createTranslator(language = DEFAULT_LANGUAGE) {

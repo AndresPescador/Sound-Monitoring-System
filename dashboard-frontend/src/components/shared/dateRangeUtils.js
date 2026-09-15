@@ -38,25 +38,28 @@ export function getStationLatestTimestamp(station) {
     ?? null
 }
 
-export function formatDateTime(value, t = defaultT) {
-  const date = toDate(value)
-  return date ? format(date, "d MMM yyyy HH:mm", { locale: t.dateLocale }) : t('common.no_record')
-}
-
+export function formatDateTime(value, t = defaultT) { return bogotaTime(value, t) }
 export function formatRangeLabel(range, t = defaultT) {
-  const from = toDate(range?.from)
-  const to = toDate(range?.to)
-  if (!from || !to) return t('common.the_latest_available_period')
-
-  const sameDay = format(from, 'yyyy-MM-dd') === format(to, 'yyyy-MM-dd')
-  return sameDay
-    ? format(to, "d MMM yyyy", { locale: t.dateLocale })
-    : `${format(from, "d MMM", { locale: t.dateLocale })}–${format(to, "d MMM yyyy", { locale: t.dateLocale })}`
+  return `${bogotaTime(range?.from, t)} – ${bogotaTime(range?.to, t)}`
 }
-
 export function toDatetimeLocalValue(value) {
   const date = toDate(value)
   if (!date) return ''
-  const pad = number => String(number).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return new Date(date.getTime() - 5 * 3600000).toISOString().slice(0, 16)
+}
+
+export function bogotaDay(value) {
+  const date = toDate(value)
+  if (!date) return ''
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date).map(p => [p.type, p.value]))
+  return `${parts.year}-${parts.month}-${parts.day}`
+}
+export function bogotaTime(value, t = defaultT, { date = true, seconds = false } = {}) {
+  const parsed = toDate(value)
+  if (!parsed) return '—'
+  return new Intl.DateTimeFormat(t.locale, { timeZone: 'America/Bogota', ...(date ? { day: '2-digit', month: '2-digit', year: 'numeric' } : {}), hour: '2-digit', minute: '2-digit', ...(seconds ? { second: '2-digit' } : {}), hourCycle: 'h23' }).format(parsed)
+}
+export function validPublicRange(from, to) {
+  const start = Date.parse(from), end = Date.parse(to)
+  return Number.isFinite(start) && Number.isFinite(end) && start <= end && end - start <= 31 * 86400000
 }

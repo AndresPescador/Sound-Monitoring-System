@@ -2,8 +2,7 @@ import { defaultT } from '../../i18n/core.mjs'
 import { useLanguage } from '../../context/LanguageContext'
 import { Link, useLocation } from 'react-router-dom'
 import { ROUTES } from '../../routes'
-import ThemeToggle from '../shared/ThemeToggle'
-import LanguageSwitcher from '../shared/LanguageSwitcher'
+import PublicPreferences from '../shared/PublicPreferences'
 
 const links = (t = defaultT) => ([
   { to: ROUTES.map2D, label: t('maps.map'), end: true },
@@ -13,7 +12,7 @@ const links = (t = defaultT) => ([
 
 export default function Map2DNavbar() {
   const { t } = useLanguage()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const isActive = to => to === ROUTES.map2D
     ? pathname === ROUTES.map2D || pathname.startsWith(`${ROUTES.map2D}/stations/`)
     : pathname === to
@@ -45,9 +44,8 @@ export default function Map2DNavbar() {
         </nav>
 
         <div className="dashboard-nav__actions">
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <Link to={ROUTES.map3D} className="dashboard-nav__mode-switch">{t('maps.switch_to_3d_map')}</Link>
+          <PublicPreferences />
+          <Link to={`${pathname.replace('/mapa-2d', '/mapa-3d')}${search}`} className="dashboard-nav__mode-switch">{t('maps.switch_to_3d_map')}</Link>
         </div>
       </div>
     </header>

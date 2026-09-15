@@ -23,6 +23,7 @@ const BOGOTA_3D_VIEW = {
   bearing: -15,
 }
 
+const motionDuration = duration => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : duration
 const STATION_FLY_TO = new FlyToInterpolator({ speed: 1.7 })
 
 const BUILDINGS_LAYER_ID = 'urban-buildings-3d'
@@ -251,12 +252,12 @@ function NoiseTwinMap({
         zoom: 15.8,
         pitch: 60,
         bearing: -15,
-        transitionDuration: 1_100,
+        transitionDuration: motionDuration(1_100),
         transitionInterpolator: STATION_FLY_TO,
       })
       return
     }
-    setCameraTarget({ ...BOGOTA_VIEW, transitionDuration: 700, transitionInterpolator: STATION_FLY_TO })
+    setCameraTarget({ ...BOGOTA_VIEW, transitionDuration: motionDuration(700), transitionInterpolator: STATION_FLY_TO })
   }, [selectedStationCode, selectedStation?.latitude, selectedStation?.longitude])
 
   const handleSelect = useCallback(info => {
@@ -351,7 +352,7 @@ function NoiseTwinMap({
   ], [columnRadius, handleSelect, highlightedKey, highlightedSet, hoveredStation, locatedStations, observedStations, selectedStationCode])
 
   const resetToCityView = () => {
-    setCameraTarget({ ...BOGOTA_VIEW, transitionDuration: 900, transitionInterpolator: STATION_FLY_TO })
+    setCameraTarget({ ...BOGOTA_VIEW, transitionDuration: motionDuration(900), transitionInterpolator: STATION_FLY_TO })
   }
 
   const resetTo3dView = () => {
@@ -364,7 +365,7 @@ function NoiseTwinMap({
       zoom: map.getZoom(),
       pitch: BOGOTA_3D_VIEW.pitch,
       bearing: BOGOTA_3D_VIEW.bearing,
-      transitionDuration: 900,
+      transitionDuration: motionDuration(900),
       transitionInterpolator: STATION_FLY_TO,
     })
   }

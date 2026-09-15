@@ -1,7 +1,7 @@
 import { message as localizedMessage } from './i18n/core.mjs'
 import { useLanguage } from './context/LanguageContext'
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom'
 import Landing from './pages/Landing'
 import { AdminAuthProvider } from './context/AdminAuthContext'
 import { ROUTES, map2DStationPath } from './routes'
@@ -15,6 +15,8 @@ const StationDetail = lazy(() => import('./pages/StationDetail'))
 const UrbanTwin = lazy(() => import('./pages/UrbanTwin'))
 const Compare = lazy(() => import('./pages/Compare'))
 const OpenData = lazy(() => import('./pages/OpenData'))
+const Map3DStationDetail = lazy(() => import('./components/map3d/Map3DStationDetail'))
+const Map3DCompareRoute = lazy(() => import('./components/map3d/Map3DCompareRoute'))
 const Map3DDataRoute = lazy(() => import('./components/map3d/Map3DDataRoute'))
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
 const AdminStations = lazy(() => import('./pages/admin/AdminStations'))
@@ -29,7 +31,12 @@ function RouteLoading({ label = localizedMessage('common.loading_view') }) {
 
 function LegacyStationRedirect() {
   const { code } = useParams()
-  return <Navigate to={map2DStationPath(code)} replace />
+  return <LegacyRedirect to={map2DStationPath(code)} />
+}
+
+function LegacyRedirect({ to }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
 }
 
 export default function App() {
@@ -59,18 +66,18 @@ export default function App() {
             </Suspense>
           }>
             <Route index element={null} />
-            {/* La ruta conserva la estación enfocada en el mapa, pero el detalle completo vive en la experiencia 2D. */}
-            <Route path="stations/:code" element={null} />
-            {/* Comparar pertenece a la experiencia 2D; los enlaces 3D antiguos vuelven al mapa. */}
-            <Route path="compare" element={<Navigate to={ROUTES.map3D} replace />} />
+            {/* El análisis comparte componentes con 2D y conserva el mapa montado. */}
+            <Route path="stations/:code" element={<Suspense fallback={<RouteLoading />}><Map3DStationDetail /></Suspense>} />
+            {/* Las comparaciones conservan el contexto de la experiencia 3D. */}
+            <Route path="compare" element={<Suspense fallback={<RouteLoading />}><Map3DCompareRoute /></Suspense>} />
             <Route path="data" element={<Suspense fallback={<RouteLoading label={t('common.loading_open_data')} />}><Map3DDataRoute /></Suspense>} />
           </Route>
 
           {/* Compatibilidad con enlaces guardados antes de separar las experiencias. */}
           <Route path="/stations/:code" element={<LegacyStationRedirect />} />
-          <Route path="/compare" element={<Navigate to={ROUTES.map2DCompare} replace />} />
-          <Route path="/data" element={<Navigate to={ROUTES.map2DData} replace />} />
-          <Route path="/urban-3d" element={<Navigate to={ROUTES.map3D} replace />} />
+          <Route path="/compare" element={<LegacyRedirect to={ROUTES.map2DCompare} />} />
+          <Route path="/data" element={<LegacyRedirect to={ROUTES.map2DData} />} />
+          <Route path="/urban-3d" element={<LegacyRedirect to={ROUTES.map3D} />} />
 
           {/* ── Panel admin (SIN Layout, usa AdminLayout dentro) ────────── */}
           <Route path="/admin/login" element={<Suspense fallback={<RouteLoading />}><AdminLogin /></Suspense>} />

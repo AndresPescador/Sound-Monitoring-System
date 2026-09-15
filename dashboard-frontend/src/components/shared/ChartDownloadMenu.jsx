@@ -10,7 +10,7 @@ import { useState, useRef, useEffect } from 'react'
  * @param {() => void} onCSV - handler descarga CSV (si no se pasa, la opción se deshabilita)
  * @param {boolean}    downloading - muestra spinner mientras descarga PNG
  */
-export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = false }) {
+export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = false, disabled = false }) {
   const { t } = useLanguage()
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
@@ -23,8 +23,8 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
         setOpen(false)
       }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
   }, [open])
 
   const handle = (fn) => {
@@ -33,12 +33,14 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
   }
 
   return (
-    <div ref={menuRef} className="dashboard-export relative inline-flex items-center">
+    <div ref={menuRef} className="dashboard-export relative inline-flex items-center" onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); menuRef.current?.querySelector('button')?.focus() } }}>
       {/* Botón trigger */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        disabled={downloading}
+        disabled={downloading || disabled}
+        aria-label={t('common.export_chart')}
+        aria-expanded={open}
         title={t('common.export_chart')}
         className="dashboard-export__trigger"
       >
@@ -59,7 +61,7 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
       {/* Menú desplegable */}
       {open && (
         <div className="
-          absolute right-0 top-7 z-50
+          absolute right-0 top-full mt-2 z-50
           bg-surface text-text border border-border rounded-lg shadow-md
           min-w-[140px] py-1 overflow-hidden
         ">
@@ -106,7 +108,7 @@ export default function ChartDownloadMenu({ onPNG, onSVG, onCSV, downloading = f
                  strokeLinecap="round" strokeLinejoin="round">
               <rect x="1" y="1" width="14" height="14" rx="2"/>
               <path d="M4 5h8M4 8h8M4 11h5"/>
-            </svg>{t('common.csv_data')}</button>
+            </svg>{t('common.csv_data')} · UTC</button>
         </div>
       )}
     </div>
