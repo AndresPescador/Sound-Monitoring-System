@@ -240,7 +240,7 @@ export default function Landing() {
           </figure>
         </section>
 
-        <div className="landing-metric-rail" data-reveal="rail" data-loop role="img" aria-label={t('landing.published_acoustic_metrics_leq_ild_correlation_l10_l50_l90')}>
+        <div className="landing-metric-rail" data-loop role="img" aria-label={t('landing.published_acoustic_metrics_leq_ild_correlation_l10_l50_l90')}>
           <div className="landing-metric-track" aria-hidden="true">
             {[...metricLabels(t), ...metricLabels(t)].map((label, index) => <span key={`${label}-${index}`}>{t(label)}</span>)}
           </div>
@@ -521,8 +521,19 @@ export default function Landing() {
           </span>
         </div>
         <div className="landing-footer__credit">
-          <p>{t('landing.research_project_of_multiad_and_giira_universidad_distrital')}</p>
-          <p>{t('landing.developed_by_carlos_andres_pescador_castro')}</p>
+          <img
+            className="landing-footer__institution-mark"
+            src="/assets/escudo-ud.png"
+            alt={t('landing.universidad_distrital_francisco_jose_de_caldas')}
+            width="1461"
+            height="1505"
+            loading="lazy"
+            decoding="async"
+          />
+          <div className="landing-footer__credit-copy">
+            <p>{t('landing.research_project_of_multiad_and_giira_universidad_distrital')}</p>
+            <p>{t('landing.developed_by_carlos_andres_pescador_castro')}</p>
+          </div>
         </div>
         <nav aria-label={t('landing.footer_links')}>
           <Link to={ROUTES.map2D}>{t('landing.2d_map')}</Link>

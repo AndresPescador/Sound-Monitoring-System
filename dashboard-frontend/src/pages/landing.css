@@ -14,6 +14,7 @@
   --landing-surface: #edf4ff;
   --landing-surface-alt: #dce9ff;
   --landing-card: #f2f7ff;
+  --landing-logo-surface: #ffffff;
   --landing-image-surface: #d8e4f2;
   --landing-dark-surface: #10223f;
   --landing-on-dark: #f8fbff;
@@ -949,7 +950,7 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
   place-items: center;
   padding: 1.5rem;
   border-bottom: 1px solid var(--landing-line);
-  background: #fff;
+  background: var(--landing-logo-surface);
 }
 
 .landing-research-card__logo {
@@ -1684,15 +1685,33 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
 }
 
 .landing-footer__credit {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.landing-footer__institution-mark {
+  box-sizing: border-box;
+  display: block;
+  width: 5.5rem;
+  height: 5.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--landing-line);
+  border-radius: 12px;
+  background: var(--landing-logo-surface);
+  object-fit: contain;
+}
+
+.landing-footer__credit-copy {
   display: grid;
   gap: 0.25rem;
 }
 
-.landing-footer__credit p {
+.landing-footer__credit-copy p {
   margin: 0;
   color: var(--landing-muted);
   font-size: 0.8rem;
-  text-align: center;
+  text-align: left;
 }
 
 .landing-footer nav {
@@ -2214,8 +2233,8 @@ html:has(.landing-page)::-webkit-scrollbar-thumb:hover {
     text-align: left;
   }
 
-  .landing-footer__credit p {
-    text-align: left;
+  .landing-footer__credit {
+    align-items: flex-start;
   }
 
   .landing-footer nav {

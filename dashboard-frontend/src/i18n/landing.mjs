@@ -102,6 +102,7 @@ export default {
     "select_bounded_time_ranges_filter_by_station_and_download": "Consulta intervalos acotados, filtra por estación y descarga mediciones en CSV desde el portal público.",
     "open_public_data": "Abrir datos públicos",
     "research_project_of_multiad_and_giira_universidad_distrital": "Proyecto de investigación de MULTIAD y GIIRA · Universidad Distrital Francisco José de Caldas.",
+    "universidad_distrital_francisco_jose_de_caldas": "Escudo de la Universidad Distrital Francisco José de Caldas",
     "developed_by_carlos_andres_pescador_castro": "Desarrollado por Carlos Andres Pescador Castro.",
     "footer_links": "Enlaces finales",
     "open_data": "Datos Abiertos"
@@ -208,6 +209,7 @@ export default {
     "select_bounded_time_ranges_filter_by_station_and_download": "Select bounded time ranges, filter by station and download measurements as CSV from the public portal.",
     "open_public_data": "Open public data",
     "research_project_of_multiad_and_giira_universidad_distrital": "Research project of MULTIAD and GIIRA · Universidad Distrital Francisco José de Caldas.",
+    "universidad_distrital_francisco_jose_de_caldas": "Coat of arms of Universidad Distrital Francisco José de Caldas",
     "developed_by_carlos_andres_pescador_castro": "Developed by Carlos Andres Pescador Castro.",
     "footer_links": "Footer links",
     "open_data": "Open Data"

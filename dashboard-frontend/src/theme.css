@@ -352,6 +352,7 @@ body {
   --landing-surface: rgb(var(--theme-surface-rgb));
   --landing-surface-alt: rgb(var(--theme-blue-soft-rgb));
   --landing-card: rgb(var(--theme-paper-rgb));
+  --landing-logo-surface: #e7eef8;
   --landing-image-surface: #203a60;
   --landing-dark-surface: #061021;
   --landing-on-dark: #f8fbff;
