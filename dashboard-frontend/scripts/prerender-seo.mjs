@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import path from 'node:path'
-import { absoluteUrl, routeSeo, siteUrl } from '../src/seo.mjs'
+import { absoluteUrl, routeSeo, routeStructuredData, siteUrl } from '../src/seo.mjs'
 
 const DIST_DIR = path.resolve('dist')
 const SNAPSHOT_PATH = path.resolve(process.env.SEO_SNAPSHOT_FILE || '.seo-snapshot/stations.json')
@@ -57,27 +57,6 @@ async function loadStations() {
   })
 }
 
-function jsonLd(metadata, pathname) {
-  const page = {
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: metadata.title,
-    description: metadata.description,
-    url: metadata.canonical,
-    isPartOf: { '@type': 'WebSite', name: metadata.siteName, url: absoluteUrl('/', SITE_URL) },
-  }
-  if (pathname === '/') {
-    return {
-      '@context': 'https://schema.org',
-      '@graph': [
-        { '@type': 'WebSite', name: metadata.siteName, url: metadata.canonical, inLanguage: 'es-CO' },
-        page,
-      ],
-    }
-  }
-  return page
-}
-
 function fallbackMarkup(metadata, station) {
   const locality = station?.locality ? `<p>Ubicada en ${escapeHtml(station.locality)}, Bogotá D.C.</p>` : ''
   return `<main id="main-content"><h1>${escapeHtml(metadata.heading)}</h1>${locality}<p>${escapeHtml(metadata.description)}</p><p><a href="/">Sistema de Monitoreo Acústico Binaural de Bogotá</a></p></main>`
@@ -94,7 +73,7 @@ function renderPage(template, pathname, station) {
     `<meta property="og:url" content="${escapeHtml(metadata.canonical)}">`,
     `<meta property="og:image" content="${escapeHtml(metadata.image)}">`,
     '<meta name="twitter:card" content="summary_large_image">',
-    `<script type="application/ld+json">${escapeJsonForHtml(jsonLd(metadata, pathname))}</script>`,
+    `<script type="application/ld+json">${escapeJsonForHtml(routeStructuredData(pathname, metadata, SITE_URL))}</script>`,
   ].join('\n    ')
 
   return template

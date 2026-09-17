@@ -2,7 +2,7 @@
 export default {
   "es": {
     "binaural_acoustic_monitoring_system_bogota_d_c": "Sistema de Monitoreo Acústico Binaural | Bogotá D.C.",
-    "binaural_acoustic_monitoring_system_for_exploring_bogota_s_soundscape": "Sistema de monitoreo acústico binaural para explorar el paisaje sonoro de Bogotá mediante mapas, métricas espaciales y datos abiertos.",
+    "binaural_acoustic_monitoring_system_for_exploring_bogota_s_soundscape": "Proyecto de investigación de la Universidad Distrital para explorar el paisaje sonoro de Bogotá mediante monitoreo acústico binaural, mapas y datos abiertos.",
     "bogota_2d_acoustic_map_acoustic_monitoring": "Mapa acústico 2D de Bogotá | Monitoreo Acústico",
     "explore_bogota_s_2d_acoustic_map_and_check_active": "Explora el mapa acústico 2D de Bogotá y consulta las estaciones activas de la red binaural.",
     "bogota_2d_acoustic_map": "Mapa acústico 2D de Bogotá",
@@ -23,7 +23,7 @@ export default {
   },
   "en": {
     "binaural_acoustic_monitoring_system_bogota_d_c": "Binaural Acoustic Monitoring System | Bogotá D.C.",
-    "binaural_acoustic_monitoring_system_for_exploring_bogota_s_soundscape": "Binaural acoustic monitoring system for exploring Bogotá's soundscape through maps, spatial metrics and open data.",
+    "binaural_acoustic_monitoring_system_for_exploring_bogota_s_soundscape": "Universidad Distrital research project for exploring Bogotá's soundscape through binaural acoustic monitoring, maps and open data.",
     "bogota_2d_acoustic_map_acoustic_monitoring": "Bogotá 2D acoustic map | Acoustic Monitoring",
     "explore_bogota_s_2d_acoustic_map_and_check_active": "Explore Bogotá's 2D acoustic map and check active stations in the binaural network.",
     "bogota_2d_acoustic_map": "Bogotá 2D acoustic map",

@@ -68,3 +68,8 @@ PRODUCT.md
 .impeccable/live/*.png
 # impeccable-ignore-end
 AGENTS.md
+api-testing/seed_local_synthetic.py
+api-testing/SYNTHETIC_DATA.md
+dashboard-frontend/PUBLIC_UX_VALIDATION.md
+dashboard-frontend/scripts/preview-public-ux.mjs
+dashboard-frontend/src/test/fixtures/publicUx.mjs

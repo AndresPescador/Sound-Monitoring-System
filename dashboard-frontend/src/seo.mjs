@@ -83,6 +83,84 @@ export function routeSeo(pathname, options = {}, t = defaultT) {
   }
 }
 
+export function routeStructuredData(pathname, metadata, configuredSiteUrl) {
+  const siteRoot = absoluteUrl('/', configuredSiteUrl)
+  const pageId = `${metadata.canonical}#webpage`
+  const websiteId = `${siteRoot}#website`
+  const page = {
+    '@type': 'WebPage',
+    '@id': pageId,
+    name: metadata.title,
+    description: metadata.description,
+    url: metadata.canonical,
+    isPartOf: { '@id': websiteId },
+  }
+
+  if (pathname !== '/') {
+    return { '@context': 'https://schema.org', ...page }
+  }
+
+  const projectId = `${siteRoot}#research-project`
+  const authorId = `${siteRoot}#author`
+  const multiadId = `${siteRoot}#multiad`
+  const giiraId = `${siteRoot}#giira`
+  const university = {
+    '@type': 'CollegeOrUniversity',
+    name: 'Universidad Distrital Francisco José de Caldas',
+    url: 'https://www.udistrital.edu.co/',
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': websiteId,
+        name: metadata.siteName,
+        url: siteRoot,
+        inLanguage: 'es-CO',
+      },
+      { ...page, mainEntity: { '@id': projectId } },
+      {
+        '@type': 'ResearchProject',
+        '@id': projectId,
+        name: metadata.siteName,
+        description: metadata.description,
+        url: siteRoot,
+        creator: { '@id': authorId },
+        parentOrganization: [{ '@id': multiadId }, { '@id': giiraId }],
+      },
+      {
+        '@type': 'Person',
+        '@id': authorId,
+        name: 'Carlos Andres Pescador Castro',
+        jobTitle: 'Autor y desarrollador del proyecto',
+        url: 'https://github.com/AndresPescador',
+        sameAs: ['https://github.com/AndresPescador'],
+        memberOf: [{ '@id': multiadId }, { '@id': giiraId }],
+      },
+      {
+        '@type': 'ResearchOrganization',
+        '@id': multiadId,
+        name: 'Grupo de Investigación en Multimedia Interactiva y Animación Digital',
+        alternateName: 'MULTIAD',
+        url: 'https://pi.udistrital.edu.co/Multimedia-Interactiva-Animacion-Digital/',
+        logo: absoluteUrl('/assets/logo-multiad.png', configuredSiteUrl),
+        parentOrganization: university,
+      },
+      {
+        '@type': 'ResearchOrganization',
+        '@id': giiraId,
+        name: 'Grupo de Investigación en Gestión e Investigación en Informática, Redes y Afines',
+        alternateName: 'GIIRA',
+        url: 'https://pi.udistrital.edu.co/GIIRA/',
+        logo: absoluteUrl('/assets/logo-giira.png', configuredSiteUrl),
+        parentOrganization: university,
+      },
+    ],
+  }
+}
+
 function setMeta(selector, attributes, content) {
   let element = document.head.querySelector(selector)
   if (!element) {

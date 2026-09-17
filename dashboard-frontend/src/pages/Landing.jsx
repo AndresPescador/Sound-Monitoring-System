@@ -72,6 +72,15 @@ function scrollToLandingSection(sectionId, behavior = 'smooth', updateHash = tru
     }
   }
 
+  if (sectionId === 'investigacion') {
+    const researchHeading = document.querySelector('.landing-research__heading')
+
+    if (researchHeading) {
+      const researchFrameGap = 52
+      targetTop = getLandingDocumentTop(researchHeading) - headerHeight - researchFrameGap
+    }
+  }
+
   if (sectionId === 'inicio') {
     const metricRail = document.querySelector('.landing-metric-rail')
     const metricRailRect = metricRail?.getBoundingClientRect()
@@ -87,7 +96,8 @@ function scrollToLandingSection(sectionId, behavior = 'smooth', updateHash = tru
     const stationMedia = document.querySelector('.landing-field-media')
 
     if (stationMedia) {
-      targetTop = getLandingDocumentTop(stationMedia) - headerHeight
+      const stationFrameGap = 28
+      targetTop = getLandingDocumentTop(stationMedia) - headerHeight - stationFrameGap
     }
   }
 
@@ -177,6 +187,7 @@ export default function Landing() {
           <a href="#inicio" onClick={(event) => handleSectionNavigation(event, 'inicio')}>{t('landing.home')}</a>
           <a href="#mapas" onClick={(event) => handleSectionNavigation(event, 'mapas')}>{t('landing.maps')}</a>
           <a href="#proyecto" onClick={(event) => handleSectionNavigation(event, 'proyecto')}>{t('landing.project')}</a>
+          <a href="#investigacion" onClick={(event) => handleSectionNavigation(event, 'investigacion')}>{t('landing.research')}</a>
           <a href="#estacion-real" onClick={(event) => handleSectionNavigation(event, 'estacion-real')}>{t('admin.station_2')}</a>
           <a href="#sistema" onClick={(event) => handleSectionNavigation(event, 'sistema')}>{t('landing.system')}</a>
           <a href="#binaural" onClick={(event) => handleSectionNavigation(event, 'binaural')}>Binaural</a>
@@ -273,6 +284,87 @@ export default function Landing() {
               <p>{t('landing.measurements_are_aggregated_hourly_and_delivered_to_maps_comparison')}</p>
             </article>
           </div>
+        </section>
+
+        <section className="landing-research" id="investigacion" aria-labelledby="research-title">
+          <div className="landing-section-heading landing-research__heading" data-reveal="copy">
+            <h2 id="research-title">{t('landing.research_and_authorship')}</h2>
+            <p>{t('landing.this_research_project_was_developed_within_the_multiad_and_giira')}</p>
+          </div>
+
+          <div className="landing-research__groups" data-reveal="sequence">
+            <article className="landing-research-card">
+              <div className="landing-research-card__logo-stage">
+                <img
+                  className="landing-research-card__logo landing-research-card__logo--multiad"
+                  src="/assets/logo-multiad.png"
+                  alt=""
+                  aria-hidden="true"
+                  width="261"
+                  height="223"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+              <div className="landing-research-card__body">
+                <p className="landing-research-card__eyebrow">MULTIAD</p>
+                <h3>{t('landing.multiad_full_name')}</h3>
+                <p>{t('landing.multiad_description')}</p>
+                <a
+                  className="landing-button landing-button--light"
+                  href="https://pi.udistrital.edu.co/Multimedia-Interactiva-Animacion-Digital/"
+                >
+                  {t('landing.learn_about_multiad')}
+                </a>
+              </div>
+            </article>
+
+            <article className="landing-research-card">
+              <div className="landing-research-card__logo-stage">
+                <img
+                  className="landing-research-card__logo landing-research-card__logo--giira"
+                  src="/assets/logo-giira.png"
+                  alt=""
+                  aria-hidden="true"
+                  width="1076"
+                  height="760"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+              <div className="landing-research-card__body">
+                <p className="landing-research-card__eyebrow">GIIRA</p>
+                <h3>{t('landing.giira_full_name')}</h3>
+                <p>{t('landing.giira_description')}</p>
+                <a className="landing-button landing-button--light" href="https://pi.udistrital.edu.co/GIIRA/">
+                  {t('landing.learn_about_giira')}
+                </a>
+              </div>
+            </article>
+          </div>
+
+          <article className="landing-author" data-reveal="copy">
+            <div>
+              <p className="landing-author__eyebrow">{t('landing.authorship_and_development')}</p>
+              <h3>Carlos Andres Pescador Castro</h3>
+            </div>
+            <div className="landing-author__details">
+              <p className="landing-author__role">{t('landing.project_author_and_developer_systems_engineering')}</p>
+              <p>{t('landing.member_of_multiad_and_giira_responsible_for_the_systems_end_to_end_development')}</p>
+              <div className="landing-author__links">
+                <a
+                  className="landing-button landing-button--light landing-author__github-button"
+                  href="https://github.com/AndresPescador"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.05c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.74.08-.74 1.2.09 1.84 1.23 1.84 1.23 1.07 1.83 2.8 1.3 3.48.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.38 1.23-3.22-.12-.3-.53-1.52.12-3.17 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.3-1.55 3.3-1.23 3.3-1.23.65 1.65.24 2.87.12 3.17.77.84 1.23 1.91 1.23 3.22 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.57A12 12 0 0 0 12 .5Z" />
+                  </svg>
+                  <span>GitHub</span>
+                </a>
+                <a href="mailto:capescadorc@udistrital.edu.co">capescadorc@udistrital.edu.co</a>
+              </div>
+            </div>
+          </article>
         </section>
 
         <section className="landing-field" aria-labelledby="field-title">
@@ -428,7 +520,10 @@ export default function Landing() {
             <small>Bogotá D.C.</small>
           </span>
         </div>
-        <p>{t('landing.environmental_monitoring_project_with_binaural_capture_and_open_data')}</p>
+        <div className="landing-footer__credit">
+          <p>{t('landing.research_project_of_multiad_and_giira_universidad_distrital')}</p>
+          <p>{t('landing.developed_by_carlos_andres_pescador_castro')}</p>
+        </div>
         <nav aria-label={t('landing.footer_links')}>
           <Link to={ROUTES.map2D}>{t('landing.2d_map')}</Link>
           <Link to={ROUTES.map3D}>{t('landing.3d_map')}</Link>
