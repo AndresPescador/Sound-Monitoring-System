@@ -2,7 +2,6 @@ import { defaultT, message as localizedMessage } from '../../i18n/core.mjs'
 import { useLanguage } from '../../context/LanguageContext'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { subHours } from 'date-fns'
 import { getStationSummary } from '../../api/stations'
 import { getMeasurements, getBinaural, getSpectral } from '../../api/measurements'
 import { getHourly, getDailyProfile } from '../../api/aggregations'
@@ -22,6 +21,7 @@ import ILDChart from '../charts/ILDChart'
 import { AUTO_FOCUS_THRESHOLD, getCoverageRatio } from '../charts/timeAxis'
 import { getMetricDescription } from '../shared/metricDescriptions'
 import { useChartDownload } from '../../hooks/useChartDownload'
+import { buildPresetRange, DEFAULT_RANGE_HOURS } from '../shared/dateRangeUtils'
 
 const DETAIL_CACHE_LIMIT = 20
 const detailCache = new Map()
@@ -101,7 +101,7 @@ export default function Map3DStationDetail() {
   const [summary, setSummary] = useState(contextSummary)
   const [summaryLoading, setSummaryLoading] = useState(!contextSummary)
   const [activeTab, setActiveTab] = useState('summary')
-  const [range, setRange] = useState({ from: subHours(new Date(), 24).toISOString(), to: new Date().toISOString() })
+  const [range, setRange] = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
   const [profileDate, setProfileDate] = useState(() => bogotaDate(new Date().toISOString()))
   const [metric, setMetric] = useState('leq_dbfs')
   const [axisMode, setAxisMode] = useState('auto')

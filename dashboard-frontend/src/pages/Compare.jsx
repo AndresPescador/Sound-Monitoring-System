@@ -160,7 +160,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
   // ── Sección 1: comparación por localidades ──
   const [localityMetric,     setLocalityMetric]     = useState('leq_hour')
   const [localityRange,      setLocalityRange]      = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
-  const [localityPreset,     setLocalityPreset]     = useState('24h')
+  const [localityPreset,     setLocalityPreset]     = useState('6h')
   const [localityRangeState, setLocalityRangeState] = useState({ historical: false, anchorTimestamp: null })
   const [localitySeries,     setLocalitySeries]     = useState([])
   const [loadingLocality,    setLoadingLocality]    = useState(true)
@@ -170,7 +170,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
   // ── Sección 2: comparación por estaciones ──
   const [stationMetric,    setStationMetric]    = useState('leq_dbfs')
   const [stationRange,     setStationRange]     = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
-  const [stationPreset,    setStationPreset]    = useState('24h')
+  const [stationPreset,    setStationPreset]    = useState('6h')
   const [stationRangeState, setStationRangeState] = useState({ historical: false, anchorTimestamp: null })
   const [stationSeries,    setStationSeries]    = useState([])
   const [loadingStation,   setLoadingStation]   = useState(true)
@@ -541,7 +541,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
             latestTimestamp={localityLatestTimestamp}
             onReturnToCurrent={() => {
               setLocalityRange(buildPresetRange(DEFAULT_RANGE_HOURS))
-              setLocalityPreset('24h')
+              setLocalityPreset('6h')
               setLocalityRangeState({ historical: false, anchorTimestamp: null })
             }}
           />
@@ -633,7 +633,7 @@ export default function Compare({ onStationSelectionChange } = {}) {
             latestTimestamp={stationLatestTimestamp}
             onReturnToCurrent={() => {
               setStationRange(buildPresetRange(DEFAULT_RANGE_HOURS))
-              setStationPreset('24h')
+              setStationPreset('6h')
               setStationRangeState({ historical: false, anchorTimestamp: null })
             }}
           />

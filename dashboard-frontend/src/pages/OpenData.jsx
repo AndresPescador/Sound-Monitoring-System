@@ -231,7 +231,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [range,      setRange]      = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
-  const [rangePreset, setRangePreset] = useState('24h')
+  const [rangePreset, setRangePreset] = useState('6h')
   const [rangeState, setRangeState] = useState({ initialized: false, historical: false, anchorTimestamp: null })
 
   useEffect(() => {
@@ -250,7 +250,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
     let active = true
     setSummary(null)
     setRangeState({ initialized: false, historical: false, anchorTimestamp: null })
-    setRangePreset('24h')
+    setRangePreset('6h')
     setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
 
     getStationSummary(station)
@@ -409,7 +409,7 @@ export default function OpenData({ onStationChange, embedded3D = false } = {}) {
           latestTimestamp={summary?.latest_recorded_at}
           onReturnToCurrent={() => {
             setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
-            setRangePreset('24h')
+            setRangePreset('6h')
             setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
           }}
         />

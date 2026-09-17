@@ -2,7 +2,6 @@ import { defaultT } from '../i18n/core.mjs'
 import { useLanguage } from '../context/LanguageContext'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate }    from 'react-router-dom'
-import { subHours }            from 'date-fns'
 import { getStationSummary, getStations }   from '../api/stations'
 import { getMeasurements, getBinaural, getSpectral } from '../api/measurements'
 import { getHourly, getDailyProfile } from '../api/aggregations'
@@ -115,11 +114,8 @@ export default function StationDetail() {
   const [loadingMetric, setLoadingMetric] = useState(false)
   const [metric,        setMetric]        = useState('leq_dbfs')
   const [axisMode,      setAxisMode]      = useState('auto')
-  const [range,         setRange]         = useState({
-    from: subHours(new Date(), 24).toISOString(),
-    to:   new Date().toISOString(),
-  })
-  const [rangePreset, setRangePreset] = useState('24h')
+  const [range,         setRange]         = useState(() => buildPresetRange(DEFAULT_RANGE_HOURS))
+  const [rangePreset, setRangePreset] = useState('6h')
   const [rangeState, setRangeState] = useState({ initialized: false, historical: false, anchorTimestamp: null })
   const [profileDate, setProfileDate] = useState(() => bogotaDate(new Date().toISOString()))
   const binauralSectionRef = useRef(null)
@@ -136,7 +132,7 @@ export default function StationDetail() {
   useEffect(() => {
     setSummary(null)
     setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
-    setRangePreset('24h')
+    setRangePreset('6h')
     setRangeState({ initialized: false, historical: false, anchorTimestamp: null })
     getStationSummary(code)
       .then(r => {
@@ -390,7 +386,7 @@ export default function StationDetail() {
           latestTimestamp={summary?.latest_recorded_at}
           onReturnToCurrent={() => {
             setRange(buildPresetRange(DEFAULT_RANGE_HOURS))
-            setRangePreset('24h')
+            setRangePreset('6h')
             setRangeState({ initialized: true, historical: false, anchorTimestamp: null })
           }}
         />

@@ -19,7 +19,7 @@ const MAX_PUBLIC_RANGE_MS = 31 * 24 * 60 * 60 * 1000
 export default function DateRangePicker({
   onChange,
   value,
-  preset = '24h',
+  preset = '6h',
   anchorTimestamp = null,
   isHistoricalRange = false,
   className = '',

@@ -1,7 +1,7 @@
 import { defaultT } from '../../i18n/core.mjs'
 import { format, isValid, subHours } from 'date-fns'
 
-export const DEFAULT_RANGE_HOURS = 24
+export const DEFAULT_RANGE_HOURS = 6
 
 function toDate(value) {
   const date = value instanceof Date ? new Date(value) : new Date(value ?? '')
